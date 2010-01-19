@@ -1,7 +1,8 @@
+;; cl-icalendar.lisp
 ;;
-;; cl-icalendar.lisp ---
+;; Copyrigth (C) 2010 Mario Castelán Castro
 ;;
-;; Copyright (C) 2009 David Vazquez
+;; Primera versión por David Vazquez, 2009.
 ;;
 ;; This program is free software: you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -15,10 +16,6 @@
 ;;
 ;; You should have received a copy of the GNU General Public License
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
-;; 
-
-;;; FIXME: Perdón si en algún punto el código no está
-;;;        suficientemente comentado.
 
 (defpackage :cl-icalendar
   (:nicknames :icalendar)
@@ -29,6 +26,10 @@
 (in-package :cl-icalendar)
 
 ;;; Utilities
+
+(defmacro aif (condition then &optional else)
+  `(let ((it ,condition))
+     (if it ,then ,else)))
 
 (defmacro zerof (place)
   `(setf ,place 0))
@@ -52,6 +53,26 @@
          ,@code)
        (cdr ,collected))))
 
+(defmacro case* (keyform comparator &body cases)
+  (with-gensyms (keyform-sym)
+    `(let ((,keyform-sym ,keyform))
+       (cond
+	 ,@(loop for i in cases
+		 collect (if (eq (car i) t)
+			     (cons t (cdr i))
+			     `((,comparator ,keyform-sym ,(car i)) ,@(cdr i))))))))
+
+(defun strip (list func)
+  (with-collecting
+    (dolist (i list)
+      (if (apply func (list i))
+	  (return)
+	  (collect i)))))
+
+(defun strip-to-item (list item &key (comparator 'eql))
+  "Delete from the end to the list to the specified item"
+  (strip list (lambda (x)
+		(apply comparator (list item x)))))
 
 ;;; Wrapped character streams
 
@@ -212,6 +233,14 @@
   params
   value)
 
+(defstruct date
+  year
+  month
+  day
+  hour
+  minute
+  second)
+
 (defun read-until (stream char-bag &key (not-expect ""))
   (with-output-to-string (out)
     (loop for ch = (peek-char nil stream)
@@ -249,5 +278,117 @@
    :params (read-params stream)
    :value (read-line stream)))
 
+(defun parse-date (string &optional (date (make-date)) &key (offset 0))
+  (flet ((~ (x) (+ offset x)))
+    (setf 
+     (date-year date) (parse-integer string :start (~ 0) :end (~ 4))
+     (date-month date) (parse-integer string :start (~ 4) :end (~ 6))
+     (date-day date) (parse-integer (subseq string 6 8))))
+  date)
+
+(defun parse-time (string &optional (date (make-date)) &key (offset 0))
+  (flet ((~ (x) (+ offset x)))
+    (setf 
+     (date-hour date) (parse-integer string :start (~ 0) :end (~ 2))
+     (date-minute date) (parse-integer string :start (~ 2) :end (~ 4))
+     (date-second date) (parse-integer string :start (~ 4) :end (~ 8))))
+  date)
+
+;;; Generación del árbol sintáctico
+
+(defstruct icalendar-block
+  name
+  items)
+
+(defun read-block (stream)
+  (let ((block-name)
+	(items))
+    (let ((begin-content-line (read-content-line stream)))
+      (if (equal (content-line-name begin-content-line) "BEGIN")
+	  (setf block-name (content-line-value begin-content-line))))
+    (setf items
+	  (with-collecting
+	    (loop for tmp = (read-content-line stream)
+		  do (case* (content-line-name tmp) equal
+		       ("BEGIN" (collect (read-block stream)))
+		       ("END" (return))
+		       (t (collect tmp))))))
+    (make-icalendar-block :name block-name
+			  :items items)))
+
+(defun search-content-line (tree name)
+  "return the first content line with a given name in a sintactic
+tree"
+  (loop for i in (icalendar-block-items tree)
+	if (string= (content-line-name i) name)
+	do (return i)))
+
+(defun search-content-lines (tree name)
+  "return all content lines with a given name"
+  (with-collecting 
+    (dolist (i (icalendar-block-items tree))
+      (if (string= (content-line-name i) name)
+	  (collect i)))))
+
+(defun search-content-line-value (tree name)
+  "return the value of the first content line with a given name in a
+sintactic tree"
+  (aif (search-content-line tree name)
+       (content-line-value it)))
+
+;; Components (V*)
+(defmacro defcomponent (component props-list)
+  (labels ((modifier-p (x)
+	     (char= (elt (symbol-name x) 0) #\&))
+	   (select (modifier)
+	     (strip (cdr (member modifier props-list))
+		    #'modifier-p)))
+          
+    (let* ((required (select '&required))
+	   ;; may appear any times, including 0
+	   (optional-multi (select '&optional-multi))
+	   ;; may appear at most one time
+	   (optional-once (select '&optinal-once))
+	   (props (append required optional-multi optional-once)))
+
+      `(progn
+	 (defclass ,component ()
+	   ,(loop for i in props
+		  collect (list i :accessor i :initform nil)))
+	 
+	 (defmethod prop-category ((self ,component) prop)
+	   (declare (type string prop))
+	   (cond
+	     ((find prop ',(mapcar #'symbol-name required) :test #'string=) 'required)
+	     ((find prop ',(mapcar #'symbol-name optional-multi) :test #'string=) 'optional-multi)
+	     ((find prop ',(mapcar #'symbol-name optional-once) :test #'string=) 'optional-once)))
+	 
+	 (defmethod build ((self ,component) tree)
+	   (let ((finded-items))
+	     (dolist (i (icalendar-block-items tree))
+	       (case (type-of i)
+		 (content-line
+		  (let* ((name (content-line-name i))
+			 (name-symbol (intern name))
+			 (value (content-line-value i)))
+		    (print name)
+		    (case (prop-category self (print name))
+		      (required
+		       (if (find name finded-items)
+			   (error "Item required once, appears twice")
+			   (progn
+			     (write-line (format nil "~a -> ~a" name-symbol value))
+			     (setf (slot-value self name-symbol) value))))
+		      (optional-multi
+		       (push value (slot-value self name-symbol)))
+		      (optional-once
+		       (if (find name finded-items)
+			   (error "Optional item appear twice")
+			   (setf (slot-value self name-symbol) value)))
+		      (t
+					;(error "Unexpected property")
+		       ))
+		    (push name finded-items)))
+		 (icalendar-block #| Pending |#)))))))))
 
 ;; cl-icalendar.lisp ends here
