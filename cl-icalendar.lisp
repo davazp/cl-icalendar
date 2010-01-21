@@ -62,6 +62,9 @@
 			     (cons t (cdr i))
 			     `((,comparator ,keyform-sym ,(car i)) ,@(cdr i))))))))
 
+(defmacro unimp (feature)
+  `(error "~a is not implemented yet." ,feature))
+
 (defun strip (list func)
   (with-collecting
     (dolist (i list)
@@ -353,8 +356,7 @@ sintactic tree"
 
       `(progn
 	 (defclass ,component ()
-	   ,(loop for i in props
-		  collect (list i :accessor i :initform nil)))
+	   ((properties :initform (make-hash-table :test #'equal :size 10))))
 	 
 	 (defmethod prop-category ((self ,component) prop)
 	   (declare (type string prop))
@@ -364,31 +366,26 @@ sintactic tree"
 	     ((find prop ',(mapcar #'symbol-name optional-once) :test #'string=) 'optional-once)))
 	 
 	 (defmethod build ((self ,component) tree)
-	   (let ((finded-items))
-	     (dolist (i (icalendar-block-items tree))
-	       (case (type-of i)
-		 (content-line
-		  (let* ((name (content-line-name i))
-			 (name-symbol (intern name))
-			 (value (content-line-value i)))
-		    (print name)
-		    (case (prop-category self (print name))
-		      (required
-		       (if (find name finded-items)
-			   (error "Item required once, appears twice")
-			   (progn
-			     (write-line (format nil "~a -> ~a" name-symbol value))
-			     (setf (slot-value self name-symbol) value))))
-		      (optional-multi
-		       (push value (slot-value self name-symbol)))
-		      (optional-once
-		       (if (find name finded-items)
-			   (error "Optional item appear twice")
-			   (setf (slot-value self name-symbol) value)))
-		      (t
-					;(error "Unexpected property")
-		       ))
-		    (push name finded-items)))
-		 (icalendar-block #| Pending |#)))))))))
+	   (dolist (i (icalendar-block-items tree))
+	     (case (type-of i)
+	       (content-line
+		(print "asdasdf")
+		(let* ((name (content-line-name i))
+		       (value (content-line-value i))
+		       (category (prop-category self name)))
+		  (case category
+		    ((required optional-once)
+		     (if (gethash name (slot-value self 'properties))
+			 (error "Property ~a, type ~a appears twice" name category)
+			 (push value (gethash name (slot-value self 'properties)))))
+		    ((optional-multi)
+		     (push value (gethash name (slot-value self 'properties))))
+		    (nil
+		     (error "Strange propertiy: ~a" name)))))
+	       (icalendar-block		;(unimp "Recursive parsing")
+		)
+	       (t (unimp "???")))))))))
+
+(defcomponent vcal (&required version))
 
 ;; cl-icalendar.lisp ends here
