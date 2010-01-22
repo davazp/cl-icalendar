@@ -340,7 +340,7 @@ sintactic tree"
        (content-line-value it)))
 
 ;; Components (V*)
-(defmacro defcomponent (component props-list)
+(defmacro defcomponent (component props-list &key (recursive-parsing t))
   (labels ((modifier-p (x)
 	     (char= (elt (symbol-name x) 0) #\&))
 	   (select (modifier)
@@ -357,34 +357,42 @@ sintactic tree"
       `(progn
 	 (defclass ,component ()
 	   ((properties :initform (make-hash-table :test #'equal :size 10))))
-	 
+ 
 	 (defmethod prop-category ((self ,component) prop)
 	   (declare (type string prop))
 	   (cond
 	     ((find prop ',(mapcar #'symbol-name required) :test #'string=) 'required)
 	     ((find prop ',(mapcar #'symbol-name optional-multi) :test #'string=) 'optional-multi)
 	     ((find prop ',(mapcar #'symbol-name optional-once) :test #'string=) 'optional-once)))
-	 
+
+	 (defmethod parse-content-line ((self ,component) i)
+	   (let* ((name (content-line-name i))
+		  (value (content-line-value i))
+		  (category (prop-category self name)))
+	     (case category
+	       ((required optional-once)
+		(if (gethash name (slot-value self 'properties))
+		    (error "Property ~a, type ~a appears twice" name category)
+		    (push value (gethash name (slot-value self 'properties)))))
+	       ((optional-multi)
+		(push value (gethash name (slot-value self 'properties))))
+	       (nil
+		(parse-strange-content-line (self i))))))
+
+	 (defmethod parse-strange-content-line ((self, component) prop)
+	   "Method meant to be overwritted if there is some special
+property expected"
+	   (error "Strange propertiy: ~a" name))
+	 	 
 	 (defmethod build ((self ,component) tree)
 	   (dolist (i (icalendar-block-items tree))
 	     (case (type-of i)
 	       (content-line
-		(print "asdasdf")
-		(let* ((name (content-line-name i))
-		       (value (content-line-value i))
-		       (category (prop-category self name)))
-		  (case category
-		    ((required optional-once)
-		     (if (gethash name (slot-value self 'properties))
-			 (error "Property ~a, type ~a appears twice" name category)
-			 (push value (gethash name (slot-value self 'properties)))))
-		    ((optional-multi)
-		     (push value (gethash name (slot-value self 'properties))))
-		    (nil
-		     (error "Strange propertiy: ~a" name)))))
-	       (icalendar-block		;(unimp "Recursive parsing")
-		)
-	       (t (unimp "???")))))))))
+		(parse-content-line self i))
+	       (icalendar-block
+		(when recursive-parsing) ;(unimp "Recursive parsing")
+		:TODO)
+	       (error "Tree item is not a valid type: ~a" (type-of i)))))))))
 
 (defcomponent vcal (&required version))
 
