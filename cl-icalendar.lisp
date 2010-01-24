@@ -309,9 +309,10 @@ the full block, else only that content line"
     (if (string= (content-line-name first-line) "BEGIN")
 	(make-icalendar-block
 	 :name (content-line-value first-line)
-	 :items (loop for line = (read-content-line stream)
-		      until (string= (content-line-name line) "END")
-		      collect line))
+	 :items (loop for item = (read-item stream)
+		      until (and (content-line-p item)
+				 (string= (content-line-name item) "END"))
+		      collect item))
 	first-line)))
 
 (defun search-content-line (tree name)
@@ -335,7 +336,7 @@ sintactic tree"
        (content-line-value it)))
 
 ;; Components (V*)
-(defmacro defcomponent (component props-list &key (recursive-parsing t))
+(defmacro defcomponent (component props-list)
   (labels ((modifier-p (x)
 	     (char= (elt (symbol-name x) 0) #\&))
 	   (select (modifier)
@@ -352,7 +353,7 @@ sintactic tree"
       `(progn
 	 (defclass ,component ()
 	   ((properties :initform (make-hash-table :test #'equal :size 10))
-	    (branches)))
+	    (branches :initform nil)))
  
 	 (defmethod prop-category ((self ,component) prop)
 	   (declare (type string prop))
@@ -380,14 +381,21 @@ sintactic tree"
 property expected"
 	   (error "Strange propertiy: ~a" name))
 	 	 
-	 (defmethod build ((self ,component) tree)
+	 (defmethod build ((self ,component) tree &key (recursive-parsing t))
 	   (dolist (i (icalendar-block-items tree))
 	     (case (type-of i)
 	       (content-line
 		(parse-content-line self i))
 	       (icalendar-block
-		(when ,recursive-parsing
-		  :TODO))
+		(when recursive-parsing
+		  (push (build-component i) (slot-value self 'branches))))
 	       (error "Tree item is not a valid type: ~a" (type-of i)))))))))
+
+(defun build-component (tree)
+  (declare (type icalendar-block tree))
+  (let* ((component-name (icalendar-block-name tree))
+	 (component (make-instance (intern component-name))))
+    (build component tree)
+    component))
 
 ;; cl-icalendar.lisp ends here
