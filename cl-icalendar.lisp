@@ -269,8 +269,7 @@
 
 (defun read-params (stream)
   (with-collecting
-    (while (char= (peek-char nil stream) #\;)
-      (read-char stream)
+    (while (char= (read-char nil stream) #\;)
       (let ((name (read-until stream "=" :not-expect #(#\Newline #\: #\;))))
         (read-char)
         (collect (cons name (read-params-values stream)))))))
