@@ -2,7 +2,7 @@
 ;;
 ;; Copyrigth (C) 2010 Mario Castelán Castro
 ;;
-;; Primera versión por David Vazquez, 2009.
+;; Fist version wrote by David Vazquez, 2009.
 ;;
 ;; This program is free software: you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -303,21 +303,17 @@
   name
   items)
 
-(defun read-block (stream)
-  (let ((block-name)
-	(items))
-    (let ((begin-content-line (read-content-line stream)))
-      (if (equal (content-line-name begin-content-line) "BEGIN")
-	  (setf block-name (content-line-value begin-content-line))))
-    (setf items
-	  (with-collecting
-	    (loop for tmp = (read-content-line stream)
-		  do (case* (content-line-name tmp) equal
-		       ("BEGIN" (collect (read-block stream)))
-		       ("END" (return))
-		       (t (collect tmp))))))
-    (make-icalendar-block :name block-name
-			  :items items)))
+(defun read-item (stream)
+  "Read a content line, if it is a block (BEGIN:...) read and return
+the full block, else only that content line"
+  (let ((first-line (read-content-line stream)))
+    (if (string= (content-line-name first-line) "BEGIN")
+	(make-icalendar-block
+	 :name (content-line-value first-line)
+	 :items (loop for line = (read-content-line stream)
+		      until (string= (content-line-name line) "END")
+		      collect line))
+	first-line)))
 
 (defun search-content-line (tree name)
   "return the first content line with a given name in a sintactic
@@ -356,7 +352,8 @@ sintactic tree"
 
       `(progn
 	 (defclass ,component ()
-	   ((properties :initform (make-hash-table :test #'equal :size 10))))
+	   ((properties :initform (make-hash-table :test #'equal :size 10))
+	    (branches)))
  
 	 (defmethod prop-category ((self ,component) prop)
 	   (declare (type string prop))
@@ -390,10 +387,8 @@ property expected"
 	       (content-line
 		(parse-content-line self i))
 	       (icalendar-block
-		(when recursive-parsing) ;(unimp "Recursive parsing")
-		:TODO)
+		(when ,recursive-parsing
+		  :TODO))
 	       (error "Tree item is not a valid type: ~a" (type-of i)))))))))
-
-(defcomponent vcal (&required version))
 
 ;; cl-icalendar.lisp ends here
