@@ -378,7 +378,8 @@ sintactic tree"
 
 	 (defmethod parse-strange-content-line ((self, component) prop)
 	   "Method meant to be overwritted if there is some special
-property expected"
+property expected that &required, &optional-multi or &optional-once
+don't cover."
 	   (error "Strange propertiy: ~a" name))
 	 	 
 	 (defmethod build ((self ,component) tree &key (recursive-parsing t))
