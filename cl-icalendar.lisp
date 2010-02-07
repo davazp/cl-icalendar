@@ -1,15 +1,19 @@
 ;; cl-icalendar.lisp
 ;;
-;; Copyrigth (C) 2010 Mario Castelán Castro
+;; Copyrigth (C) 2009, 2010 Mario Castelán Castro <marioxcc>
 ;;
-;; Fist version wrote by David Vazquez, 2009.
+;; Fist version (2009) wrote by David Vazquez <davazp> who not claim
+;; Copyright.
 ;;
-;; This program is free software: you can redistribute it and/or modify
+;; This file is part of cl-icalendar and incorporates some functions
+;; from lbot by marioxcc.
+;;
+;; cl-icalendar is free software: you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
 ;; the Free Software Foundation, either version 3 of the License, or
 ;; (at your option) any later version.
 ;;
-;; This program is distributed in the hope that it will be useful,
+;; cl-icalendar is distributed in the hope that it will be useful,
 ;; but WITHOUT ANY WARRANTY; without even the implied warranty of
 ;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ;; GNU General Public License for more details.
@@ -26,6 +30,11 @@
 (in-package :cl-icalendar)
 
 ;;; Utilities
+
+(defun true (&rest x)
+  (declare (ignore x))
+  "Always returns true"
+  t)
 
 (defmacro aif (condition then &optional else)
   `(let ((it ,condition))
@@ -53,6 +62,17 @@
          ,@code)
        (cdr ,collected))))
 
+(defmacro defcomparator (name (a b) &body body)
+  (with-gensyms (argsvar)
+    `(defun ,name (&rest ,argsvar)
+       (loop for i on ,argsvar
+	     do (if (null (cdr i))
+		    (return t)
+		    (let ((,a (first i))
+			  (,b (second i)))
+		      (if (not (progn ,@body))
+			  (return nil))))))))
+
 (defmacro case* (keyform comparator &body cases)
   (with-gensyms (keyform-sym)
     `(let ((,keyform-sym ,keyform))
@@ -76,6 +96,73 @@
   "Delete from the end to the list to the specified item"
   (strip list (lambda (x)
 		(apply comparator (list item x)))))
+
+(defstruct date
+  year
+  month
+  day
+  hourp
+  minute
+  second)
+
+(defun build-date (year month day hour minute second)
+  (make-date :year year
+	     :month month
+	     :day day
+	     :hour hour
+	     :minute minute
+	     :second second))
+
+(defun decompose-date (x)
+  (list (date-year x)
+	(date-month x)
+	(date-day x)
+	(date-hour x)
+	(date-minute x)
+	(date-second x)))
+
+;; TODO: Make this functions works with any number of arguments
+(defcomparator date= (a b)
+  (and (= (date-year a) (date-year b))
+       (= (date-month a) (date-month b))
+       (= (date-day a) (date-day b))
+       (= (date-hour a) (date-hour b))
+       (= (date-minute a) (date-minute b))
+       (= (date-second a) (date-second b))))
+
+(defcomparator date< (a b)
+  (loop for i in (decompose-date a)
+	for j in (decompose-date b)
+	do (cond
+	     ((< i j) (return t))
+	     ((> i j) (return nil)))))
+
+(defcomparator date> (a b)
+  (loop for i in (decompose-date a)
+	for j in (decompose-date b)
+	do (cond
+	     ((> i j) (return t))
+	     ((< i j) (return nil)))))
+
+(defcomparator date<= (a b)
+  (or (date= a b)
+      (date< a b)))
+
+(defcomparator date>= (a b)
+  (or (date= a b)
+      (date> a b)))
+
+(defun date+ (&rest args)
+  (reduce (lambda (x y)
+	    (let ((*x (decompose-date x))
+		  (*y (decompose-date y))
+		  (carry 0))
+	      (mapcar (lambda (x y mod)
+			(let ((sum (+ x y)))
+			  ))
+		      *x
+		      *y
+		      '())))))
 
 ;;; Wrapped character streams
 
@@ -255,9 +342,9 @@
 
 (defun read-params-value (stream)
   (if (char= (peek-char nil stream) #\")
-      (prog2 (read-char)
+      (prog2 (read-char stream)
           (read-until stream "#\"" :not-expect (vector +return-character+))
-        (read-char))
+        (read-char stream))
       (read-until stream ",;:" :not-expect #(#\Newline))))
 
 (defun read-params-values (stream)
@@ -269,9 +356,9 @@
 
 (defun read-params (stream)
   (with-collecting
-    (while (char= (read-char nil stream) #\;)
+    (while (char= (read-char stream) #\;)
       (let ((name (read-until stream "=" :not-expect #(#\Newline #\: #\;))))
-        (read-char)
+        (read-char stream)
         (collect (cons name (read-params-values stream)))))))
 
 (defun read-content-line (stream)
@@ -335,62 +422,75 @@ sintactic tree"
   (aif (search-content-line tree name)
        (content-line-value it)))
 
-;; Components (V*)
-(defmacro defcomponent (component props-list)
+;; Composition of the sintactic tree in components
+
+(defclass component ()
+  ((props-required)
+   (props-optional-muti)
+   (props-optional-once)
+   (properties :initform (make-hash-table :test #'equal :size 16))
+   (branches :initform nil)))
+
+(defmethod prop-category ((self component) prop)
+  (declare (type string prop))
+  (flet ((test (str sym)
+	   (string= (symbol-name sym) str)))
+    (cond
+      ((find prop (slot-value self 'props-required) :test #'test) 'required)
+      ((find prop (slot-value self 'props-optional-multi) :test #'test) 'optional-multi)
+      ((find prop (slot-value self 'props-optional-once) :test #'test) 'optional-once))))
+
+(defmethod getproperty ((self component) propname)
+  (gethash propname (slot-value self 'propierties)))
+
+(defmethod parse-content-line ((self component) i)
+  (let* ((name (content-line-name i))
+	 (value (content-line-value i))
+	 (category (prop-category self name)))
+    (case category
+      ((required optional-once)
+       (if (gethash name (slot-value self 'properties))
+	   (error "Property ~a, type ~a appears twice" name category)
+	   (push value (gethash name (slot-value self 'properties)))))
+      ((optional-multi)
+       (push value (gethash name (slot-value self 'properties))))
+      (t
+       (parse-strange-content-line self i)))))
+
+(defmethod parse-strange-content-line ((self component) prop)
+  "Method meant to be overwritted if there is some special
+property expected that &required, &optional-multi or &optional-once
+don't cover."
+  (error "Strange propertiy: ~a" prop))
+
+(defmethod build ((self component) tree &key (recursive-parsing t))
+  (dolist (i (icalendar-block-items tree))
+    (case (type-of i)
+      (content-line
+       (parse-content-line self i))
+      (icalendar-block
+       (when recursive-parsing
+	 (push (build-component i) (slot-value self 'branches))))
+      (error "Tree item is not a valid type: ~a" (type-of i)))))
+
+(defmacro defcomponent (component props-list &key extra-superclasses)
   (labels ((modifier-p (x)
 	     (char= (elt (symbol-name x) 0) #\&))
 	   (select (modifier)
 	     (strip (cdr (member modifier props-list))
 		    #'modifier-p)))
           
-    (let* ((required (select '&required))
+    (Let* ((required (select '&required))
 	   ;; may appear any times, including 0
 	   (optional-multi (select '&optional-multi))
 	   ;; may appear at most one time
-	   (optional-once (select '&optinal-once))
+	   (optional-once (select '&optional-once))
 	   (props (append required optional-multi optional-once)))
 
-      `(progn
-	 (defclass ,component ()
-	   ((properties :initform (make-hash-table :test #'equal :size 10))
-	    (branches :initform nil)))
- 
-	 (defmethod prop-category ((self ,component) prop)
-	   (declare (type string prop))
-	   (cond
-	     ((find prop ',(mapcar #'symbol-name required) :test #'string=) 'required)
-	     ((find prop ',(mapcar #'symbol-name optional-multi) :test #'string=) 'optional-multi)
-	     ((find prop ',(mapcar #'symbol-name optional-once) :test #'string=) 'optional-once)))
-
-	 (defmethod parse-content-line ((self ,component) i)
-	   (let* ((name (content-line-name i))
-		  (value (content-line-value i))
-		  (category (prop-category self name)))
-	     (case category
-	       ((required optional-once)
-		(if (gethash name (slot-value self 'properties))
-		    (error "Property ~a, type ~a appears twice" name category)
-		    (push value (gethash name (slot-value self 'properties)))))
-	       ((optional-multi)
-		(push value (gethash name (slot-value self 'properties))))
-	       (nil
-		(parse-strange-content-line (self i))))))
-
-	 (defmethod parse-strange-content-line ((self, component) prop)
-	   "Method meant to be overwritted if there is some special
-property expected that &required, &optional-multi or &optional-once
-don't cover."
-	   (error "Strange propertiy: ~a" name))
-	 	 
-	 (defmethod build ((self ,component) tree &key (recursive-parsing t))
-	   (dolist (i (icalendar-block-items tree))
-	     (case (type-of i)
-	       (content-line
-		(parse-content-line self i))
-	       (icalendar-block
-		(when recursive-parsing
-		  (push (build-component i) (slot-value self 'branches))))
-	       (error "Tree item is not a valid type: ~a" (type-of i)))))))))
+      `(defclass ,component ((cons component extra-superclasses))
+	 ((props-required :initform ',required)
+	  (props-optional-multi :initform ',optional-multi)
+	  (props-optional-once :initform ',optional-once))) )))
 
 (defun build-component (tree)
   (declare (type icalendar-block tree))
@@ -398,5 +498,44 @@ don't cover."
 	 (component (make-instance (intern component-name))))
     (build component tree)
     component))
+
+(defclass time-bound-component (component)
+  ())
+
+(defmethod begin-date ((self time-bound-component))
+  (gethash (slot-value self 'properties)))
+
+(defmethod end-date ((self time-bound-component))
+  "Returns the end date of a time bound if DTEND is defined, or
+  estimate it from DURATION (Leap seconds not considred)"
+  (or (getproperty self "dtend")
+      (date+ (getproperty self "dtstart")
+	     (getproperty self "duration"))))
+
+;;; Iterators TODO
+
+(defmacro do-vcal-body ((vcal
+			 &key
+			 type
+			 begin-after
+			 begin-before
+			 end-after
+			 end-before
+			 &body
+			 body))
+  `(dolist (item (slot-value vcal 'branches))
+     (when ,(cons 'and
+		  (with-collecting
+		    (if type
+			(collect `(eq (type-of) item ,type)))
+		    (if begin-after
+			(collect `(date>= ,begin-after (begin-date item))))
+		    (if begin-before
+			(collect `(date< ,begin-before (begin-date item))))
+		    (if end-after
+			(collect `(date>= ,end-after (end-date item))))
+		    (if end-before
+			(collect `(date< ,end-before (end-date item))))))
+       body)))
 
 ;; cl-icalendar.lisp ends here
