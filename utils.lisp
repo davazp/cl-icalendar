@@ -74,17 +74,11 @@
 (defmacro unimp (feature)
   `(error "~a is not implemented yet." ,feature))
 
-(defun strip (list func)
-  (with-collecting
-    (dolist (i list)
-      (if (apply func (list i))
-          (return)
-          (collect i)))))
 
-(defun strip-to-item (list item &key (comparator 'eql))
-  "Delete from the end to the list to the specified item"
-  (strip list (lambda (x)
-                (apply comparator (list item x)))))
+(defun strip-if (func seq &rest rest &key &allow-other-keys)
+  (subseq seq 0 (apply #'position-if func seq rest)))
 
+(defun strip (x seq &rest rest &key &allow-other-keys)
+  (subseq seq 0 (apply #'position x seq rest)))
 
 ;;; utils.lisp ends here
