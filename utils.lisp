@@ -52,13 +52,13 @@
        (cdr ,collected))))
 
 (defmacro defcomparator (name (a b) &body body)
-  (with-gensyms (argsvar)
+  (with-gensyms (argsvar i)
     `(defun ,name (&rest ,argsvar)
-       (loop for i on ,argsvar
-             do (if (null (cdr i))
+       (loop for mi on ,argsvar
+             do (if (null (cdr ,i))
                     (return t)
-                    (let ((,a (first i))
-                          (,b (second i)))
+                    (let ((,a (first ,i))
+                          (,b (second ,i)))
                       (if (not (progn ,@body))
                           (return nil))))))))
 
