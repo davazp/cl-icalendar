@@ -30,7 +30,6 @@
    (:file "package")
    (:file "utils")
    (:file "datetime")
-   (:file "cl-icalendar")
-   (:file "components")))
+   (:file "cl-icalendar")))
 
 ;; cl-icalendar.asd ends here

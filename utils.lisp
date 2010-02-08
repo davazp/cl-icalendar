@@ -64,8 +64,8 @@
            ((null (cdr ,i)) t)
          (let ((,arg1 (first  ,i))
                (,arg2 (second ,i)))
-           (unless (block nil ,@body)
-             (return nil)))))))
+           (or (block nil ,@body)
+               (return nil)))))))
 
 (defun strip-if (func seq &rest rest &key &allow-other-keys)
   (subseq seq 0 (apply #'position-if func seq rest)))
