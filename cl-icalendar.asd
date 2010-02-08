@@ -29,6 +29,7 @@
    (:static-file "README")
    (:file "package")
    (:file "utils")
+   (:file "datetime")
    (:file "cl-icalendar")
    (:file "components")))
 

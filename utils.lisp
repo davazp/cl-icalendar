@@ -20,11 +20,6 @@
 
 (in-package :cl-icalendar)
 
-(defun true (&rest x)
-  (declare (ignore x))
-  "Always returns true"
-  t)
-
 (defmacro aif (condition then &optional else)
   `(let ((it ,condition))
      (if it ,then ,else)))
@@ -51,16 +46,6 @@
          ,@code)
        (cdr ,collected))))
 
-(defmacro defcomparator (name (a b) &body body)
-  (with-gensyms (argsvar i)
-    `(defun ,name (&rest ,argsvar)
-       (loop for mi on ,argsvar
-             do (if (null (cdr ,i))
-                    (return t)
-                    (let ((,a (first ,i))
-                          (,b (second ,i)))
-                      (if (not (progn ,@body))
-                          (return nil))))))))
 
 (defmacro case* (keyform comparator &body cases)
   (with-gensyms (keyform-sym)
@@ -71,14 +56,22 @@
                              (cons t (cdr i))
                              `((,comparator ,keyform-sym ,(car i)) ,@(cdr i))))))))
 
-(defmacro unimp (feature)
-  `(error "~a is not implemented yet." ,feature))
 
+(defmacro define-transitive-relation (name (arg1 arg2) &body body)
+  (with-gensyms (argsvar i)
+    `(defun ,name (&rest ,argsvar)
+       (do ((,i ,argsvar (cdr ,i)))
+           ((null (cdr ,i)) t)
+         (let ((,arg1 (first  ,i))
+               (,arg2 (second ,i)))
+           (unless (block nil ,@body)
+             (return nil)))))))
 
 (defun strip-if (func seq &rest rest &key &allow-other-keys)
   (subseq seq 0 (apply #'position-if func seq rest)))
 
 (defun strip (x seq &rest rest &key &allow-other-keys)
   (subseq seq 0 (apply #'position x seq rest)))
+
 
 ;;; utils.lisp ends here

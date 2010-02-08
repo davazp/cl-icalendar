@@ -20,75 +20,6 @@
 
 (in-package :cl-icalendar)
 
-;;; Utilities
-
-(defstruct date
-  year
-  month
-  day
-  hourp
-  minute
-  second)
-
-(defun build-date (year month day hour minute second)
-  (make-date :year year
-             :month month
-             :day day
-             :hour hour
-             :minute minute
-             :second second))
-
-(defun decompose-date (x)
-  (list (date-year x)
-        (date-month x)
-        (date-day x)
-        (date-hour x)
-        (date-minute x)
-        (date-second x)))
-
-;; TODO: Make this functions works with any number of arguments
-(defcomparator date= (a b)
-  (and (= (date-year a) (date-year b))
-       (= (date-month a) (date-month b))
-       (= (date-day a) (date-day b))
-       (= (date-hour a) (date-hour b))
-       (= (date-minute a) (date-minute b))
-       (= (date-second a) (date-second b))))
-
-(defcomparator date< (a b)
-  (loop for i in (decompose-date a)
-        for j in (decompose-date b)
-        do (cond
-             ((< i j) (return t))
-             ((> i j) (return nil)))))
-
-(defcomparator date> (a b)
-  (loop for i in (decompose-date a)
-        for j in (decompose-date b)
-        do (cond
-             ((> i j) (return t))
-             ((< i j) (return nil)))))
-
-(defcomparator date<= (a b)
-  (or (date= a b)
-      (date< a b)))
-
-(defcomparator date>= (a b)
-  (or (date= a b)
-      (date> a b)))
-
-(defun date+ (&rest args)
-  (reduce (lambda (x y)
-            (let ((*x (decompose-date x))
-                  (*y (decompose-date y))
-                  (carry 0))
-              (mapcar (lambda (x y mod)
-                        (let ((sum (+ x y)))
-                          ))
-                      *x
-                      *y
-                      '())))))
-
 ;;; Wrapped character streams
 
 ;;; ANOTACION: Los streams wrapped hacen simplemente de envoltorios
@@ -195,7 +126,7 @@
 ;;; CRLF. Esto es, al usar la función `make-folding-stream' sobre un
 ;;; stream, se crea un CRLF stream y sobre ese un folding-stream.  
 ;;; 
-;;; Cada línea es una linea de contenido completa del RFC en este stream.
+;;; cada línea es una linea de contenido completa del RFC en este stream.
 
 (defclass folding-stream (wrapped-character-stream)
   nil)
@@ -463,5 +394,56 @@ don't cover."
                         (collect `(date< ,end-before (end-date item))))))
        body)))
 
+
+
+;; (defcomponent vcalendar
+;;     (&required
+;;      prodid
+;;      version
+     
+;;      &optional-once
+;;      calscale
+;;      method
+     
+;;      &optional-once
+;;      xprop
+;;      iana-prop))
+
+;; (defcomponent vevent
+;;     (&required
+;;      dtstamp
+;;      uid
+     
+;;      &optional-once
+;;      dtstart
+;;      class
+;;      created
+;;      description
+;;      geo
+;;      last-mod
+;;      location
+;;      organizer
+;;      priority
+;;      seq
+;;      status
+;;      summary
+;;      transp
+;;      url
+;;      recurid
+     
+;;      &optional-multi
+;;      rrule ; optional but SHOULD appear only once at most
+;;      attach
+;;      attendee
+;;      categories
+;;      comment
+;;      contact
+;;      exdate
+;;      rstatus
+;;      related
+;;      resources
+;;      rdate
+;;      x-prop
+;;      iana-prop))
 
 ;; cl-icalendar.lisp ends here
