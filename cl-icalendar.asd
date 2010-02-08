@@ -28,6 +28,7 @@
   ((:static-file "COPYING")
    (:static-file "README")
    (:file "package")
+   (:file "utils")
    (:file "cl-icalendar")
    (:file "components")))
 
