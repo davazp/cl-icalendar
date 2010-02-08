@@ -1,12 +1,9 @@
 ;; cl-icalendar.lisp
 ;;
 ;; Copyrigth (C) 2009, 2010 Mario Castelán Castro <marioxcc>
+;; Copyrigth (C) 2009, 2010 David Vázquez
 ;;
-;; Fist version (2009) wrote by David Vazquez <davazp> who not claim
-;; Copyright.
-;;
-;; This file is part of cl-icalendar and incorporates some functions
-;; from lbot by marioxcc.
+;; This file is part of cl-icalendar.
 ;;
 ;; cl-icalendar is free software: you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -19,7 +16,7 @@
 ;; GNU General Public License for more details.
 ;;
 ;; You should have received a copy of the GNU General Public License
-;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
+;; along with cl-icalendar.  If not, see <http://www.gnu.org/licenses/>.
 
 (defpackage :cl-icalendar
   (:nicknames :icalendar)
@@ -66,21 +63,21 @@
   (with-gensyms (argsvar)
     `(defun ,name (&rest ,argsvar)
        (loop for i on ,argsvar
-	     do (if (null (cdr i))
-		    (return t)
-		    (let ((,a (first i))
-			  (,b (second i)))
-		      (if (not (progn ,@body))
-			  (return nil))))))))
+             do (if (null (cdr i))
+                    (return t)
+                    (let ((,a (first i))
+                          (,b (second i)))
+                      (if (not (progn ,@body))
+                          (return nil))))))))
 
 (defmacro case* (keyform comparator &body cases)
   (with-gensyms (keyform-sym)
     `(let ((,keyform-sym ,keyform))
        (cond
-	 ,@(loop for i in cases
-		 collect (if (eq (car i) t)
-			     (cons t (cdr i))
-			     `((,comparator ,keyform-sym ,(car i)) ,@(cdr i))))))))
+         ,@(loop for i in cases
+                 collect (if (eq (car i) t)
+                             (cons t (cdr i))
+                             `((,comparator ,keyform-sym ,(car i)) ,@(cdr i))))))))
 
 (defmacro unimp (feature)
   `(error "~a is not implemented yet." ,feature))
@@ -89,13 +86,13 @@
   (with-collecting
     (dolist (i list)
       (if (apply func (list i))
-	  (return)
-	  (collect i)))))
+          (return)
+          (collect i)))))
 
 (defun strip-to-item (list item &key (comparator 'eql))
   "Delete from the end to the list to the specified item"
   (strip list (lambda (x)
-		(apply comparator (list item x)))))
+                (apply comparator (list item x)))))
 
 (defstruct date
   year
@@ -107,19 +104,19 @@
 
 (defun build-date (year month day hour minute second)
   (make-date :year year
-	     :month month
-	     :day day
-	     :hour hour
-	     :minute minute
-	     :second second))
+             :month month
+             :day day
+             :hour hour
+             :minute minute
+             :second second))
 
 (defun decompose-date (x)
   (list (date-year x)
-	(date-month x)
-	(date-day x)
-	(date-hour x)
-	(date-minute x)
-	(date-second x)))
+        (date-month x)
+        (date-day x)
+        (date-hour x)
+        (date-minute x)
+        (date-second x)))
 
 ;; TODO: Make this functions works with any number of arguments
 (defcomparator date= (a b)
@@ -132,17 +129,17 @@
 
 (defcomparator date< (a b)
   (loop for i in (decompose-date a)
-	for j in (decompose-date b)
-	do (cond
-	     ((< i j) (return t))
-	     ((> i j) (return nil)))))
+        for j in (decompose-date b)
+        do (cond
+             ((< i j) (return t))
+             ((> i j) (return nil)))))
 
 (defcomparator date> (a b)
   (loop for i in (decompose-date a)
-	for j in (decompose-date b)
-	do (cond
-	     ((> i j) (return t))
-	     ((< i j) (return nil)))))
+        for j in (decompose-date b)
+        do (cond
+             ((> i j) (return t))
+             ((< i j) (return nil)))))
 
 (defcomparator date<= (a b)
   (or (date= a b)
@@ -154,15 +151,15 @@
 
 (defun date+ (&rest args)
   (reduce (lambda (x y)
-	    (let ((*x (decompose-date x))
-		  (*y (decompose-date y))
-		  (carry 0))
-	      (mapcar (lambda (x y mod)
-			(let ((sum (+ x y)))
-			  ))
-		      *x
-		      *y
-		      '())))))
+            (let ((*x (decompose-date x))
+                  (*y (decompose-date y))
+                  (carry 0))
+              (mapcar (lambda (x y mod)
+                        (let ((sum (+ x y)))
+                          ))
+                      *x
+                      *y
+                      '())))))
 
 ;;; Wrapped character streams
 
@@ -394,27 +391,27 @@
 the full block, else only that content line"
   (let ((first-line (read-content-line stream)))
     (if (string= (content-line-name first-line) "BEGIN")
-	(make-icalendar-block
-	 :name (content-line-value first-line)
-	 :items (loop for item = (read-item stream)
-		      until (and (content-line-p item)
-				 (string= (content-line-name item) "END"))
-		      collect item))
-	first-line)))
+        (make-icalendar-block
+         :name (content-line-value first-line)
+         :items (loop for item = (read-item stream)
+                      until (and (content-line-p item)
+                                 (string= (content-line-name item) "END"))
+                      collect item))
+        first-line)))
 
 (defun search-content-line (tree name)
   "return the first content line with a given name in a sintactic
 tree"
   (loop for i in (icalendar-block-items tree)
-	if (string= (content-line-name i) name)
-	do (return i)))
+        if (string= (content-line-name i) name)
+        do (return i)))
 
 (defun search-content-lines (tree name)
   "return all content lines with a given name"
   (with-collecting 
     (dolist (i (icalendar-block-items tree))
       (if (string= (content-line-name i) name)
-	  (collect i)))))
+          (collect i)))))
 
 (defun search-content-line-value (tree name)
   "return the value of the first content line with a given name in a
@@ -434,7 +431,7 @@ sintactic tree"
 (defmethod prop-category ((self component) prop)
   (declare (type string prop))
   (flet ((test (str sym)
-	   (string= (symbol-name sym) str)))
+           (string= (symbol-name sym) str)))
     (cond
       ((find prop (slot-value self 'props-required) :test #'test) 'required)
       ((find prop (slot-value self 'props-optional-multi) :test #'test) 'optional-multi)
@@ -445,13 +442,13 @@ sintactic tree"
 
 (defmethod parse-content-line ((self component) i)
   (let* ((name (content-line-name i))
-	 (value (content-line-value i))
-	 (category (prop-category self name)))
+         (value (content-line-value i))
+         (category (prop-category self name)))
     (case category
       ((required optional-once)
        (if (gethash name (slot-value self 'properties))
-	   (error "Property ~a, type ~a appears twice" name category)
-	   (push value (gethash name (slot-value self 'properties)))))
+           (error "Property ~a, type ~a appears twice" name category)
+           (push value (gethash name (slot-value self 'properties)))))
       ((optional-multi)
        (push value (gethash name (slot-value self 'properties))))
       (t
@@ -470,32 +467,32 @@ don't cover."
        (parse-content-line self i))
       (icalendar-block
        (when recursive-parsing
-	 (push (build-component i) (slot-value self 'branches))))
+         (push (build-component i) (slot-value self 'branches))))
       (error "Tree item is not a valid type: ~a" (type-of i)))))
 
 (defmacro defcomponent (component props-list &key extra-superclasses)
   (labels ((modifier-p (x)
-	     (char= (elt (symbol-name x) 0) #\&))
-	   (select (modifier)
-	     (strip (cdr (member modifier props-list))
-		    #'modifier-p)))
+             (char= (elt (symbol-name x) 0) #\&))
+           (select (modifier)
+             (strip (cdr (member modifier props-list))
+                    #'modifier-p)))
           
     (Let* ((required (select '&required))
-	   ;; may appear any times, including 0
-	   (optional-multi (select '&optional-multi))
-	   ;; may appear at most one time
-	   (optional-once (select '&optional-once))
-	   (props (append required optional-multi optional-once)))
+           ;; may appear any times, including 0
+           (optional-multi (select '&optional-multi))
+           ;; may appear at most one time
+           (optional-once (select '&optional-once))
+           (props (append required optional-multi optional-once)))
 
       `(defclass ,component ((cons component extra-superclasses))
-	 ((props-required :initform ',required)
-	  (props-optional-multi :initform ',optional-multi)
-	  (props-optional-once :initform ',optional-once))) )))
+         ((props-required :initform ',required)
+          (props-optional-multi :initform ',optional-multi)
+          (props-optional-once :initform ',optional-once))) )))
 
 (defun build-component (tree)
   (declare (type icalendar-block tree))
   (let* ((component-name (icalendar-block-name tree))
-	 (component (make-instance (intern component-name))))
+         (component (make-instance (intern component-name))))
     (build component tree)
     component))
 
@@ -510,32 +507,33 @@ don't cover."
   estimate it from DURATION (Leap seconds not considred)"
   (or (getproperty self "dtend")
       (date+ (getproperty self "dtstart")
-	     (getproperty self "duration"))))
+             (getproperty self "duration"))))
 
 ;;; Iterators TODO
 
 (defmacro do-vcal-body ((vcal
-			 &key
-			 type
-			 begin-after
-			 begin-before
-			 end-after
-			 end-before
-			 &body
-			 body))
+                         &key
+                         type
+                         begin-after
+                         begin-before
+                         end-after
+                         end-before
+                         &body
+                         body))
   `(dolist (item (slot-value vcal 'branches))
      (when ,(cons 'and
-		  (with-collecting
-		    (if type
-			(collect `(eq (type-of) item ,type)))
-		    (if begin-after
-			(collect `(date>= ,begin-after (begin-date item))))
-		    (if begin-before
-			(collect `(date< ,begin-before (begin-date item))))
-		    (if end-after
-			(collect `(date>= ,end-after (end-date item))))
-		    (if end-before
-			(collect `(date< ,end-before (end-date item))))))
+                  (with-collecting
+                    (if type
+                        (collect `(eq (type-of) item ,type)))
+                    (if begin-after
+                        (collect `(date>= ,begin-after (begin-date item))))
+                    (if begin-before
+                        (collect `(date< ,begin-before (begin-date item))))
+                    (if end-after
+                        (collect `(date>= ,end-after (end-date item))))
+                    (if end-before
+                        (collect `(date< ,end-before (end-date item))))))
        body)))
+
 
 ;; cl-icalendar.lisp ends here
