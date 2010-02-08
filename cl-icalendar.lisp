@@ -18,12 +18,6 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with cl-icalendar.  If not, see <http://www.gnu.org/licenses/>.
 
-(defpackage :cl-icalendar
-  (:nicknames :icalendar)
-  (:use :cl :trivial-gray-streams)
-  (:export #:make-folding-stream
-           #:with-folding-stream))
-
 (in-package :cl-icalendar)
 
 ;;; Utilities
