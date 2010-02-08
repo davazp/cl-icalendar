@@ -27,6 +27,7 @@
   :components
   ((:static-file "COPYING")
    (:static-file "README")
+   (:file "package")
    (:file "cl-icalendar")
    (:file "components")))
 
