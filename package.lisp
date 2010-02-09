@@ -20,7 +20,7 @@
 ;;; Package definition
 
 (defpackage :cl-icalendar
-  (:nicknames :icalendar)
+  (:nicknames :icalendar :ical)
   (:use :cl :trivial-gray-streams)
   (:export #:make-folding-stream
            #:with-folding-stream))
