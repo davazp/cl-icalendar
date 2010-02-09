@@ -179,29 +179,14 @@
   params
   value)
 
-(defstruct date
-  year
-  month
-  day
-  hour
-  minute
-  second)
 
-(defun read-until (stream char-bag &key (not-expect ""))
-  (with-output-to-string (out)
-    (loop for ch = (peek-char nil stream)
-          until (find ch char-bag   :test #'char=)
-          when  (find ch not-expect :test #'char=)
-          do (error "Character ~w is not expected." ch)
-          do
-          (write-char (read-char stream) out))))
 
 (defun read-params-value (stream)
   (if (char= (peek-char nil stream) #\")
       (prog2 (read-char stream)
-          (read-until stream "#\"" :not-expect (vector +return-character+))
+          (read-until stream "#\"" +return-character+)
         (read-char stream))
-      (read-until stream ",;:" :not-expect #(#\Newline))))
+      (read-until stream ",;:" #\Newline)))
 
 (defun read-params-values (stream)
   (cons (read-params-value stream)
@@ -213,13 +198,13 @@
 (defun read-params (stream)
   (with-collecting
     (while (char= (read-char stream) #\;)
-      (let ((name (read-until stream "=" :not-expect #(#\Newline #\: #\;))))
+      (let ((name (read-until stream "=" #(#\Newline #\: #\;))))
         (read-char stream)
         (collect (cons name (read-params-values stream)))))))
 
 (defun read-content-line (stream)
   (make-content-line
-   :name (read-until stream ";:" :not-expect #(#\Newline))
+   :name (read-until stream ";:" #\Newline)
    :params (read-params stream)
    :value (read-line stream)))
 
@@ -340,9 +325,7 @@ don't cover."
   (labels ((modifier-p (x)
              (char= (elt (symbol-name x) 0) #\&))
            (select (modifier)
-             (strip (cdr (member modifier props-list))
-                    #'modifier-p)))
-          
+             (strip-if #'modifier-p (cdr (member modifier props-list)))))
     (let* ((required (select '&required))
            ;; may appear any times, including 0
            (optional-multi (select '&optional-multi))

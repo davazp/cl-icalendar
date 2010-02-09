@@ -76,4 +76,26 @@
 (defun trim (n seq)
   (subseq seq 0 n))
 
+(defun read-until (stream char-bag &optional (not-expect "") (eof-error-p t))
+  (flet (;; Check if CH is a terminal char
+         (terminal-char-p (ch)
+           (etypecase char-bag
+             (character (char= ch char-bag))
+             (sequence  (find ch char-bag :test #'char=))
+             (function  (funcall char-bag ch))))
+         ;; Check if CH is not a expected char
+         (not-expect-char-p (ch)
+           (etypecase not-expect
+             (character (char= ch not-expect))
+             (sequence (find ch not-expect :test #'char=))
+             (function (funcall not-expect ch)))))
+    ;; Read characters
+    (with-output-to-string (out)
+      (loop for ch = (peek-char nil stream eof-error-p)
+            until (and (not eof-error-p) (null ch))
+            until (terminal-char-p ch)
+            when (not-expect-char-p ch)
+            do (error "Character ~w is not expected." ch)
+            do (write-char (read-char stream) out)))))
+
 ;;; utils.lisp ends here
