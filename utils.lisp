@@ -73,5 +73,7 @@
 (defun strip (x seq &rest rest &key &allow-other-keys)
   (subseq seq 0 (apply #'position x seq rest)))
 
+(defun trim (n seq)
+  (subseq seq 0 n))
 
 ;;; utils.lisp ends here
