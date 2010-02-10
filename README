@@ -2,17 +2,17 @@
 cl-icalendar [DRAFT]
 ============
 
-cl-icalendar is a library written in Common Lisp which provide
-convenient abstractions in order to treat with the iCalendar format.
-cl-icalendar should work in any modern Common Lisp implementation,
-which support Gray Streams extension. Nevertheless, this have been
+cl-icalendar is a Common Lisp implementation of iCalendar according to
+RFC5545 specification written in Common Lisp.
+
+cl-icalendar should work in any modern Common Lisp implementation
+which supports the Gray Streams extension. This library have been
 tested on:
 
   o SBCL [version]
   o Clisp [version]
 
-You will need the following Common Lisp libraries in order to use
-cl-icalendar:
+The following libraries are required in order to use cl-icalendar:
 
   o trivial-gray-streams
 
