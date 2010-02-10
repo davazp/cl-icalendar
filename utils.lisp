@@ -46,17 +46,6 @@
          ,@code)
        (cdr ,collected))))
 
-
-(defmacro case* (keyform comparator &body cases)
-  (with-gensyms (keyform-sym)
-    `(let ((,keyform-sym ,keyform))
-       (cond
-         ,@(loop for i in cases
-                 collect (if (eq (car i) t)
-                             (cons t (cdr i))
-                             `((,comparator ,keyform-sym ,(car i)) ,@(cdr i))))))))
-
-
 (defmacro define-transitive-relation (name (arg1 arg2) &body body)
   (with-gensyms (argsvar)
     `(defun ,name (&rest ,argsvar)
@@ -69,9 +58,6 @@
 
 (defun strip (x seq &rest rest &key &allow-other-keys)
   (subseq seq 0 (apply #'position x seq rest)))
-
-(defun trim (n seq)
-  (subseq seq 0 n))
 
 (defun read-until (stream char-bag &optional (not-expect "") (eof-error-p t))
   (flet (;; Check if CH is a terminal char
