@@ -58,14 +58,11 @@
 
 
 (defmacro define-transitive-relation (name (arg1 arg2) &body body)
-  (with-gensyms (argsvar i)
+  (with-gensyms (argsvar)
     `(defun ,name (&rest ,argsvar)
-       (do ((,i ,argsvar (cdr ,i)))
-           ((null (cdr ,i)) t)
-         (let ((,arg1 (first  ,i))
-               (,arg2 (second ,i)))
-           (or (block nil ,@body)
-               (return nil)))))))
+       (loop for (,arg1 ,arg2) on ,argsvar
+             while ,arg2
+             always (block nil ,@body)))))
 
 (defun strip-if (func seq &rest rest &key &allow-other-keys)
   (subseq seq 0 (apply #'position-if func seq rest)))
@@ -97,5 +94,6 @@
             when (not-expect-char-p ch)
             do (error "Character ~w is not expected." ch)
             do (write-char (read-char stream) out)))))
+
 
 ;;; utils.lisp ends here
