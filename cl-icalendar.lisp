@@ -95,8 +95,7 @@
 
 ;;; CRLF/LF Conversion stream
 
-;;; Este es un stream que transforma los CRLF leidos en LF, y los LF
-;;; escritos en CRLF.
+;;; Convert UNIX type line endings to DOS.
 
 (defclass crlf-stream (wrapped-character-stream)
   nil)
@@ -121,12 +120,8 @@
 
 ;;;; Folding/Unfolding stream
 
-;;; Este stream implementa el algoritmo de folding y unfolding
-;;; descrito en el RFC. Y se encadena automáticamente con el stream
-;;; CRLF. Esto es, al usar la función `make-folding-stream' sobre un
-;;; stream, se crea un CRLF stream y sobre ese un folding-stream.  
-;;; 
-;;; cada línea es una linea de contenido completa del RFC en este stream.
+;;; This stream implements the folding/unfolding algorithm described
+;;; in the RFC5545 and autochains with a CRLF stream.
 
 (defclass folding-stream (wrapped-character-stream)
   nil)
