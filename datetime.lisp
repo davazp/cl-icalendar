@@ -20,45 +20,62 @@
 
 (in-package :cl-icalendar)
 
+;;;; Date, time, and date-time
 
-(defclass date ()
-  ((day
-    :initarg :day
-    :reader date-day)
-   (month
-    :initarg :month
-    :reader date-month)
-   (year
-    :initarg :year
-    :reader date-year)))
+(defclass datetime ()
+  ((timestamp
+    :initarg :timestamp
+    :reader timestamp)))
 
-(defclass time ()
-  ((hour
-    :initarg :hour
-    :reader time-hour)
-   (minute
-    :initarg :minute
-    :reader time-minute)
-   (second
-    :initarg :second
-    :reader time-second)))
+(defgeneric date-day (x))
+(defgeneric date-month (x))
+(defgeneric date-year (x))
+(defgeneric time-hour (x))
+(defgeneric time-minute (x))
+(defgeneric time-second (x))
 
-(defclass datetime (date time)
-  ())
+(defmethod date-day ((x datetime))
+  (local-time:timestamp-day (timestamp x)))
 
+(defmethod date-month ((x datetime))
+  (local-time:timestamp-month (timestamp x)))
 
-(defun datep (x)
-  (typep x 'date))
+(defmethod date-year ((x datetime))
+  (local-time:timestamp-year (timestamp x)))
 
-(defun timep (x)
-  (typep x 'time))
+(defmethod time-hour ((x datetime))
+  (local-time:timestamp-hour (timestamp x)))
 
-(defun datetimep (x)
-  (typep x 'datetime))
+(defmethod time-minute ((x datetime))
+  (local-time:timestamp-hour (timestamp x)))
 
+(defmethod time-second ((x datetime))
+  (local-time:timestamp-second (timestamp x)))
 
+;;; Relational
 
+(define-transitive-relation datetime= (x y)
+  (local-time:timestamp= (timestamp x) (timestamp y)))
 
+(define-transitive-relation datetime< (x y)
+  (local-time:timestamp< (timestamp x) (timestamp y)))
+
+(define-transitive-relation datetime<= (x y)
+  (local-time:timestamp<= (timestamp x) (timestamp y)))
+
+(define-transitive-relation datetime> (x y)
+  (local-time:timestamp> (timestamp x) (timestamp y)))
+
+(define-transitive-relation datetime>= (x y)
+  (local-time:timestamp>= (timestamp x) (timestamp y)))
+
+;;; Printer
+
+(defmethod print-object ((x datetime) stream)
+  (print-unreadable-object (x stream :type t)
+    (print-object (timestamp x) stream)))
+
+
 ;;;; Duration data type
 
 (defvar *print-duration-abbrev* nil)
@@ -89,7 +106,6 @@
 (defun durationp (x)
   (typep x 'duration))
 
-
 (defmethod initialize-instance :after ((dur duration) &rest initargs &key &allow-other-keys)
   (declare (ignore initargs))
   (labels ((deaccumulate (n acc)
@@ -107,7 +123,6 @@
       (when (= 0 days hours minutes seconds)
         (setf (slot-value dur 'backward-p) nil)))))
 
-
 (defun make-duration (&key (days 0) (hours 0) (minutes 0) (seconds 0) backward-p)
   (check-type days    (integer 0 *))
   (check-type hours   (integer 0 *))
@@ -119,7 +134,6 @@
                  :minutes minutes
                  :seconds seconds
                  :backward-p backward-p))
-
 
 (defun duration (durspec)
   (etypecase durspec
@@ -187,6 +201,17 @@
 (define-transitive-relation duration>= (x y)
   (>= (duration-in-seconds x)
       (duration-in-seconds y)))
+
+
+;;; Compositional functions
+
+(defun duration+ (&rest args)
+  (duration (reduce #'+ (mapcar #'duration-in-seconds args))))
+
+(defun duration- (x &rest args)
+  (if (null args)
+      (duration (- (duration-in-seconds x)))
+      (duration (reduce #'- (mapcar #'duration-in-seconds (cons x args))))))
 
 
 ;;; Printer
