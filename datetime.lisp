@@ -52,7 +52,7 @@
 (defmethod time-second ((x datetime))
   (local-time:timestamp-second (timestamp x)))
 
-;;; Relational
+;;; Relational functions
 
 (define-transitive-relation datetime= (x y)
   (local-time:timestamp= (timestamp x) (timestamp y)))
@@ -75,53 +75,27 @@
   (print-unreadable-object (x stream :type t)
     (print-object (timestamp x) stream)))
 
+
+
 
 ;;;; Duration data type
 
 (defvar *print-duration-abbrev* nil)
 
 (defclass duration ()
-  ((backward-p
-    :initarg :backward-p
-    :initform nil
-    :reader duration-backward-p)
-   (days
-    :initarg :days
-    :initform 0
-    :reader duration-days)
-   (hours
-    :initarg :hours
-    :initform 0
-    :reader duration-hours)
-   (minutes
-    :initarg :minutes
-    :initform 0
-    :reader duration-minutes)
-   (seconds
+  ((seconds
     :initarg :seconds
-    :initform 0
-    :reader duration-seconds)))
+    :reader duration-in-seconds)))
 
+(defgeneric duration-days (duration))
+(defgeneric duration-hours (duration))
+(defgeneric duration-minutes (duration))
+(defgeneric duration-seconds (duration))
+(defgeneric duration-in-seconds (duration))
+(defgeneric duration-backward-p (duration))
 
 (defun durationp (x)
   (typep x 'duration))
-
-(defmethod initialize-instance :after ((dur duration) &rest initargs &key &allow-other-keys)
-  (declare (ignore initargs))
-  (labels ((deaccumulate (n acc)
-             (let ((quotient (abs (idiv n (first acc)))))
-               (if (endp (cdr acc))
-                   (list quotient)
-                   (cons (mod quotient (second acc))
-                         (deaccumulate quotient (cdr acc)))))))
-    (destructuring-bind (seconds minutes hours days)
-        (deaccumulate (duration-in-seconds dur) '(1 60 60 24))
-      (setf (slot-value dur 'days)    days)
-      (setf (slot-value dur 'hours)   hours)
-      (setf (slot-value dur 'minutes) minutes)
-      (setf (slot-value dur 'seconds) seconds)
-      (when (= 0 days hours minutes seconds)
-        (setf (slot-value dur 'backward-p) nil)))))
 
 (defun make-duration (&key (days 0) (hours 0) (minutes 0) (seconds 0) backward-p)
   (check-type days    (integer 0 *))
@@ -129,11 +103,12 @@
   (check-type minutes (integer 0 *))
   (check-type seconds (integer 0 *))
   (make-instance 'duration
-                 :days days
-                 :hours hours
-                 :minutes minutes
-                 :seconds seconds
-                 :backward-p backward-p))
+                 :seconds
+                 (* (if backward-p -1 1)
+                    (+ (* days  84706)
+                       (* hours 3600)
+                       (* minutes 60)
+                       (+ seconds )))))
 
 (defun duration (durspec)
   (etypecase durspec
@@ -144,17 +119,40 @@
 
 ;;; Accessor for duration designators
 
+(defmethod duration-days ((x duration))
+  (duration-days (duration-in-seconds x)))
+
+(defmethod duration-hours ((x duration))
+  (duration-hours (duration-in-seconds x)))
+
+(defmethod duration-minutes ((x duration))
+  (duration-minutes (duration-in-seconds x)))
+
+(defmethod duration-seconds ((x duration))
+  (duration-seconds (duration-in-seconds x)))
+
+(defmethod duration-backward-p ((x duration))
+  (duration-backward-p (duration-in-seconds x)))
+
+
 (defmethod duration-days ((x integer))
-  (duration-days (duration x)))
+  (abs (idiv x 86400)))
 
 (defmethod duration-hours ((x integer))
-  (duration-hours (duration x)))
+  (mod (abs (idiv x 3600)) 24))
 
 (defmethod duration-minutes ((x integer))
-  (duration-minutes (duration x)))
+  (mod (abs (idiv x 60)) 60))
 
 (defmethod duration-seconds ((x integer))
-  (duration-seconds (duration x)))
+  (mod (abs x) 60))
+
+(defmethod duration-backward-p ((x integer))
+  (< x 0))
+
+(defmethod duration-in-seconds ((x integer))
+  x)
+
 
 (defmethod duration-days ((x string))
   (duration-days (duration x)))
@@ -168,19 +166,14 @@
 (defmethod duration-seconds ((x string))
   (duration-seconds (duration x)))
 
-(defun duration-in-seconds (durspec)
-  (let ((dur (duration durspec)))
-    (* (if (duration-backward-p dur) -1 1)
-       (+ (* (duration-days    dur) 86400)
-          (* (duration-hours   dur) 3600)
-          (* (duration-minutes dur) 60)
-          (* (duration-seconds dur) 1)))))
+(defmethod duration-backward-p ((x string))
+  (duration-backward-p (duration x)))
+
+(defmethod duration-in-seconds ((x string))
+  (duration-in-seconds (duration x)))
 
 
 ;;; Relational functions
-
-;;; FIXME: The following relational functions compute duplicately the
-;;; duration-in-seconds of N-2 durspecs.
 
 (define-transitive-relation duration= (x y)
   (= (duration-in-seconds x)
