@@ -1,4 +1,4 @@
-;; datetime.lisp
+;; types.lisp
 ;;
 ;; Copyrigth (C) 2009, 2010 Mario Castelán Castro <marioxcc>
 ;; Copyrigth (C) 2009, 2010 David Vázquez
@@ -387,4 +387,4 @@
               (ill-formed))))))))
 
 
-;;; datetime.lisp ends here
+;;; types.lisp ends here

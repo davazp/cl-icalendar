@@ -29,7 +29,7 @@
    (:static-file "README")
    (:file "package")
    (:file "utils")
-   (:file "datetime")
+   (:file "types")
    (:file "cl-icalendar")))
 
 ;; cl-icalendar.asd ends here
