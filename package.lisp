@@ -33,10 +33,6 @@
            #:duration-hours
            #:duration-minutes
            #:duration-seconds
-           #:duration-days
-           #:duration-hours
-           #:duration-minutes
-           #:duration-seconds
            #:duration-in-seconds
            #:duration=
            #:duration<
