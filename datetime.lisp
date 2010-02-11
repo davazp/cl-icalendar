@@ -239,8 +239,11 @@
 ;;; in the RFC5545 section 3.3.6.
 (defun format-duration (durspec)
   (let ((dur (duration durspec)))
-    (with-slots (backward-p days hours minutes seconds)
-        dur
+    (let ((days (duration-days dur))
+          (hours (duration-hours dur))
+          (minutes (duration-minutes dur))
+          (seconds (duration-seconds dur))
+          (backward-p (duration-backward-p dur)))
       (with-output-to-string (out)
         (format out "~:[~;-~]" backward-p)
         (format out "P")
@@ -255,9 +258,9 @@
            (cond
              ((= 0 hours minutes seconds))
              ((and (zerop minutes)
-                     (and (not (zerop hours))
-                          (not (zerop seconds))))
-                (format out "T~aH~aM~aS" hours minutes seconds))
+                   (and (not (zerop hours))
+                        (not (zerop seconds))))
+              (format out "T~aH~aM~aS" hours minutes seconds))
              (t
               (format out "T~[~:;~:*~aH~]~[~:;~:*~aM~]~[~:;~:*~aS~]"
                       hours
