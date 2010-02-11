@@ -23,6 +23,24 @@
   (:nicknames :icalendar :ical)
   (:use :cl :trivial-gray-streams)
   (:export #:make-folding-stream
-           #:with-folding-stream))
+           #:with-folding-stream
+           ;; Duration
+           #:make-duration
+           #:duration
+           #:duration-days
+           #:duration-hours
+           #:duration-minutes
+           #:duration-seconds
+           #:duration-days
+           #:duration-hours
+           #:duration-minutes
+           #:duration-seconds
+           #:duration-in-seconds
+           #:duration=
+           #:duration<
+           #:duration<=
+           #:duration>
+           #:duration>=
+           #:parse-duration))
 
 ;;; package.lisp ends here

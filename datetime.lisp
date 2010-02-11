@@ -53,11 +53,7 @@
                  (cons (mod quotient (second acc))
                        (deaccumulate quotient (cdr acc)))))))
     (destructuring-bind (seconds minutes hours days)
-        (deaccumulate (+ (* (duration-days dur) 86400)
-                         (* (duration-hours dur) 3600)
-                         (* (duration-minutes dur) 60)
-                         (* (duration-seconds dur)  1))
-                      '(1 60 60 24))
+        (deaccumulate (duration-in-seconds dur) '(1 60 60 24))
       (setf (slot-value dur 'days)    days)
       (setf (slot-value dur 'hours)   hours)
       (setf (slot-value dur 'minutes) minutes)
@@ -71,9 +67,72 @@
 (defun duration (durspec)
   (etypecase durspec
     (duration durspec)
-    (string (parse-duration durspec))))
+    (integer (make-duration :seconds durspec))
+    (string  (parse-duration durspec))))
 
 
+;;; Accessor for duration designators
+
+(defmethod duration-days ((x integer))
+  (duration-days (duration x)))
+
+(defmethod duration-hours ((x integer))
+  (duration-days (duration x)))
+
+(defmethod duration-minutes ((x integer))
+  (duration-days (duration x)))
+
+(defmethod duration-seconds ((x integer))
+  (duration-days (duration x)))
+
+(defmethod duration-days ((x string))
+  (duration-days (duration x)))
+
+(defmethod duration-hours ((x string))
+  (duration-days (duration x)))
+
+(defmethod duration-minutes ((x string))
+  (duration-days (duration x)))
+
+(defmethod duration-seconds ((x string))
+  (duration-days (duration x)))
+
+(defun duration-in-seconds (durspec)
+  (let ((dur (duration durspec)))
+    (+ (* (duration-days    dur) 86400)
+       (* (duration-hours   dur) 3600)
+       (* (duration-minutes dur) 60)
+       (* (duration-seconds dur) 1))))
+
+
+;;; Relational functions
+
+;;; FIXME: The following relational functions compute duplicately the
+;;; duration-in-seconds of N-2 durspecs.
+
+(define-transitive-relation duration= (x y)
+  (= (duration-in-seconds x)
+     (duration-in-seconds y)))
+
+(define-transitive-relation duration< (x y)
+  (< (duration-in-seconds x)
+     (duration-in-seconds y)))
+
+(define-transitive-relation duration<= (x y)
+  (<= (duration-in-seconds x)
+      (duration-in-seconds y)))
+
+(define-transitive-relation duration> (x y)
+  (> (duration-in-seconds x)
+     (duration-in-seconds y)))
+
+(define-transitive-relation duration>= (x y)
+  (>= (duration-in-seconds x)
+      (duration-in-seconds y)))
+
+
+
+;;; Printer
 (defmethod print-object ((x duration) stream)
   (print-unreadable-object (x stream :type t)
     (let* ((component-names

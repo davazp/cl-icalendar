@@ -49,9 +49,11 @@
 (defmacro define-transitive-relation (name (arg1 arg2) &body body)
   (with-gensyms (argsvar)
     `(defun ,name (&rest ,argsvar)
+       ;; SBCL fails here if we use (block nil ...) indeed of progn.
        (loop for (,arg1 ,arg2) on ,argsvar
              while ,arg2
-             always (block nil ,@body)))))
+             always (progn ,@body)))))
+
 
 (defun strip-if (func seq &rest rest &key &allow-other-keys)
   (subseq seq 0 (apply #'position-if func seq rest)))
@@ -80,6 +82,18 @@
             when (not-expect-char-p ch)
             do (error "Character ~w is not expected." ch)
             do (write-char (read-char stream) out)))))
+
+
+(defmacro definline (name args &body body)
+  `(progn
+     (declaim (inline ,name))
+     (defun ,name ,args ,@body)))
+
+
+;;; Integer division
+(defun idiv (a b)
+  (declare (integer a b))
+  (values (truncate a b)))
 
 
 ;;; utils.lisp ends here
