@@ -20,58 +20,83 @@
 
 (in-package :cl-icalendar)
 
-(defun get-time (&optional time)
-  (multiple-value-list (decode-universal-time (or time (get-universal-time)))))
 
-(defun time-second (&optional time)
-  (nth 0 (get-time time)))
+;;;; Duration data type
 
-(defun time-minute (&optional time)
-  (nth 1 (get-time time)))
+(defvar *print-duration-abbrev* nil)
 
-(defun time-hour (&optional time)
-  (nth 2 (get-time time)))
-
-(defun time-day (&optional time)
-  (nth 3 (get-time time)))
-
-(defun time-month (&optional time)
-  (nth 4 (get-time time)))
-
-(defun time-year (&optional time)
-  (nth 5 (get-time time)))
-
-
-(declaim (inline time= time< time<= time> time>=))
-
-(define-transitive-relation time= (a b)
-  (= a b))
-
-(define-transitive-relation time< (a b)
-  (< a b))
-
-(define-transitive-relation time<= (a b)
-  (<= a b))
-
-(define-transitive-relation time> (a b)
-  (> a b))
-
-(define-transitive-relation time>= (a b)
-  (>= a b))
-
-(defun time+ (x durspec)
-  (+ x (duration durspec)))
-
-(defun time- (x durspec)
-  (- x (duration durspec)))
+(defclass duration ()
+  ((days
+    :initarg :days
+    :initform 0
+    :reader duration-days)
+   (hours
+    :initarg :hours
+    :initform 0
+    :reader duration-hours)
+   (minutes
+    :initarg :minutes
+    :initform 0
+    :reader duration-minutes)
+   (seconds
+    :initarg :seconds
+    :initform 0
+    :reader duration-seconds)))
 
 
-;;;; Duration
+(defmethod initialize-instance :after ((dur duration) &rest initargs &key &allow-other-keys)
+  (declare (ignore initargs))
+  (flet ((deaccumulate (n acc)
+           (let ((quotient (idiv n (first acc))))
+             (if (endp (cdr acc))
+                 (list quotient)
+                 (cons (mod quotient (second acc))
+                       (deaccumulate quotient (cdr acc)))))))
+    (destructuring-bind (seconds minutes hours days)
+        (deaccumulate (+ (* (duration-days dur) 86400)
+                         (* (duration-hours dur) 3600)
+                         (* (duration-minutes dur) 60)
+                         (* (duration-seconds dur)  1))
+                      '(1 60 60 24))
+      (setf (slot-value dur 'days)    days)
+      (setf (slot-value dur 'hours)   hours)
+      (setf (slot-value dur 'minutes) minutes)
+      (setf (slot-value dur 'seconds) seconds))))
 
-(deftype duration () 'integer)
 
-(defun durationp (x)
-  (typep x 'duration))
+(defun make-duration (&rest args &key &allow-other-keys)
+  (apply #'make-instance 'duration args))
+
+
+(defun duration (durspec)
+  (etypecase durspec
+    (duration durspec)
+    (string (parse-duration durspec))))
+
+
+(defmethod print-object ((x duration) stream)
+  (print-unreadable-object (x stream :type t)
+    (let* ((component-names
+            (if *print-duration-abbrev*
+                '("d"   "h"    "m"      "s")
+                '("day" "hour" "minute" "second")))
+           (output
+            (loop with i = 0
+                  for c in component-names
+                  for n in (list (duration-days    x)
+                                 (duration-hours   x)
+                                 (duration-minutes x)
+                                 (duration-seconds x))
+                  unless (zerop n)  
+                  collect n and collect c and do (incf i))))
+      (cond
+        ((null output)
+         (format stream "empty duration"))
+        (*print-duration-abbrev*
+         (format stream "~{~d~a~^ ~}" output))
+        (t
+         (format stream "~{~d ~a~2:*~p~*~#[~;~; and ~:;, ~]~}" output))))))
+
 
 ;;; Parse a duration according to the format which is described in the
 ;;; RFC5545 section 3.3.6.
@@ -187,15 +212,9 @@
                      (check-character #\D))))
 
           ;; Estado inicial
-          (prog1 (dur-value)
+          (prog1 (make-duration :seconds (dur-value))
             (unless (null token1)
               (ill-formed))))))))
-
-(defun duration (durspec)
-  (etypecase durspec
-    (duration durspec)
-    (string (parse-duration durspec))))
-
 
 
 ;;; datetime.lisp ends here
