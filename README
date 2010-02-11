@@ -15,5 +15,9 @@ tested on:
 The following libraries are required in order to use cl-icalendar:
 
   o trivial-gray-streams
+    http://www.cliki.net/trivial-gray-streams
+
+  o local-time
+    http://common-lisp.net/project/local-time/
 
 You can get all them using asdf-install.
