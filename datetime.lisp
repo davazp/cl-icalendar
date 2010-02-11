@@ -134,25 +134,25 @@
   (duration-days (duration x)))
 
 (defmethod duration-hours ((x integer))
-  (duration-days (duration x)))
+  (duration-hours (duration x)))
 
 (defmethod duration-minutes ((x integer))
-  (duration-days (duration x)))
+  (duration-minutes (duration x)))
 
 (defmethod duration-seconds ((x integer))
-  (duration-days (duration x)))
+  (duration-seconds (duration x)))
 
 (defmethod duration-days ((x string))
   (duration-days (duration x)))
 
 (defmethod duration-hours ((x string))
-  (duration-days (duration x)))
+  (duration-hours (duration x)))
 
 (defmethod duration-minutes ((x string))
-  (duration-days (duration x)))
+  (duration-minutes (duration x)))
 
 (defmethod duration-seconds ((x string))
-  (duration-days (duration x)))
+  (duration-seconds (duration x)))
 
 (defun duration-in-seconds (durspec)
   (let ((dur (duration durspec)))
