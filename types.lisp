@@ -419,5 +419,20 @@
             (unless (null token1)
               (ill-formed))))))))
 
+(defun parse-float (string)
+  (with-input-from-string (in string)
+    (let* ((sign (case (read-char in)
+		   (#\+ 1)
+		   (#\- -1)
+		   (t (error "First char should be +/-"))))
+	   (int-part (read-until in "." nil nil))
+	   (rest (read-until in nil nil nil))
+	   (decimals (unless (zerop (length rest))
+		       (subseq rest 1))))
+      (float (+ (parse-integer int-part)
+		(/ (if decimals
+		       (parse-integer decimals) 0)
+		   (expt 10 (length decimals))
+		   sign))))))
 
 ;;; types.lisp ends here
