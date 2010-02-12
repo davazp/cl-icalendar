@@ -27,6 +27,9 @@
 (defmacro zerof (place)
   `(setf ,place 0))
 
+(defmacro nilf (place)
+  `(setf ,place nil))
+
 (defmacro while (condition &body code)
   `(do ()
        ((not ,condition))
@@ -94,6 +97,21 @@
 (defun idiv (a b)
   (declare (integer a b))
   (values (truncate a b)))
+
+
+(defun split-string (string &optional (separators " ") (omit-nulls t))
+  (declare (type string string))
+  (flet ((separator-p (char)
+           (etypecase separators
+             (character (char= char separators))
+             (sequence  (find char separators))
+             (function  (funcall separators char)))))
+    (loop for start = 0 then (1+ end)
+          for end = (position-if #'separator-p string :start start)
+          as seq = (subseq string start end)
+          unless (and omit-nulls (string= seq ""))
+          collect seq
+          while end)))
 
 
 ;;; utils.lisp ends here
