@@ -20,6 +20,41 @@
 
 (in-package :cl-icalendar)
 
+
+;;;; Float
+
+(defun parse-float (string)
+  (let ((sign 1)                        ; the sign
+        (x 0)                           ; integer part
+        (y 0))                          ; fractional part
+    (with-input-from-string (in string)
+      ;; Read sign
+      (case (peek-char nil in)
+        (#\+
+         (read-char in))
+        (#\-
+         (setf sign -1)
+         (read-char in)))
+        
+      ;; Read integer part
+      (let ((istring (read-until in (complement #'digit-char-p) nil nil)))
+        (setf x (parse-integer istring)))
+        
+      ;; Read fractinal part (if any)
+      (let ((dot (read-char in nil)))
+        (unless (null dot)
+          (unless (char= dot #\.)
+            (error "Bad formed float."))
+
+          (let ((fstring (read-until in (complement #'digit-char-p) nil nil)))
+            (setf y (/ (float (parse-integer fstring))
+                       (expt 10 (length fstring))))))))
+
+    (* sign (+ x y))))
+
+
+
+
 ;;;; Date, time, and date-time
 
 (defclass datetime ()
@@ -110,8 +145,6 @@
 
 
 
-
-
 ;;;; Duration data type
 
 (defvar *print-duration-abbrev* nil)
@@ -419,20 +452,6 @@
             (unless (null token1)
               (ill-formed))))))))
 
-(defun parse-float (string)
-  (with-input-from-string (in string)
-    (let* ((sign (case (read-char in)
-		   (#\+ 1)
-		   (#\- -1)
-		   (t (error "First char should be +/-"))))
-	   (int-part (read-until in "." nil nil))
-	   (rest (read-until in nil nil nil))
-	   (decimals (unless (zerop (length rest))
-		       (subseq rest 1))))
-      (float (+ (parse-integer int-part)
-		(/ (if decimals
-		       (parse-integer decimals) 0)
-		   (expt 10 (length decimals))
-		   sign))))))
+
 
 ;;; types.lisp ends here
