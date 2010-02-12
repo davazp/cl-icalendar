@@ -34,6 +34,15 @@
 (defgeneric time-minute (x))
 (defgeneric time-second (x))
 
+(defun make-datetime (day month year hour minute second)
+  (let ((tstamp (local-time:encode-timestamp 0 second minute hour day month year)))
+    (make-instance 'datetime :timestamp tstamp)))
+
+(defmethod print-object ((x datetime) stream)
+  (print-unreadable-object (x stream :type t)
+    (print-object (timestamp x) stream)))
+
+
 (defmethod date-day ((x datetime))
   (local-time:timestamp-day (timestamp x)))
 
@@ -69,11 +78,36 @@
 (define-transitive-relation datetime>= (x y)
   (local-time:timestamp>= (timestamp x) (timestamp y)))
 
-;;; Printer
 
-(defmethod print-object ((x datetime) stream)
-  (print-unreadable-object (x stream :type t)
-    (print-object (timestamp x) stream)))
+;;; Compositional functions
+
+(defun datetime+ (datetime durspec)
+  (local-time:timestamp+
+   (timestamp datetime)
+   (duration-in-seconds durspec) :sec))
+
+(defun datetime- (datetime durspec)
+  (local-time:timestamp-
+   (timestamp datetime)
+   (duration-in-seconds durspec) :sec))
+
+;;; Parser
+
+(defun parse-datetime (string)
+  (let ((year   (parse-integer string :start  0 :end 4))
+        (month  (parse-integer string :start  4 :end 6))
+        (day    (parse-integer string :start  6 :end 8))
+        (hour   (parse-integer string :start  9 :end 11))
+        (minute (parse-integer string :start 11 :end 13))
+        (second (parse-integer string :start 13 :end 15))
+        (zone   (and (> (length string) 15)
+                     (character (parse-integer string :start 15 :end 16)))))
+
+    (unless (char= (elt string 8) #\T)
+      (error "Bad format"))
+
+    (make-datetime day month year hour minute second)))
+
 
 
 
@@ -91,7 +125,6 @@
 (defgeneric duration-hours (duration))
 (defgeneric duration-minutes (duration))
 (defgeneric duration-seconds (duration))
-(defgeneric duration-in-seconds (duration))
 (defgeneric duration-backward-p (duration))
 
 (defun durationp (x)
@@ -108,7 +141,7 @@
                     (+ (* days  84706)
                        (* hours 3600)
                        (* minutes 60)
-                       (+ seconds )))))
+                       seconds))))
 
 (defun duration (durspec)
   (etypecase durspec
