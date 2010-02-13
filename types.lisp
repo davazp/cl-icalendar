@@ -84,7 +84,10 @@
     :reader text)))
 
 (defmethod print-object ((x text*) stream)
-  (write (text x) :stream stream))
+  (print-unreadable-object (x stream)
+    (format stream "TEXT :LANG ~a ~w"
+            (text-language x)
+            (text x))))
 
 (deftype text ()
   '(or string text*))
