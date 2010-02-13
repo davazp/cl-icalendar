@@ -127,7 +127,7 @@
 
 (defun check-length (seq length &optional (msg "Bad length for sequence"))
   (if (= (length seq) length)
-      t
+      seq
       (error msg)))
 
 ;;; utils.lisp ends here
