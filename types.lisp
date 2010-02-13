@@ -774,4 +774,77 @@
                        (parse-datetime end))))))
 
 
+
+;;;; Recur data type
+
+(defclass recur ()
+  ((freq
+    :initarg :freq
+    :initform nil
+    :reader recur-freq)
+   (until
+    :initarg :until
+    :initform nil
+    :reader recur-until)
+   (count
+    :initarg :count
+    :initform nil
+    :reader recur-count)
+   (interval
+    :initarg :interval
+    :initform nil
+    :reader recur-interval)
+   (bysecond
+    :initarg :bysecond
+    :initform nil
+    :reader recur-bysecond)
+   (byminute
+    :initarg :byminute
+    :initform nil
+    :reader recur-byminute)
+   (byhour
+    :initarg :byhour
+    :initform nil
+    :reader recur-byhour)
+   (byday
+    :initarg :byday
+    :initform nil
+    :reader recur-byday)
+   (bymonthday
+    :initarg :bymonthday
+    :initform nil
+    :reader recur-bymonthday)
+   (byyearday
+    :initarg :byyearday
+    :initform nil
+    :reader recur-byyearday)
+   (byweekno
+    :initarg :byweekno
+    :initform nil
+    :reader recur-byweekno)
+   (bymonth
+    :initarg :bymonth
+    :initform nil
+    :reader recur-bymonth)
+   (bysetpos
+    :initarg :bysetpos
+    :initform nil
+    :reader recur-bysetpos)
+   (wkst
+    :initarg :wkst
+    :initform nil
+    :reader recur-wkst)))
+
+
+(defmethod initialize-instance :after ((x recur) &rest initargs &key &allow-other-keys)
+  (declare (ignorable initargs))
+  ;; Check constrains
+  (when (null (recur-freq x))
+    (error "FREQ slot is required."))
+  (when (and (recur-until x)
+             (recur-count x))
+    (error "No UNTIL and COUNT slot can ocurr to same 'RECUR'.")))
+
+
+
 ;;; types.lisp ends here
