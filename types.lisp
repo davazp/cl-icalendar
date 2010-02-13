@@ -20,7 +20,6 @@
 
 (in-package :cl-icalendar)
 
-
 ;;;; Boolean
 
 (defun format-boolean (bool)
@@ -69,7 +68,6 @@
                        (expt 10 (length fstring))))))))
 
     (* sign (+ x y))))
-
 
 
 ;;;; Text
@@ -148,13 +146,10 @@
                           out))))))
 
 
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; Time data types ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;;;; Date, time, and date-time
-
-(defclass datetime ()
-  ((timestamp
-    :initarg :timestamp
-    :reader timestamp)))
+;;;; Datetime
 
 (defgeneric date-day (x))
 (defgeneric date-month (x))
@@ -163,14 +158,28 @@
 (defgeneric time-minute (x))
 (defgeneric time-second (x))
 
-(defun make-datetime (day month year hour minute second)
-  (let ((tstamp (local-time:encode-timestamp 0 second minute hour day month year)))
-    (make-instance 'datetime :timestamp tstamp)))
+(defclass datetime ()
+  ((timestamp
+    :initarg :timestamp
+    :reader timestamp)))
+
+
+;;; TODO: The TZONE argument will be implemented when the module
+;;; components is ready.
+(defun make-datetime (day month year hour minute second &optional tzone)
+  (declare (ignore tzone))
+  (make-instance 'datetime
+                 :timestamp
+                 (local-time:encode-timestamp
+                  0
+                  second minute hour
+                  day month year)))
+
+(defun datetimep (x)
+  (typep x 'datetime))
 
 (defmethod print-object ((x datetime) stream)
-  (print-unreadable-object (x stream :type t)
-    (print-object (timestamp x) stream)))
-
+  (print-object (timestamp x) stream))
 
 (defmethod date-day ((x datetime))
   (local-time:timestamp-day (timestamp x)))
@@ -207,34 +216,178 @@
 (define-transitive-relation datetime>= (x y)
   (local-time:timestamp>= (timestamp x) (timestamp y)))
 
-
 ;;; Compositional functions
 
 (defun datetime+ (datetime durspec)
-  (local-time:timestamp+
-   (timestamp datetime)
-   (duration-in-seconds durspec) :sec))
+  (make-instance 'datetime
+                 :timestamp
+                 (local-time:timestamp+
+                  (timestamp datetime)
+                  (duration-in-seconds durspec) :sec)))
 
 (defun datetime- (datetime durspec)
-  (local-time:timestamp-
-   (timestamp datetime)
-   (duration-in-seconds durspec) :sec))
+  (make-instance 'datetime
+                 :timestamp
+                 (local-time:timestamp-
+                  (timestamp datetime)
+                  (duration-in-seconds durspec) :sec)))
 
 ;;; Parser
 
 (defun parse-datetime (string)
-  (let ((year   (parse-integer string :start  0 :end 4))
-        (month  (parse-integer string :start  4 :end 6))
-        (day    (parse-integer string :start  6 :end 8))
-        (hour   (parse-integer string :start  9 :end 11))
-        (minute (parse-integer string :start 11 :end 13))
-        (second (parse-integer string :start 13 :end 15)))
+  ;; TODO: Handling timezones
+  (let ((string-date (subseq string 0  8))
+        (string-time (subseq string 9 15)))
+    (flet ((ill-formed ()
+             (error "Bad datetime format.")))
+      (unless (char= (elt string 8) #\T)
+        (ill-formed))
+      
+      (let ((date   (parse-date string-date))
+            (time   (parse-time string-time)))
+        (make-datetime (date-day    date)
+                       (date-month  date)
+                       (date-year   date)
+                       (time-hour   time)
+                       (time-minute time)
+                       (time-second time))))))
 
-    (unless (char= (elt string 8) #\T)
-      (error "Bad format"))
 
-    (make-datetime day month year hour minute second)))
+;;; Date
 
+(defclass date ()
+  ((timestamp
+    :initarg :timestamp
+    :reader timestamp)))
+
+(defun make-date (day month year)
+  (make-instance 'date
+                 :timestamp
+                 (local-time:encode-timestamp 0 0 0 0 day month year)))
+
+(defun datep (x)
+  (typep x 'date))
+
+(defmethod print-object ((x date) stream)
+  (print-unreadable-object (x stream :type t)
+    (format stream "~2,'0d-~2,'0d-~4,'0d"
+            (date-day x)
+            (date-month x)
+            (date-year x))))
+
+(defmethod date-day ((x date))
+  (local-time:timestamp-day (timestamp x)))
+
+(defmethod date-month ((x date))
+  (local-time:timestamp-month (timestamp x)))
+
+(defmethod date-year ((x date))
+  (local-time:timestamp-year (timestamp x)))
+
+
+(define-transitive-relation date= (x y)
+  (local-time:timestamp= (timestamp x) (timestamp y)))
+
+(define-transitive-relation date< (x y)
+  (local-time:timestamp< (timestamp x) (timestamp y)))
+
+(define-transitive-relation date<= (x y)
+  (local-time:timestamp<= (timestamp x) (timestamp y)))
+
+(define-transitive-relation date> (x y)
+  (local-time:timestamp> (timestamp x) (timestamp y)))
+
+(define-transitive-relation date>= (x y)
+  (local-time:timestamp>= (timestamp x) (timestamp y)))
+
+
+(defun date+ (date durspec)
+  (check-type date date)
+  (let* ((dur (duration durspec))
+         (sec (duration-in-seconds durspec)))
+    (unless (zerop (mod sec 86400))
+      (error "The duration ~a is not multiple of days" dur))
+    (make-instance 'date :timestamp
+                   (local-time:timestamp+ (timestamp date) sec :sec))))
+
+
+(defun date- (date durspec)
+  (check-type date date)
+  (let* ((dur (duration durspec))
+         (sec (duration-in-seconds durspec)))
+    (unless (zerop (mod sec 86400))
+      (error "The duration ~a is not multiple of days" dur))
+    (make-instance 'date :timestamp
+                   (local-time:timestamp- (timestamp date) sec :sec))))
+
+(defun parse-date (string)
+  (unless (= (length string) 8)
+    (error "parse error."))
+  (make-date (parse-unsigned-integer string :start 6 :end 8)
+             (parse-unsigned-integer string :start 4 :end 6)
+             (parse-unsigned-integer string :start 0 :end 4)))
+
+
+;;; Time
+
+(defclass time ()
+  ((timestamp
+    :initarg :timestamp
+    :reader timestamp)))
+
+(defun make-time (hour minute second)
+  (make-instance 'time
+                 :timestamp
+                 (local-time:encode-timestamp 0 second minute hour 0 1 2000)))
+
+(defun timep (x)
+  (typep x 'time))
+
+(defmethod print-object ((x time) stream)
+  (print-unreadable-object (x stream :type t)
+    (format stream "~2,'0d:~2,'0d:~2,'0d"
+            (time-hour   x)
+            (time-minute x)
+            (time-second x))))
+
+(defmethod time-hour ((x time))
+  (local-time:timestamp-hour (timestamp x)))
+
+(defmethod time-minute ((x time))
+  (local-time:timestamp-hour (timestamp x)))
+
+(defmethod time-second ((x time))
+  (local-time:timestamp-second (timestamp x)))
+
+
+(define-transitive-relation time= (x y)
+  (local-time:timestamp= (timestamp x) (timestamp y)))
+
+(define-transitive-relation time< (x y)
+  (local-time:timestamp< (timestamp x) (timestamp y)))
+
+(define-transitive-relation time<= (x y)
+  (local-time:timestamp<= (timestamp x) (timestamp y)))
+
+(define-transitive-relation time> (x y)
+  (local-time:timestamp> (timestamp x) (timestamp y)))
+
+(define-transitive-relation time>= (x y)
+  (local-time:timestamp>= (timestamp x) (timestamp y)))
+
+;; (defun time+ (date durspec)
+;;   )
+
+;; (defun time- (date durspec)
+;;   )
+
+(defun parse-time (string)
+  (unless (or (= (length string) 6)
+              (= (length string) 7))
+    (error "parse error."))
+  (make-time (parse-unsigned-integer string :start 0 :end 2)
+             (parse-unsigned-integer string :start 2 :end 4)
+             (parse-unsigned-integer string :start 4 :end 6)))
 
 
 
@@ -544,7 +697,6 @@
           (prog1 (duration (dur-value))
             (unless (null token1)
               (ill-formed))))))))
-
 
 
 

@@ -36,6 +36,43 @@
            #:make-text
            #:format-text
            #:parse-text
+           ;; Datetime
+           #:make-datetime
+           #:datetimep
+           #:date-day
+           #:date-month
+           #:date-year
+           #:time-hour
+           #:time-minute
+           #:time-second
+           #:datetime=
+           #:datetime<
+           #:datetime<=
+           #:datetime>
+           #:datetime>=
+           #:datetime+
+           #:datetime-
+           #:parse-datetime
+           ;; Date
+           #:make-date
+           #:datep
+           #:date=
+           #:date<
+           #:date<=
+           #:date>
+           #:date>=
+           #:date+
+           #:date-
+           #:parse-date
+           ;; Time
+           #:make-time
+           #:timep
+           #:time=
+           #:time<
+           #:time<=
+           #:time>
+           #:time>=
+           #:parse-time
            ;; Duration
            #:make-duration
            #:duration

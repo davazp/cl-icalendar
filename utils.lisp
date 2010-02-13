@@ -114,4 +114,13 @@
           while end)))
 
 
+;;; Like `parse-integer' but it is not allowed to have a sign (+\-).
+(defun parse-unsigned-integer (string &rest keyargs &key &allow-other-keys)
+  (unless (or (zerop (length string))
+              (digit-char-p (elt string 0)))
+    (error "~w is not an unsigned integer." string))
+  (apply #'parse-integer string keyargs))
+
+
+
 ;;; utils.lisp ends here
