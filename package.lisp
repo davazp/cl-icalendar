@@ -72,6 +72,8 @@
            #:time<=
            #:time>
            #:time>=
+           #:time+
+           #:time-
            #:parse-time
            ;; Duration
            #:make-duration
