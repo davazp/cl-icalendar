@@ -151,17 +151,66 @@
 
 ;;;; Datetime
 
-(defgeneric date-day (x))
-(defgeneric date-month (x))
-(defgeneric date-year (x))
-(defgeneric time-hour (x))
-(defgeneric time-minute (x))
-(defgeneric time-second (x))
-
 (defclass datetime ()
   ((timestamp
     :initarg :timestamp
+    :reader datetimestamp)))
+
+(defclass date ()
+  ((timestamp
+    :initarg :timestamp
+    :reader datestamp)))
+
+(defclass time ()
+  ((timestamp
+    :initarg :timestamp
     :reader timestamp)))
+
+(defgeneric universal-time (x))
+(defmethod universal-time ((x datetime))
+  (datetimestamp x))
+(defmethod universal-time ((x date))
+  (datestamp x))
+(defmethod universal-time ((x time))
+  (timestamp x))
+
+;;; Accessors
+(defun date-day (x)
+  (multiple-value-bind (second minute hour date month year day daylight-p zone)
+      (decode-universal-time (universal-time x))
+    (declare (ignorable second minute hour date month year day daylight-p zone))
+    date))
+
+(defun date-month (x)
+  (multiple-value-bind (second minute hour date month year day daylight-p zone)
+      (decode-universal-time (universal-time x))
+    (declare (ignorable second minute hour date month year day daylight-p zone))
+    month))
+
+(defun date-year (x)
+  (multiple-value-bind (second minute hour date month year day daylight-p zone)
+      (decode-universal-time (universal-time x))
+    (declare (ignorable second minute hour date month year day daylight-p zone))
+    year))
+
+(defun time-hour (x)
+  (multiple-value-bind (second minute hour date month year day daylight-p zone)
+      (decode-universal-time (universal-time x))
+    (declare (ignorable second minute hour date month year day daylight-p zone))
+    hour))
+
+(defun time-minute (x)
+  (multiple-value-bind (second minute hour date month year day daylight-p zone)
+      (decode-universal-time (universal-time x))
+    (declare (ignorable second minute hour date month year day daylight-p zone))
+    minute))
+
+(defun time-second (x)
+  (multiple-value-bind (second minute hour date month year day daylight-p zone)
+      (decode-universal-time (universal-time x))
+    (declare (ignorable second minute hour date month year day daylight-p zone))
+    second))
+
 
 ;;; TODO: The TZONE argument will be implemented when the module
 ;;; components is ready.
@@ -185,69 +234,37 @@
             (time-minute x)
             (time-second x))))
 
-(defmethod date-day ((x datetime))
-  (multiple-value-bind (second minute hour date month year day daylight-p zone)
-      (decode-universal-time (timestamp x))
-    (declare (ignorable second minute hour date month year day daylight-p zone))
-    date))
-
-(defmethod date-month ((x datetime))
-  (multiple-value-bind (second minute hour date month year day daylight-p zone)
-      (decode-universal-time (timestamp x))
-    (declare (ignorable second minute hour date month year day daylight-p zone))
-    month))
-
-(defmethod date-year ((x datetime))
-  (multiple-value-bind (second minute hour date month year day daylight-p zone)
-      (decode-universal-time (timestamp x))
-    (declare (ignorable second minute hour date month year day daylight-p zone))
-    year))
-
-(defmethod time-hour ((x datetime))
-  (multiple-value-bind (second minute hour date month year day daylight-p zone)
-      (decode-universal-time (timestamp x))
-    (declare (ignorable second minute hour date month year day daylight-p zone))
-    hour))
-
-(defmethod time-minute ((x datetime))
-  (multiple-value-bind (second minute hour date month year day daylight-p zone)
-      (decode-universal-time (timestamp x))
-    (declare (ignorable second minute hour date month year day daylight-p zone))
-    minute))
-
-(defmethod time-second ((x datetime))
-  (multiple-value-bind (second minute hour date month year day daylight-p zone)
-      (decode-universal-time (timestamp x))
-    (declare (ignorable second minute hour date month year day daylight-p zone))
-    second))
 
 ;;; Relational functions
 
 (define-transitive-relation datetime= (x y)
-  (= (timestamp x) (timestamp y)))
+  (= (datetimestamp x) (datetimestamp y)))
 
 (define-transitive-relation datetime< (x y)
-  (< (timestamp x) (timestamp y)))
+  (< (datetimestamp x) (datetimestamp y)))
 
 (define-transitive-relation datetime<= (x y)
-  (<= (timestamp x) (timestamp y)))
+  (<= (datetimestamp x) (datetimestamp y)))
 
 (define-transitive-relation datetime> (x y)
-  (> (timestamp x) (timestamp y)))
+  (> (datetimestamp x) (datetimestamp y)))
 
 (define-transitive-relation datetime>= (x y)
-  (>= (timestamp x) (timestamp y)))
+  (>= (datetimestamp x) (datetimestamp y)))
+
 
 ;;; Compositional functions
 
 (defun datetime+ (datetime durspec)
+  (check-type datetime datetime)
   (make-instance 'datetime
-                 :timestamp (+ (timestamp datetime)
+                 :timestamp (+ (datetimestamp datetime)
                                (duration-in-seconds durspec))))
 
 (defun datetime- (datetime durspec)
+  (check-type datetime datetime)
   (make-instance 'datetime
-                 :timestamp (- (timestamp datetime)
+                 :timestamp (- (datetimestamp datetime)
                                (duration-in-seconds durspec))))
 
 ;;; Parser
@@ -273,11 +290,6 @@
 
 ;;; Date
 
-(defclass date ()
-  ((timestamp
-    :initarg :timestamp
-    :reader timestamp)))
-
 (defun make-date (day month year)
   (make-instance 'date :timestamp (encode-universal-time 0 0 0 day month year)))
 
@@ -291,56 +303,38 @@
             (date-month x)
             (date-year x))))
 
-(defmethod date-day ((x date))
-  (multiple-value-bind (second minute hour date month year day daylight-p zone)
-      (decode-universal-time (timestamp x))
-    (declare (ignorable second minute hour date month year day daylight-p zone))
-    date))
-
-(defmethod date-month ((x date))
-  (multiple-value-bind (second minute hour date month year day daylight-p zone)
-      (decode-universal-time (timestamp x))
-    (declare (ignorable second minute hour date month year day daylight-p zone))
-    month))
-
-(defmethod date-year ((x date))
-  (multiple-value-bind (second minute hour date month year day daylight-p zone)
-      (decode-universal-time (timestamp x))
-    (declare (ignorable second minute hour date month year day daylight-p zone))
-    year))
-
 (define-transitive-relation date= (x y)
-  (= (timestamp x) (timestamp y)))
+  (= (datestamp x) (datestamp y)))
 
 (define-transitive-relation date< (x y)
-  (< (timestamp x) (timestamp y)))
+  (< (datestamp x) (datestamp y)))
 
 (define-transitive-relation date<= (x y)
-  (<= (timestamp x) (timestamp y)))
+  (<= (datestamp x) (datestamp y)))
 
 (define-transitive-relation date> (x y)
-  (> (timestamp x) (timestamp y)))
+  (> (datestamp x) (datestamp y)))
 
 (define-transitive-relation date>= (x y)
-  (>= (timestamp x) (timestamp y)))
+  (>= (datestamp x) (datestamp y)))
 
 
 (defun date+ (date durspec)
   (check-type date date)
   (let* ((dur (duration durspec))
          (sec (duration-in-seconds durspec)))
-    (unless (zerop (mod sec 86400))
+    (unless (divisiblep sec 86400)
       (error "The duration ~a is not multiple of days" dur))
-    (make-instance 'date :timestamp (+ (timestamp date) sec))))
+    (make-instance 'date :timestamp (+ (datestamp date) sec))))
 
 
 (defun date- (date durspec)
   (check-type date date)
   (let* ((dur (duration durspec))
          (sec (duration-in-seconds durspec)))
-    (unless (zerop (mod sec 86400))
+    (unless (divisiblep sec 86400)
       (error "The duration ~a is not multiple of days" dur))
-    (make-instance 'date :timestamp (- (timestamp date) sec))))
+    (make-instance 'date :timestamp (- (datestamp date) sec))))
 
 (defun parse-date (string)
   (unless (= (length string) 8)
@@ -351,11 +345,6 @@
 
 
 ;;; Time
-
-(defclass time ()
-  ((timestamp
-    :initarg :timestamp
-    :reader timestamp)))
 
 (defun make-time (hour minute second)
   (make-instance 'time :timestamp (+ (* hour 3600) (* minute 60) second)))
@@ -370,37 +359,29 @@
             (time-minute x)
             (time-second x))))
 
-(defmethod time-hour ((x time))
-  (multiple-value-bind (second minute hour date month year day daylight-p zone)
-      (decode-universal-time (timestamp x))
-    (declare (ignorable second minute hour date month year day daylight-p zone))
-    hour))
-
-(defmethod time-minute ((x time))
-  (multiple-value-bind (second minute hour date month year day daylight-p zone)
-      (decode-universal-time (timestamp x))
-    (declare (ignorable second minute hour date month year day daylight-p zone))
-    minute))
-
-(defmethod time-second ((x time))
-  (multiple-value-bind (second minute hour date month year day daylight-p zone)
-      (decode-universal-time (timestamp x))
-    (declare (ignorable second minute hour date month year day daylight-p zone))
-    second))
-
 (define-transitive-relation time= (x y)
+  (check-type x time)
+  (check-type y time)
   (= (timestamp x) (timestamp y)))
 
 (define-transitive-relation time< (x y)
+  (check-type x time)
+  (check-type y time)
   (< (timestamp x) (timestamp y)))
 
 (define-transitive-relation time<= (x y)
+  (check-type x time)
+  (check-type y time)
   (<= (timestamp x) (timestamp y)))
 
 (define-transitive-relation time> (x y)
+  (check-type x time)
+  (check-type y time)
   (> (timestamp x) (timestamp y)))
 
 (define-transitive-relation time>= (x y)
+  (check-type x time)
+  (check-type y time)
   (>= (timestamp x) (timestamp y)))
 
 
@@ -597,7 +578,7 @@
         (cond
           ((zerop (duration-in-seconds dur))
            (format out "T0S"))
-          ((zerop (mod (duration-in-seconds dur) 604800))
+          ((divisiblep (duration-in-seconds dur) 604800)
            (format out "~aW" (/ days 7)))
           (t
            (unless (zerop days)

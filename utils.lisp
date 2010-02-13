@@ -93,12 +93,6 @@
      (defun ,name ,args ,@body)))
 
 
-;;; Integer division
-(defun idiv (a b)
-  (declare (integer a b))
-  (values (truncate a b)))
-
-
 (defun split-string (string &optional (separators " ") (omit-nulls t))
   (declare (type string string))
   (flet ((separator-p (char)
@@ -121,6 +115,15 @@
     (error "~w is not an unsigned integer." string))
   (apply #'parse-integer string keyargs))
 
+
+;;; Integer division
+(definline idiv (a b)
+  (declare (integer a b))
+  (values (truncate a b)))
+
+(definline divisiblep (m n)
+  (declare (integer m n))
+  (zerop (mod m n)))
 
 
 ;;; utils.lisp ends here
