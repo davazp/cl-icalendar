@@ -739,4 +739,39 @@
 
 
 
+;;;; Period
+
+(defclass period ()
+  ((start
+    :initarg :start
+    :reader period-start)
+   (end
+    :initarg :end
+    :reader period-end)))
+
+(defun make-period (start end)
+  (make-instance 'period :start start :end end))
+
+(defun period-duration (period)
+  (let ((start (period-start period))
+        (end   (period-end period)))
+    (make-duration  :seconds
+                    (- (universal-time start)
+                       (universal-time end)))))
+
+(defun format-period (p)
+  ;; TODO: We should write down in the class `period' if the user
+  ;; specifies a duration or a end datetime, in order to format it so.
+  (format nil "~a/~a" (period-start p) (period-end p)))
+
+(defun parse-period (string)
+  (destructuring-bind (start end)
+      (split-string string "/")
+    (let ((dstart (parse-datetime start)))
+      (make-period dstart
+                   (if (char= (char end 0) #\P)
+                       (datetime+ dstart (parse-duration end))
+                       (parse-datetime end))))))
+
+
 ;;; types.lisp ends here
