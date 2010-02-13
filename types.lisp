@@ -23,6 +23,11 @@
 
 ;;;; Boolean
 
+(defun format-boolean (bool)
+  (ecase bool
+    ((t) "TRUE")
+    ((nil) "FALSE")))
+
 (defun parse-boolean (string)
   (cond
     ((string= string "TRUE")  t)
@@ -32,6 +37,9 @@
 
 
 ;;;; Float
+
+(defun format-float (x)
+  (format nil "~f" x))
 
 (defun parse-float (string)
   (let ((sign 1)                        ; the sign
@@ -62,6 +70,79 @@
 
     (* sign (+ x y))))
 
+
+
+;;;; Text
+
+(defclass text* ()
+  ((language
+    :initarg :language
+    :initform nil
+    :reader text-language)
+   (string
+    :initarg :text
+    :reader text)))
+
+(defmethod print-object ((x text*) stream)
+  (write (text x) :stream stream))
+
+(deftype text ()
+  '(or string text*))
+
+(defun textp (x)
+  (typep x 'text))
+
+(defmethod text ((x string))
+  x)
+
+(defmethod text-language ((x string))
+  nil)
+
+(defun make-text (string &optional language)
+  (if language
+      (make-instance 'text* :text string :language language)
+      string))
+
+(defun format-text (text)
+  (let ((string (text text)))
+    (with-input-from-string (in string)
+      (with-output-to-string (out)
+        (loop for ch = (read-char in nil)
+              while ch
+              do
+              (cond
+                ((char= ch #\newline)
+                 (write-char #\\ out)
+                 (write-char #\n out))
+                ((char= ch #\\)
+                 (write-char #\\ out)
+                 (write-char #\\ out))
+                ((char= ch #\,)
+                 (write-char #\\ out)
+                 (write-char #\, out))
+                ((char= ch #\;)
+                 (write-char #\\ out)
+                 (write-char #\; out))
+                (t
+                 (write-char ch out))))))))
+
+
+(defun parse-text (text)
+  (let ((string (text text)))
+    (with-input-from-string (in string)
+      (with-output-to-string (out)
+        (loop for ch = (read-char in nil)
+              while ch
+              do
+              (write-char (if (char/= ch #\\)
+                              ch
+                              (ecase (read-char in nil)
+                                (#\\ #\\)
+                                (#\; #\;)
+                                (#\, #\,)
+                                (#\N #\newline)
+                                (#\n #\newline)))
+                          out))))))
 
 
 
@@ -144,14 +225,13 @@
         (day    (parse-integer string :start  6 :end 8))
         (hour   (parse-integer string :start  9 :end 11))
         (minute (parse-integer string :start 11 :end 13))
-        (second (parse-integer string :start 13 :end 15))
-        (zone   (and (> (length string) 15)
-                     (character (parse-integer string :start 15 :end 16)))))
+        (second (parse-integer string :start 13 :end 15)))
 
     (unless (char= (elt string 8) #\T)
       (error "Bad format"))
 
     (make-datetime day month year hour minute second)))
+
 
 
 
@@ -461,6 +541,7 @@
           (prog1 (duration (dur-value))
             (unless (null token1)
               (ill-formed))))))))
+
 
 
 

@@ -23,8 +23,19 @@
   (:nicknames :icalendar :ical)
   (:use :cl :trivial-gray-streams)
   (:shadow #:time)
-  (:export #:make-folding-stream
-           #:with-folding-stream
+  (:export ;; Basic types
+           #:format-boolean
+           #:format-float
+           #:parse-boolean
+           #:parse-float
+           ;; Text
+           #:text
+           #:textp
+           #:text
+           #:text-language
+           #:make-text
+           #:format-text
+           #:parse-text
            ;; Duration
            #:make-duration
            #:duration
@@ -34,6 +45,7 @@
            #:duration-minutes
            #:duration-seconds
            #:duration-in-seconds
+           #:duration-backward-p
            #:duration=
            #:duration<
            #:duration<=
