@@ -21,6 +21,16 @@
 (in-package :cl-icalendar)
 
 
+;;;; Boolean
+
+(defun parse-boolean (string)
+  (cond
+    ((string= string "TRUE")  t)
+    ((string= string "FALSE") nil)
+    (t
+     (error "~a is not a boolean data type." string))))
+
+
 ;;;; Float
 
 (defun parse-float (string)
