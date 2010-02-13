@@ -256,18 +256,37 @@
 ;;; Compositional functions
 
 (defun datetime+ (datetime durspec)
-  (check-type datetime datetime)
   (make-instance 'datetime
                  :timestamp (+ (datetimestamp datetime)
                                (duration-in-seconds durspec))))
 
 (defun datetime- (datetime durspec)
-  (check-type datetime datetime)
   (make-instance 'datetime
                  :timestamp (- (datetimestamp datetime)
                                (duration-in-seconds durspec))))
 
+;;; Decompound
+
+(defun datetime-date (dt)
+  (check-type dt datetime)
+  (make-date (date-day dt)
+             (date-month dt)
+             (date-year dt)))
+
+(defun datetime-time (dt)
+  (check-type dt datetime)
+  (make-time (time-hour dt)
+             (time-minute dt)
+             (time-second dt)))
+
 ;;; Parser
+
+(defun format-datetime (dt)
+  (check-type dt datetime)
+  (concatenate 'string
+               (format-date (datetime-date dt))
+               "T"
+               (format-time (datetime-time dt))))
 
 (defun parse-datetime (string)
   ;; TODO: Handling timezones
@@ -320,7 +339,6 @@
 
 
 (defun date+ (date durspec)
-  (check-type date date)
   (let* ((dur (duration durspec))
          (sec (duration-in-seconds durspec)))
     (unless (divisiblep sec 86400)
@@ -329,12 +347,20 @@
 
 
 (defun date- (date durspec)
-  (check-type date date)
   (let* ((dur (duration durspec))
          (sec (duration-in-seconds durspec)))
     (unless (divisiblep sec 86400)
       (error "The duration ~a is not multiple of days" dur))
     (make-instance 'date :timestamp (- (datestamp date) sec))))
+
+
+(defun format-date (date)
+  (check-type date date)
+  (format nil "~4,'0d~2,'0d~2,'0d"
+          (date-year date)
+          (date-month date)
+          (date-day date)))
+
 
 (defun parse-date (string)
   (unless (= (length string) 8)
@@ -360,28 +386,18 @@
             (time-second x))))
 
 (define-transitive-relation time= (x y)
-  (check-type x time)
-  (check-type y time)
   (= (timestamp x) (timestamp y)))
 
 (define-transitive-relation time< (x y)
-  (check-type x time)
-  (check-type y time)
   (< (timestamp x) (timestamp y)))
 
 (define-transitive-relation time<= (x y)
-  (check-type x time)
-  (check-type y time)
   (<= (timestamp x) (timestamp y)))
 
 (define-transitive-relation time> (x y)
-  (check-type x time)
-  (check-type y time)
   (> (timestamp x) (timestamp y)))
 
 (define-transitive-relation time>= (x y)
-  (check-type x time)
-  (check-type y time)
   (>= (timestamp x) (timestamp y)))
 
 
@@ -396,6 +412,13 @@
     (if (<= 0 x 86399)
         (make-instance 'time :timestamp x)
         (error "Time overflow"))))
+
+(defun format-time (time)
+  (check-type time time)
+  (format nil "~2,'0d~2,'0d~2,'0d"
+          (time-hour   time)
+          (time-minute time)
+          (time-second time)))
 
 (defun parse-time (string)
   (unless (or (= (length string) 6)
