@@ -141,4 +141,12 @@
   (declare (integer m n))
   (zerop (mod m n)))
 
+(defun duplicatep (list &key (test #'eql) (key #'identity))
+  (and (loop for x on list
+             for a = (funcall key (car x))
+             for b = (cdr x)
+             thereis (find a b :key key :test test))
+       t))
+
+
 ;;; utils.lisp ends here

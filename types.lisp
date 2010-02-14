@@ -836,15 +836,217 @@
     :reader recur-wkst)))
 
 
-(defmethod initialize-instance :after ((x recur) &rest initargs &key &allow-other-keys)
-  (declare (ignorable initargs))
-  ;; Check constrains
-  (when (null (recur-freq x))
-    (error "FREQ slot is required."))
-  (when (and (recur-until x)
-             (recur-count x))
-    (error "No UNTIL and COUNT slot can ocurr to same 'RECUR'.")))
+(deftype non-zero-integer (a b)
+  `(or (integer ,(- b) ,(- a))
+       (integer  ,a  ,b)))
 
+(deftype frequency ()
+  '(member
+    :secondly
+    :minutely
+    :hourly
+    :daily
+    :weekly
+    :monthly
+    :yearly))
+
+(deftype weekday ()
+  '(member
+    :sunday
+    :monday
+    :tuesday
+    :wednesday
+    :thursday
+    :friday
+    :saturday))
+
+(defun check-valid-recur (recur)
+  (with-slots (freq until count interval
+                    bysecond byminute byhour
+                    byday bymonthday byyearday
+                    byweekno bymonth bysetpos
+                    wkst)
+      recur
+
+    (macrolet ((check-type-list (list type)
+                 `(dolist (i ,list)
+                    (check-type i ,type))))
+
+      (check-type freq frequency)
+      (assert (or (not until) (not count)))
+
+      (and until    (check-type until (or date datetime)))
+      (and count    (check-type count (integer 0 *)))
+      (and interval (check-type interval (integer 0 *)))
+
+      (check-type-list bysecond (integer 0 60))
+      (check-type-list byminute (integer 0 59))
+      (check-type-list byhour   (integer 0 23))
+      ;; TODO: Write a checker for byday
+      ;;(check-type-list byday)
+
+      (check-type-list bymonthday (non-zero-integer  -31  31))
+      (check-type-list byyearday  (non-zero-integer -366 366))
+      (check-type-list byweekno   (non-zero-integer   -7   7))
+      (check-type-list bymonth    (integer 0 12))
+      (check-type-list bysetpos   (non-zero-integer -366 366))
+
+      (and wkst (check-type wkst weekday )))))
+
+
+;;; Parsing
+
+(defun parse-rule-part (string)
+  (let ((eqpos (position #\= string)))
+    (when (null eqpos)
+      (error "Bad rule part ~a" string))
+    (cons (subseq string 0 eqpos)
+          (subseq string (1+ eqpos)))))
+
+(defun parse-rules (string)
+  (let ((parts (split-string string ";" nil)))
+    (when (some #'null parts)
+      (error "Empty rule part in the recurrence '~a'." string))
+    (mapcar #'parse-rule-part parts)))
+
+(defun parse-recur (string)
+  (let ((rules (parse-rules string)))
+    ;; Check errores
+    (when (duplicatep rules :key #'car :test #'string=)
+      (error "Duplicate key in recurrence."))
+    (let ((recur (make-instance 'recur)))
+
+      (macrolet (;; Iterate on the substrings in a multiple-value.
+                 (do-list-values ((var value) &body body)
+                   (with-gensyms (list)
+                     `(let ((,list (split-string ,value "," nil)))
+                        (assert (not (null ,list)))
+                        (mapcar (lambda (,var) ,@body)
+                                ,list)))))
+        (flet ((%freq (value)
+                 (setf (slot-value recur 'freq)
+                       (cond
+                         ((string= value "SECONDLY") :secondly)
+                         ((string= value "MINUTELY") :minutely)
+                         ((string= value "HOURLY")   :hourly)
+                         ((string= value "DAILY")    :daily)
+                         ((string= value "WEEKLY")   :weekly)
+                         ((string= value "MONTHLY")  :monthly)
+                         ((string= value "YEARLY")   :yearly)
+                         (t
+                          (error "'~a' is not a valid value for the FREQ rule." value)))))
+
+               (%until (value)
+                 (setf (slot-value recur 'until)
+                       (case (length value)
+                         (8 (parse-date value))
+                         (t (parse-datetime value)))))
+
+               (%count (value)
+                 (setf (slot-value recur 'count)
+                       (parse-unsigned-integer value)))
+               
+               (%interval (value)
+                 (setf (slot-value recur 'interval)
+                       (parse-unsigned-integer value)))
+
+               (%bysecond (value)
+                 (setf (slot-value recur 'bysecond)
+                       (do-list-values (sn value)
+                         (parse-unsigned-integer sn))))
+
+               (%byminute (value)
+                 (setf (slot-value recur 'byminute)
+                       (do-list-values (sn value)
+                         (parse-unsigned-integer sn))))
+
+               (%byhour (value)
+                 (setf (slot-value recur 'byhour)
+                       (do-list-values (sn value)
+                         (parse-unsigned-integer sn))))
+
+               (%byday (value)
+                 (setf (slot-value recur 'byday)
+                       (do-list-values (str value)
+                         (multiple-value-bind (n endn)
+                             (parse-integer str :junk-allowed t)
+                           (list n (subseq str endn))))))
+
+               (%bymonthday (value)
+                 (setf (slot-value recur 'bymonthday)
+                       (do-list-values (sn value)
+                         (parse-unsigned-integer sn))))
+
+               (%byyearday (value)
+                 (setf (slot-value recur 'byyearday)
+                       (do-list-values (sn value)
+                         (parse-integer sn))))
+
+               (%byweekno (value)
+                 (setf (slot-value recur 'byyearday)
+                       (do-list-values (sn value)
+                         (parse-integer sn))))
+               
+               (%bymonth (value)
+                 (setf (slot-value recur 'byyearday)
+                       (do-list-values (sn value)
+                         (parse-unsigned-integer sn))))
+
+               (%bysetpos (value)
+                 (setf (slot-value recur 'byyearday)
+                       (do-list-values (sn value)
+                         (parse-integer sn))))
+
+               (%wkst (value)
+                 (setf (slot-value recur 'wkst) 
+                       (cond
+                         ((string= value "SU") :sunday)
+                         ((string= value "MO") :monday)
+                         ((string= value "TU") :tuesday)
+                         ((string= value "WE") :wednesday)
+                         ((string= value "TH") :thursday)
+                         ((string= value "FR") :friday)
+                         ((string= value "SA") :saturday)
+                         (t
+                          (error "No a weekday."))))))
+
+          ;; Scan rules
+          (dolist (rule rules)
+            (destructuring-bind (key . value)
+                rule
+              (cond
+                ((string= key "FREQ")
+                 (%freq value))
+                ((string= key "UNTIL")
+                 (%until value))
+                ((string= key "COUNT")
+                 (%count value))
+                ((string= key "INTERVAL")
+                 (%interval value))
+                ((string= key "BYSECOND")
+                 (%bysecond value))
+                ((string= key "BYMINUTE")
+                 (%byminute value))
+                ((string= key "BYHOUR")
+                 (%byhour value))
+                ((string= key "BYDAY")
+                 (%byday value))
+                ((string= key "BYMONTHDAY")
+                 (%bymonthday value))
+                ((string= key "BYYEARDAY")
+                 (%byyearday value))
+                ((string= key "BYWEEKNO")
+                 (%byweekno value))
+                ((string= key "BYMONTH")
+                 (%bymonth value))
+                ((string= key "BYSETPOS")
+                 (%bysetpos value))
+                ((string= key "WKST")
+                 (%wkst value))))))
+
+        ;; Return the recur instance
+        (check-valid-recur recur)
+        recur))))
 
 
 ;;; types.lisp ends here
