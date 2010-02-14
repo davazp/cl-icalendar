@@ -30,6 +30,9 @@
 (defmacro nilf (place)
   `(setf ,place nil))
 
+(defun ascii-p (char)
+  (<= 0 (char-code char) 127))
+
 (defmacro while (condition &body code)
   `(do ()
        ((not ,condition))
@@ -48,6 +51,13 @@
                 (setf ,tail (cdr ,tail))))
          ,@code)
        (cdr ,collected))))
+
+(defmacro do-string ((var string &key (start 0) end) &body body)
+  (with-gensyms (i tmp)
+    `(let ((,tmp ,string))
+      (loop for ,i from ,start below ,(or end `(length ,tmp))
+	    do (let ((,var (elt ,tmp ,i)))
+		 ,@body)))))
 
 (defmacro define-transitive-relation (name (arg1 arg2) &body body)
   (with-gensyms (argsvar)
@@ -124,10 +134,5 @@
 (definline divisiblep (m n)
   (declare (integer m n))
   (zerop (mod m n)))
-
-(defun check-length (seq length &optional (msg "Bad length for sequence"))
-  (if (= (length seq) length)
-      seq
-      (error msg)))
 
 ;;; utils.lisp ends here
