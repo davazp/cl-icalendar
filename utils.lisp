@@ -30,9 +30,6 @@
 (defmacro nilf (place)
   `(setf ,place nil))
 
-(defun ascii-p (char)
-  (<= 0 (char-code char) 127))
-
 (defmacro while (condition &body code)
   `(do ()
        ((not ,condition))
@@ -55,12 +52,15 @@
          ,@code)
        (cdr ,collected))))
 
-(defmacro do-string ((var string &key (start 0) end) &body body)
+;; TODO: Enhanche this with a optional finally section, mantaning
+;; backward compatibility is not need
+(defmacro do-sequence ((var sequence &key (start 0) end) &body body)
   (with-gensyms (i tmp)
-    `(let ((,tmp ,string))
+    `(let ((,tmp ,sequence))
       (loop for ,i from ,start below ,(or end `(length ,tmp))
 	    do (let ((,var (elt ,tmp ,i)))
-		 ,@body)))))
+		 ,@body)
+	    finally (progn ,@finally)))))
 
 (defmacro define-transitive-relation (name (arg1 arg2) &body body)
   (with-gensyms (argsvar)
@@ -70,12 +70,19 @@
              while ,arg2
              always (progn ,@body)))))
 
-
 (defun strip-if (func seq &rest rest &key &allow-other-keys)
   (subseq seq 0 (apply #'position-if func seq rest)))
 
 (defun strip (x seq &rest rest &key &allow-other-keys)
   (subseq seq 0 (apply #'position x seq rest)))
+
+;; TODO: Use do-sequence for this
+(defun some* (predicate sequence &key (start 0) end)
+  (loop for index from start below (or end (length sequence))
+	for item = (elt sequence index)
+	do (unless (funcall predicate item)
+	     (return nil))
+	finally (return t)))
 
 (defun read-until (stream char-bag &optional (not-expect "") (eof-error-p t))
   (flet (;; Check if CH is a terminal char
@@ -99,12 +106,10 @@
             do (error "Character ~w is not expected." ch)
             do (write-char (read-char stream) out)))))
 
-
 (defmacro definline (name args &body body)
   `(progn
      (declaim (inline ,name))
      (defun ,name ,args ,@body)))
-
 
 (defun split-string (string &optional (separators " ") (omit-nulls t))
   (declare (type string string))
@@ -119,7 +124,6 @@
           unless (and omit-nulls (string= seq ""))
           collect seq
           while end)))
-
 
 ;;; Like `parse-integer' but it is not allowed to have a sign (+\-).
 (defun parse-unsigned-integer (string &rest keyargs &key &allow-other-keys)
