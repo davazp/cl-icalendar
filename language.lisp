@@ -20,26 +20,21 @@
 
 (in-package :cl-icalendar)
 
-(defun alphanum-char-p (x)
-  (and (ascii-p x)
-       (or
-	(alpha-char-p x)
-	(digit-char-p x))))
+(defun ascii-char-p (char)
+  (<= 0 (char-code char) 127))
 
-(defun alphanum-string-p (x &key (start 0) (end (length x)))
-  "For characters, chech if they are a ascii letter or a digit, for
-string check if it contains only alphanum characters"
-  (loop for i from start below end
-	do (unless (alphanum-char-p (elt x i))
-	     (return nil))
-	finally (return t)))
+(defun alphanum-char-p (char)
+  (and (ascii-char-p char)
+       (or
+	(alpha-char-p char)
+	(digit-char-p char))))
 
 (defun singleton-char-p (char)
   "Return a generalized bool if the char is a sigleton"
   (and
-   (ascii-p char)
-   (char/= char #\x)
-   (char/= char #\X)
+   (ascii-char-p char)
+   (not (char/= char #\x))
+   (not (char/= char #\X))
    (or
     (digit-char-p char)
     (alpha-char-p char))))
@@ -51,7 +46,7 @@ string check if it contains only alphanum characters"
 ;; end of parsing subtags variable should be nil; if not, the
 ;; Language-Tag is unvalid and we signal an error.
 (defun parse-language (string)
-  (let ((subtags (split-sequence:split-sequence #\- string))
+  (let ((subtags (split-string string "-"))
 	(token)
 	(language)
 	(extlang)
@@ -59,24 +54,24 @@ string check if it contains only alphanum characters"
 	(region)
 	(variants)
 	(extension)
-	(privateuse))
+	(privateuse)
+	(strange-char-msg "Non expected character found"))
     (labels
 	((check-alpha (str)		; TODO: Implement the checking
-	   str)
+	   (assert (every #'alpha-char-p str)))
 	 (check-num (str)
-	   str)
+	   (assert (every #'digit-char-p str)))
 	 (check-alphanum (str)
-	   (if (alphanum-string-p str)
-	       str
-	       (error "Non alphanum character finded")))
+	   (assert (every #'alphanum-char-p str)))
 	 (check-length (str)
-	   (if (<= 8 (length str))
-	       (error
-		"Finded a token ~a characters long, maxium is 8"
-		(length str)))
-	   str)
+	   (assert (> 8 (length str))))
 	 (pop-token ()
-	   (setf token (check-length (pop subtags)))))
+	   (let ((subtag (pop subtags)))
+	     (check-length subtag)
+	     (setf token subtag)
+	     (print subtag))))
+      
+
       (pop-token)
       (cond
 	((and (= (length token) 1) 
@@ -93,37 +88,37 @@ string check if it contains only alphanum characters"
 	 ;; Parse a langtag
 	 (progn 
 	   (when (<= 2 (length token) 3)
-	     (setf language (check-alpha token)))
-	   (pop-token)
-	   (when (<= 2 (length token) 3)
-	     (setf extlang (check-alpha token))
+	     (check-alpha token)
+	     (setf language token)
 	     (pop-token))
 	   (when (= (length token) 4)
-	     (setf script (check-alpha token))
+	     (check-alpha token)
+	     (setf script token)
 	     (pop-token))
 	   (when (<= 2 (length token) 3)
-	     (setf region (check-alpha token))
+	     (check-alpha token)
+	     (setf region token)
 	     (pop-token))
 	   (setf variants
 		 (with-collecting
 		   (while
 		       (cond
 			 ((and (<= 5 (length token) 8)
-			       (alphanum-string-p token))
+			       (every #'alphanum-char-p token))
 			  (collect token)
 			  (pop-token))
 		
 			 ((and (= (length token) 4)
 			       (digit-char-p (elt token 0))
-			       (alphanum-string-p token :start 1))
+			       (some* #'alphanum-char-p token :start 1))
 			  (collect token)
 			  (pop-token))
 
 			 (t nil)))))	; Finish the loop
 
 	   ;; TODO: Parse the extension
-	   
-	   (values (list language extlang script region variants)
+  
+	   (values (list language script region variants)
 		   privateuse)))))))
 
 ;; language.lisp ends here
