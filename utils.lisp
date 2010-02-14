@@ -59,8 +59,7 @@
     `(let ((,tmp ,sequence))
       (loop for ,i from ,start below ,(or end `(length ,tmp))
 	    do (let ((,var (elt ,tmp ,i)))
-		 ,@body)
-	    finally (progn ,@finally)))))
+		 ,@body)))))
 
 (defmacro define-transitive-relation (name (arg1 arg2) &body body)
   (with-gensyms (argsvar)
