@@ -83,15 +83,7 @@
            #:duration-hours
            #:duration-minutes
            #:duration-seconds
-           #:duration-in-seconds
            #:duration-backward-p
-           #:duration=
-           #:duration<
-           #:duration<=
-           #:duration>
-           #:duration>=
-           #:duration+
-           #:duration-
            #:format-duration
            #:parse-duration))
 
