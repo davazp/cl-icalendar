@@ -149,68 +149,237 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; Time data types ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;;;; Datetime
+;;; Date
 
-(defclass datetime ()
-  ((timestamp
-    :initarg :timestamp
-    :reader datetimestamp)))
+(deftype day   () '(integer 1 31))
+(deftype month () '(integer 1 12))
+(deftype year  () '(integer 1900))
 
 (defclass date ()
-  ((timestamp
-    :initarg :timestamp
+  ((;; Number of days before of the beginning of 1900.
+    datestamp
+    :initarg :datestamp
     :reader datestamp)))
+
+(defgeneric date-day (x))
+(defgeneric date-month (x))
+(defgeneric date-year (x))
+
+(defun datep (x)
+  (typep x 'date))
+
+(defmethod print-object ((x date) stream)
+  (print-unreadable-object (x stream :type t)
+    (format stream "~2,'0d-~2,'0d-~4,'0d"
+            (date-day x)
+            (date-month x)
+            (date-year x))))
+
+;;; Part of the following code is based in the file time.lisp of the
+;;; SBCL system.
+
+(defvar *days-before-month*
+  #.(let ((reversed-result nil)
+          (sum 0))
+      (push 0 reversed-result)
+      (dolist (days-in-month '(31 28 31 30 31 30 31 31 30 31 30 31))
+        (push sum reversed-result)
+        (incf sum days-in-month))
+      (coerce (nreverse reversed-result) 'simple-vector)))
+
+(defvar *days-before-month-leap-year*
+  #.(let ((reversed-result nil)
+          (sum 0))
+      (push 0 reversed-result)
+      (dolist (days-in-month '(31 29 31 30 31 30 31 31 30 31 30 31))
+        (push sum reversed-result)
+        (incf sum days-in-month))
+      (coerce (nreverse reversed-result) 'simple-vector)))
+
+
+(defun leap-years-before (year)
+  (declare (year year))
+  (let ((years (- year 1901)))
+    (+ (- (truncate years 4)
+          (truncate years 100))
+       (truncate (+ years 300) 400))))
+
+(defun leap-year-p (year)
+  (declare (year year))
+  (and (divisiblep year 4)
+       (or (not (divisiblep year 100))
+           (divisiblep year 400))))
+
+(defun make-date (day month year)
+  (let ((days-from-1900
+         (+ (* 365 (- year 1900))
+            (if (> month 2)
+                (leap-years-before (1+ year))
+                (leap-years-before year))
+            (elt *days-before-month* month)
+            (1- day))))
+    (make-instance 'date :datestamp days-from-1900)))
+
+;;; Accessors
+
+(defmethod date-year ((x date))
+  (let ((stamp (datestamp x)))
+    (loop for t1 from (truncate stamp 365) downto 0
+          for t2 = (+ (* 365 t1) (leap-years-before (+ 1900 t1)))
+          for t3 = (- stamp t2)
+          while (< t3 0)
+          finally (return (values (+ 1900 t1) t3)))))
+
+
+(defmethod date-month ((x date))
+  (multiple-value-bind (year rem)
+      (date-year x)
+    (let* ((accumulative-days
+            (if (leap-year-p year)
+                *days-before-month-leap-year*
+                *days-before-month*)))
+      ;; Find the last month whose accumulative days is smaller than
+      ;; the remaining of the year.
+      (loop for i from (1- (length accumulative-days)) downto 0
+            as t1 = (elt accumulative-days i)
+            as t2 = (- rem t1)
+            while (< t2 0)
+            finally (return (values i t2))))))
+
+(defmethod date-day ((x date))
+  (multiple-value-bind (ign rem)
+      (date-month x)
+    (declare (ignore ign))
+    (1+ rem)))
+
+
+(define-transitive-relation date= (x y)
+  (= (datestamp x) (datestamp y)))
+
+(define-transitive-relation date< (x y)
+  (< (datestamp x) (datestamp y)))
+
+(define-transitive-relation date<= (x y)
+  (<= (datestamp x) (datestamp y)))
+
+(define-transitive-relation date> (x y)
+  (> (datestamp x) (datestamp y)))
+
+(define-transitive-relation date>= (x y)
+  (>= (datestamp x) (datestamp y)))
+
+
+(defun date+ (date durspec)
+  (let* ((dur (duration durspec))
+         (days (%duration-days dur))
+         (secs (%duration-seconds dur)))
+    (unless (zerop secs)
+      (error "The duration ~a is not multiple of days" dur))
+    (make-instance 'date :datestamp (+ (datestamp date) days))))
+
+
+(defun date- (date durspec)
+  (let* ((dur (duration durspec))
+         (days (%duration-days dur))
+         (secs (duration-in-seconds dur)))
+    (unless (zerop secs)
+      (error "The duration ~a is not multiple of days" dur))
+    (make-instance 'date :datestamp (- (datestamp date) days))))
+
+
+(defun format-date (date)
+  (check-type date date)
+  (format nil "~4,'0d~2,'0d~2,'0d"
+          (date-year date)
+          (date-month date)
+          (date-day date)))
+
+
+(defun parse-date (string)
+  (unless (= (length string) 8)
+    (error "parse error."))
+  (make-date (parse-unsigned-integer string :start 6 :end 8)
+             (parse-unsigned-integer string :start 4 :end 6)
+             (parse-unsigned-integer string :start 0 :end 4)))
+
+
+;;; Time
 
 (defclass time ()
   ((timestamp
     :initarg :timestamp
     :reader timestamp)))
 
-(defgeneric universal-time (x))
-(defmethod universal-time ((x datetime))
-  (datetimestamp x))
-(defmethod universal-time ((x date))
-  (datestamp x))
 (defmethod universal-time ((x time))
   (timestamp x))
 
-;;; Accessors
-(defun date-day (x)
-  (multiple-value-bind (second minute hour date month year day daylight-p zone)
-      (decode-universal-time (universal-time x))
-    (declare (ignorable second minute hour date month year day daylight-p zone))
-    date))
+(defun make-time (hour minute second)
+  (make-instance 'time :timestamp (+ (* hour 3600) (* minute 60) second)))
 
-(defun date-month (x)
-  (multiple-value-bind (second minute hour date month year day daylight-p zone)
-      (decode-universal-time (universal-time x))
-    (declare (ignorable second minute hour date month year day daylight-p zone))
-    month))
+(defun timep (x)
+  (typep x 'time))
 
-(defun date-year (x)
-  (multiple-value-bind (second minute hour date month year day daylight-p zone)
-      (decode-universal-time (universal-time x))
-    (declare (ignorable second minute hour date month year day daylight-p zone))
-    year))
+(defmethod print-object ((x time) stream)
+  (print-unreadable-object (x stream :type t)
+    (format stream "~2,'0d:~2,'0d:~2,'0d"
+            (time-hour   x)
+            (time-minute x)
+            (time-second x))))
 
-(defun time-hour (x)
-  (multiple-value-bind (second minute hour date month year day daylight-p zone)
-      (decode-universal-time (universal-time x))
-    (declare (ignorable second minute hour date month year day daylight-p zone))
-    hour))
+(define-transitive-relation time= (x y)
+  (= (timestamp x) (timestamp y)))
 
-(defun time-minute (x)
-  (multiple-value-bind (second minute hour date month year day daylight-p zone)
-      (decode-universal-time (universal-time x))
-    (declare (ignorable second minute hour date month year day daylight-p zone))
-    minute))
+(define-transitive-relation time< (x y)
+  (< (timestamp x) (timestamp y)))
 
-(defun time-second (x)
-  (multiple-value-bind (second minute hour date month year day daylight-p zone)
-      (decode-universal-time (universal-time x))
-    (declare (ignorable second minute hour date month year day daylight-p zone))
-    second))
+(define-transitive-relation time<= (x y)
+  (<= (timestamp x) (timestamp y)))
 
+(define-transitive-relation time> (x y)
+  (> (timestamp x) (timestamp y)))
+
+(define-transitive-relation time>= (x y)
+  (>= (timestamp x) (timestamp y)))
+
+
+(defun time+ (date durspec)
+  (let ((x (+ (timestamp date) (%duration-seconds durspec))))
+    (if (<= 0 x 86399)
+        (make-instance 'time :timestamp x)
+        (error "Time overflow"))))
+
+(defun time- (date durspec)
+  (let ((x (+ (timestamp date) (%duration-seconds durspec))))
+    (if (<= 0 x 86399)
+        (make-instance 'time :timestamp x)
+        (error "Time overflow"))))
+
+(defun format-time (time)
+  (check-type time time)
+  (format nil "~2,'0d~2,'0d~2,'0d"
+          (time-hour   time)
+          (time-minute time)
+          (time-second time)))
+
+(defun parse-time (string)
+  (unless (or (= (length string) 6)
+              (= (length string) 7))
+    (error "parse error."))
+  (make-time (parse-unsigned-integer string :start 0 :end 2)
+             (parse-unsigned-integer string :start 2 :end 4)
+             (parse-unsigned-integer string :start 4 :end 6)))
+
+
+
+;;;; Datetime
+
+(defclass datetime ()
+  )
+
+(defgeneric universal-time (x))
+
+(defmethod universal-time ((x datetime))
+  (datetimestamp x))
 
 ;;; TODO: The TZONE argument will be implemented when the module
 ;;; components is ready.
@@ -256,14 +425,12 @@
 ;;; Compositional functions
 
 (defun datetime+ (datetime durspec)
-  (make-instance 'datetime
-                 :timestamp (+ (datetimestamp datetime)
-                               (duration-in-seconds durspec))))
+  ;; TBD
+  )
 
 (defun datetime- (datetime durspec)
-  (make-instance 'datetime
-                 :timestamp (- (datetimestamp datetime)
-                               (duration-in-seconds durspec))))
+  ;; TBD
+  )
 
 ;;; Decompound
 
@@ -307,126 +474,6 @@
                        (time-second time))))))
 
 
-;;; Date
-
-(defun make-date (day month year)
-  (make-instance 'date :timestamp (encode-universal-time 0 0 0 day month year)))
-
-(defun datep (x)
-  (typep x 'date))
-
-(defmethod print-object ((x date) stream)
-  (print-unreadable-object (x stream :type t)
-    (format stream "~2,'0d-~2,'0d-~4,'0d"
-            (date-day x)
-            (date-month x)
-            (date-year x))))
-
-(define-transitive-relation date= (x y)
-  (= (datestamp x) (datestamp y)))
-
-(define-transitive-relation date< (x y)
-  (< (datestamp x) (datestamp y)))
-
-(define-transitive-relation date<= (x y)
-  (<= (datestamp x) (datestamp y)))
-
-(define-transitive-relation date> (x y)
-  (> (datestamp x) (datestamp y)))
-
-(define-transitive-relation date>= (x y)
-  (>= (datestamp x) (datestamp y)))
-
-
-(defun date+ (date durspec)
-  (let* ((dur (duration durspec))
-         (sec (duration-in-seconds durspec)))
-    (unless (divisiblep sec 86400)
-      (error "The duration ~a is not multiple of days" dur))
-    (make-instance 'date :timestamp (+ (datestamp date) sec))))
-
-
-(defun date- (date durspec)
-  (let* ((dur (duration durspec))
-         (sec (duration-in-seconds durspec)))
-    (unless (divisiblep sec 86400)
-      (error "The duration ~a is not multiple of days" dur))
-    (make-instance 'date :timestamp (- (datestamp date) sec))))
-
-
-(defun format-date (date)
-  (check-type date date)
-  (format nil "~4,'0d~2,'0d~2,'0d"
-          (date-year date)
-          (date-month date)
-          (date-day date)))
-
-
-(defun parse-date (string)
-  (unless (= (length string) 8)
-    (error "parse error."))
-  (make-date (parse-unsigned-integer string :start 6 :end 8)
-             (parse-unsigned-integer string :start 4 :end 6)
-             (parse-unsigned-integer string :start 0 :end 4)))
-
-
-;;; Time
-
-(defun make-time (hour minute second)
-  (make-instance 'time :timestamp (+ (* hour 3600) (* minute 60) second)))
-
-(defun timep (x)
-  (typep x 'time))
-
-(defmethod print-object ((x time) stream)
-  (print-unreadable-object (x stream :type t)
-    (format stream "~2,'0d:~2,'0d:~2,'0d"
-            (time-hour   x)
-            (time-minute x)
-            (time-second x))))
-
-(define-transitive-relation time= (x y)
-  (= (timestamp x) (timestamp y)))
-
-(define-transitive-relation time< (x y)
-  (< (timestamp x) (timestamp y)))
-
-(define-transitive-relation time<= (x y)
-  (<= (timestamp x) (timestamp y)))
-
-(define-transitive-relation time> (x y)
-  (> (timestamp x) (timestamp y)))
-
-(define-transitive-relation time>= (x y)
-  (>= (timestamp x) (timestamp y)))
-
-
-(defun time+ (date durspec)
-  (let ((x (+ (timestamp date) (duration-in-seconds durspec))))
-    (if (<= 0 x 86399)
-        (make-instance 'time :timestamp x)
-        (error "Time overflow"))))
-
-(defun time- (date durspec)
-  (let ((x (+ (timestamp date) (duration-in-seconds durspec))))
-    (if (<= 0 x 86399)
-        (make-instance 'time :timestamp x)
-        (error "Time overflow"))))
-
-(defun format-time (time)
-  (check-type time time)
-  (format nil "~2,'0d~2,'0d~2,'0d"
-          (time-hour   time)
-          (time-minute time)
-          (time-second time)))
-
-(defun parse-time (string)
-  (unless (or (= (length string) 6)
-              (= (length string) 7))
-    (error "parse error."))
-  (make-time (parse-unsigned-integer string :start 0 :end 2)
-             (parse-unsigned-integer string :start 2 :end 4)
-             (parse-unsigned-integer string :start 4 :end 6)))
 
 
 
@@ -435,11 +482,15 @@
 (defvar *print-duration-abbrev* nil)
 
 (defclass duration ()
-  ((seconds
+  ((days
+    :initarg :days
+    :initform 0
+    :reader %duration-days)
+   (seconds
     :initarg :seconds
-    :reader duration-in-seconds)))
+    :initform 0
+    :reader %duration-seconds)))
 
-(defgeneric duration-days (duration))
 (defgeneric duration-hours (duration))
 (defgeneric duration-minutes (duration))
 (defgeneric duration-seconds (duration))
@@ -454,55 +505,36 @@
   (check-type minutes (integer 0 *))
   (check-type seconds (integer 0 *))
   (make-instance 'duration
-                 :seconds
-                 (* (if backward-p -1 1)
-                    (+ (* days  84706)
-                       (* hours 3600)
-                       (* minutes 60)
-                       seconds))))
+                 :days (if backward-p
+                           (- days)
+                           days)
+                 :seconds (* (if backward-p -1 1)
+                             (+ (* hours 3600)
+                                (* minutes 60)
+                                seconds))))
 
 (defun duration (durspec)
   (etypecase durspec
     (duration durspec)
-    (integer (make-duration :seconds (abs durspec) :backward-p (> 0 durspec)))
     (string (parse-duration durspec))))
 
 
 ;;; Accessor for duration designators
 
 (defmethod duration-days ((x duration))
-  (duration-days (duration-in-seconds x)))
+  (abs (%duration-days x)))
 
 (defmethod duration-hours ((x duration))
-  (duration-hours (duration-in-seconds x)))
+  (idiv (abs (%duration-seconds x)) 3600))
 
 (defmethod duration-minutes ((x duration))
-  (duration-minutes (duration-in-seconds x)))
+  (mod (abs (idiv (%duration-seconds x) 60)) 60))
 
 (defmethod duration-seconds ((x duration))
-  (duration-seconds (duration-in-seconds x)))
+  (mod (abs (%duration-seconds x)) 60))
 
 (defmethod duration-backward-p ((x duration))
-  (duration-backward-p (duration-in-seconds x)))
-
-
-(defmethod duration-days ((x integer))
-  (abs (idiv x 86400)))
-
-(defmethod duration-hours ((x integer))
-  (mod (abs (idiv x 3600)) 24))
-
-(defmethod duration-minutes ((x integer))
-  (mod (abs (idiv x 60)) 60))
-
-(defmethod duration-seconds ((x integer))
-  (mod (abs x) 60))
-
-(defmethod duration-backward-p ((x integer))
-  (< x 0))
-
-(defmethod duration-in-seconds ((x integer))
-  x)
+  (< (%duration-seconds x) 0))
 
 
 (defmethod duration-days ((x string))
@@ -520,43 +552,6 @@
 (defmethod duration-backward-p ((x string))
   (duration-backward-p (duration x)))
 
-(defmethod duration-in-seconds ((x string))
-  (duration-in-seconds (duration x)))
-
-
-;;; Relational functions
-
-(define-transitive-relation duration= (x y)
-  (= (duration-in-seconds x)
-     (duration-in-seconds y)))
-
-(define-transitive-relation duration< (x y)
-  (< (duration-in-seconds x)
-     (duration-in-seconds y)))
-
-(define-transitive-relation duration<= (x y)
-  (<= (duration-in-seconds x)
-      (duration-in-seconds y)))
-
-(define-transitive-relation duration> (x y)
-  (> (duration-in-seconds x)
-     (duration-in-seconds y)))
-
-(define-transitive-relation duration>= (x y)
-  (>= (duration-in-seconds x)
-      (duration-in-seconds y)))
-
-
-;;; Compositional functions
-
-(defun duration+ (&rest args)
-  (duration (reduce #'+ (mapcar #'duration-in-seconds args))))
-
-(defun duration- (x &rest args)
-  (if (null args)
-      (duration (- (duration-in-seconds x)))
-      (duration (reduce #'- (mapcar #'duration-in-seconds (cons x args))))))
-
 
 ;;; Printer
 (defmethod print-object ((x duration) stream)
@@ -566,14 +561,13 @@
                 '("d"   "h"    "m"      "s")
                 '("day" "hour" "minute" "second")))
            (output
-            (loop with i = 0
-                  for c in component-names
+            (loop for c in component-names
                   for n in (list (duration-days    x)
                                  (duration-hours   x)
                                  (duration-minutes x)
                                  (duration-seconds x))
                   unless (zerop n)  
-                  collect n and collect c and do (incf i))))
+                  collect n and collect c)))
       (cond
         ((null output)
          (format stream "empty duration"))
@@ -590,18 +584,20 @@
 ;;; in the RFC5545 section 3.3.6.
 (defun format-duration (durspec)
   (let ((dur (duration durspec)))
-    (let ((days (duration-days dur))
-          (hours (duration-hours dur))
-          (minutes (duration-minutes dur))
-          (seconds (duration-seconds dur))
+    (let ((days       (duration-days dur))
+          (hours      (duration-hours dur))
+          (minutes    (duration-minutes dur))
+          (seconds    (duration-seconds dur))
           (backward-p (duration-backward-p dur)))
       (with-output-to-string (out)
         (format out "~:[~;-~]" backward-p)
         (format out "P")
         (cond
-          ((zerop (duration-in-seconds dur))
+          ((and (zerop (%duration-seconds dur))
+                (zerop (%duration-days dur)))
            (format out "T0S"))
-          ((divisiblep (duration-in-seconds dur) 604800)
+          ((and (zerop (%duration-seconds dur))
+                (divisiblep (%duration-days dur) 7))
            (format out "~aW" (/ days 7)))
           (t
            (unless (zerop days)
@@ -623,7 +619,7 @@
 ;;; RFC5545 section 3.3.6.
 (defun parse-duration (string)
   (with-input-from-string (in string)
-    (flet (;; Get a token from IN
+    (flet ( ;; Get a token from IN
            (get-token ()
              (let ((ch (peek-char nil in nil)))
                (cond
@@ -636,12 +632,12 @@
                  (t
                   (read-char in))))))
 
-      (let* (;; The following token
+      (let* ( ;; The following token
              (token1 (get-token))
              ;; The following of the following token
              (token2 (get-token)))
 
-        (labels (;; Return the following token, then upgrade the
+        (labels ( ;; Return the following token, then upgrade the
                  ;; values of token1 and token2. If there is not
                  ;; following token, then signal a error.
                  (scan ()
@@ -674,11 +670,12 @@
                    (funcall (case (scan)
                               (#\+
                                (check-character #\P)
-                               #'identity)
+                               #'duration+)
                               (#\-
                                (check-character #\P)
-                               #'-)
-                              (#\P #'identity)
+                               #'duration-)
+                              (#\P
+                               #'duration+)
                               (t
                                (ill-formed)))
                             (cond
@@ -692,10 +689,10 @@
                                (ill-formed)))))
 
                  (dur-date ()
-                   (+ (dur-day)
-                      (if token1
-                          (dur-time)
-                          0)))
+                   (duration+ (dur-day)
+                              (if token1
+                                  (dur-time)
+                                  (make-duration))))
                  
                  (dur-time ()
                    (check-character #\T)
@@ -707,35 +704,36 @@
                       (ill-formed))))
 
                  (dur-week ()
-                   (prog1 (* (scan) 604800)
+                   (prog1 (make-duration :days (* (scan) 7))
                      (check-character #\W)))
 
                  (dur-hour ()
-                   (+ (prog1 (* (scan) 3600)
-                        (check-character #\H))
-                      (if token1
-                          (dur-minute)
-                          0)))
+                   (duration+ (prog1 (make-duration :hours (scan))
+                                (check-character #\H))
+                              (if token1
+                                  (dur-minute)
+                                  (make-duration))))
 
                  (dur-minute ()
-                   (+ (prog1 (* (scan) 60)
-                        (check-character #\M))
-                      (if token1
-                          (dur-second)
-                          0)))
+                   (duration+ (prog1 (make-duration :minutes (scan))
+                                (check-character #\M))
+                              (if token1
+                                  (dur-second)
+                                  (make-duration))))
 
                  (dur-second ()
-                   (prog1 (scan)
+                   (prog1 (make-duration :seconds (scan))
                      (check-character #\S)))
 
                  (dur-day ()
-                   (prog1 (* (scan) 86400)
+                   (prog1 (make-duration :days (scan))
                      (check-character #\D))))
 
           ;; Estado inicial
           (prog1 (duration (dur-value))
             (unless (null token1)
               (ill-formed))))))))
+
 
 
 
