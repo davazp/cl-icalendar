@@ -20,14 +20,38 @@
 
 (in-package :cl-icalendar)
 
+(defvar *value-types* nil)
+
+(defgeneric format-value (value))
+(defgeneric parse-value (string type))
+
+(defmacro define-value-type (type string)
+  (check-type type   symbol)
+  (check-type string string)
+  `(eval-when (:compile-toplevel :load-toplevel :execute)
+     (pushnew (cons ,string ',type) *value-types* :key #'car :test #'string=)))
+
+(defun lookup-type (string)
+  (cdr (assoc string *value-types* :test #'string=)))
+
+(defmethod parse-value (string (typestring string))
+  (let ((type (lookup-type typestring)))
+    (if (null type)
+        (no-applicable-method 'parse-value string typestring)
+        (parse-value string type))))
+
+
 ;;;; Boolean
 
-(defun format-boolean (bool)
-  (ecase bool
-    ((t) "TRUE")
-    ((nil) "FALSE")))
+(define-value-type boolean "BOOLEAN")
 
-(defun parse-boolean (string)
+(defmethod format-value ((bool (eql 't)))
+  "TRUE")
+
+(defmethod format-value ((bool (eql 'nil)))
+  "TRUE")
+
+(defmethod parse-value (string (type (eql 'boolean)))
   (cond
     ((string= string "TRUE")  t)
     ((string= string "FALSE") nil)
@@ -35,12 +59,25 @@
      (error "~a is not a boolean data type." string))))
 
 
+;;;; Integer
+
+(define-value-type integer "INTEGER")
+
+(defmethod format-value ((n integer))
+  (format nil "~a" n))
+
+(defmethod parse-value (string (type (eql 'integer)))
+  (values (parse-integer string)))
+
+
 ;;;; Float
 
-(defun format-float (x)
+(define-value-type float "FLOAT")
+
+(defmethod format-value ((x float))
   (format nil "~f" x))
 
-(defun parse-float (string)
+(defmethod parse-value (string (type (eql 'float)))
   (let ((sign 1)                        ; the sign
         (x 0)                           ; integer part
         (y 0))                          ; fractional part
@@ -71,6 +108,8 @@
 
 
 ;;;; Text
+
+(define-value-type text "TEXT")
 
 (defclass text* ()
   ((language
@@ -104,31 +143,32 @@
       (make-instance 'text* :text string :language language)
       string))
 
-(defun format-text (text)
-  (let ((string (text text)))
-    (with-input-from-string (in string)
-      (with-output-to-string (out)
-        (loop for ch = (read-char in nil)
-              while ch
-              do
-              (cond
-                ((char= ch #\newline)
-                 (write-char #\\ out)
-                 (write-char #\n out))
-                ((char= ch #\\)
-                 (write-char #\\ out)
-                 (write-char #\\ out))
-                ((char= ch #\,)
-                 (write-char #\\ out)
-                 (write-char #\, out))
-                ((char= ch #\;)
-                 (write-char #\\ out)
-                 (write-char #\; out))
-                (t
-                 (write-char ch out))))))))
+(defmethod format-value ((text string))
+  (with-input-from-string (in text)
+    (with-output-to-string (out)
+      (loop for ch = (read-char in nil)
+            while ch
+            do
+            (cond
+              ((char= ch #\newline)
+               (write-char #\\ out)
+               (write-char #\n out))
+              ((char= ch #\\)
+               (write-char #\\ out)
+               (write-char #\\ out))
+              ((char= ch #\,)
+               (write-char #\\ out)
+               (write-char #\, out))
+              ((char= ch #\;)
+               (write-char #\\ out)
+               (write-char #\; out))
+              (t
+               (write-char ch out)))))))
 
+(defmethod format-value ((text text*))
+  (format-value (text text)))
 
-(defun parse-text (text)
+(defmethod parse-value (text (type (eql 'text)))
   (let ((string (text text)))
     (with-input-from-string (in string)
       (with-output-to-string (out)
@@ -150,6 +190,8 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; Time data types ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;;; Date
+
+(define-value-type date "DATE")
 
 (deftype day   () '(integer 1 31))
 (deftype month () '(integer 1 12))
@@ -277,7 +319,6 @@
       (error "The duration ~a is not multiple of days" dur))
     (make-instance 'date :datestamp (+ (datestamp date) days))))
 
-
 (defun date- (date durspec)
   (let* ((dur (duration durspec))
          (days (%duration-days dur))
@@ -286,16 +327,14 @@
       (error "The duration ~a is not multiple of days" dur))
     (make-instance 'date :datestamp (- (datestamp date) days))))
 
-
-(defun format-date (date)
+(defmethod format-value ((date date))
   (check-type date date)
   (format nil "~4,'0d~2,'0d~2,'0d"
           (date-year date)
           (date-month date)
           (date-day date)))
 
-
-(defun parse-date (string)
+(defmethod parse-value (string (type (eql 'date)))
   (unless (= (length string) 8)
     (error "parse error."))
   (make-date (parse-unsigned-integer string :start 6 :end 8)
@@ -304,6 +343,8 @@
 
 
 ;;; Time
+
+(define-value-type time "TIME")
 
 (defclass time ()
   ((timestamp
@@ -373,14 +414,14 @@
               (- (truncate tstamp 86400)
                  (if (< tstamp 0) 1 0))))))
 
-(defun format-time (time)
+(defmethod format-value ((time time))
   (check-type time time)
   (format nil "~2,'0d~2,'0d~2,'0d"
           (time-hour   time)
           (time-minute time)
           (time-second time)))
 
-(defun parse-time (string)
+(defmethod parse-value (string (type (eql 'time)))
   (unless (or (= (length string) 6)
               (= (length string) 7))
     (error "parse error."))
@@ -390,6 +431,8 @@
 
 
 ;;;; Datetime
+
+(define-value-type datetime "DATE-TIME")
 
 (defclass datetime ()
   ((date
@@ -466,14 +509,14 @@
 
 ;;; Parser
 
-(defun format-datetime (dt)
+(defmethod format-value ((dt datetime))
   (check-type dt datetime)
   (concatenate 'string
                (format-date (datetime-date dt))
                "T"
                (format-time (datetime-time dt))))
 
-(defun parse-datetime (string)
+(defmethod parse-value (string (type (eql 'datetime)))
   ;; TODO: Handling timezones
   (let ((string-date (subseq string 0  8))
         (string-time (subseq string 9 15)))
@@ -495,6 +538,8 @@
 
 
 ;;;; Duration data type
+
+(define-value-type duration "DURATION")
 
 (defvar *print-duration-abbrev* nil)
 
@@ -599,42 +644,41 @@
 
 ;;; Return a string which stand for DURSPECS in the format described
 ;;; in the RFC5545 section 3.3.6.
-(defun format-duration (durspec)
-  (let ((dur (duration durspec)))
-    (let ((days       (duration-days dur))
-          (hours      (duration-hours dur))
-          (minutes    (duration-minutes dur))
-          (seconds    (duration-seconds dur))
-          (backward-p (duration-backward-p dur)))
-      (with-output-to-string (out)
-        (format out "~:[~;-~]" backward-p)
-        (format out "P")
-        (cond
-          ((and (zerop (%duration-seconds dur))
-                (zerop (%duration-days dur)))
-           (format out "T0S"))
-          ((and (zerop (%duration-seconds dur))
-                (divisiblep (%duration-days dur) 7))
-           (format out "~aW" (/ days 7)))
-          (t
-           (unless (zerop days)
-             (format out "~aD" days))
-           (cond
-             ((= 0 hours minutes seconds))
-             ((and (zerop minutes)
-                   (and (not (zerop hours))
-                        (not (zerop seconds))))
-              (format out "T~aH~aM~aS" hours minutes seconds))
-             (t
-              (format out "T~[~:;~:*~aH~]~[~:;~:*~aM~]~[~:;~:*~aS~]"
-                      hours
-                      minutes
-                      seconds)))))))))
+(defmethod format-value ((dur duration))
+  (let ((days       (duration-days dur))
+        (hours      (duration-hours dur))
+        (minutes    (duration-minutes dur))
+        (seconds    (duration-seconds dur))
+        (backward-p (duration-backward-p dur)))
+    (with-output-to-string (out)
+      (format out "~:[~;-~]" backward-p)
+      (format out "P")
+      (cond
+        ((and (zerop (%duration-seconds dur))
+              (zerop (%duration-days dur)))
+         (format out "T0S"))
+        ((and (zerop (%duration-seconds dur))
+              (divisiblep (%duration-days dur) 7))
+         (format out "~aW" (/ days 7)))
+        (t
+         (unless (zerop days)
+           (format out "~aD" days))
+         (cond
+           ((= 0 hours minutes seconds))
+           ((and (zerop minutes)
+                 (and (not (zerop hours))
+                      (not (zerop seconds))))
+            (format out "T~aH~aM~aS" hours minutes seconds))
+           (t
+            (format out "T~[~:;~:*~aH~]~[~:;~:*~aM~]~[~:;~:*~aS~]"
+                    hours
+                    minutes
+                    seconds))))))))
 
 
 ;;; Parse a duration according to the format which is described in the
 ;;; RFC5545 section 3.3.6.
-(defun parse-duration (string)
+(defmethod parse-value (string (type (eql 'duration)))
   (with-input-from-string (in string)
     (flet ( ;; Get a token from IN
            (get-token ()
@@ -773,6 +817,8 @@
 
 ;;;; Period
 
+(define-value-type period "PERIOD")
+
 (defclass period ()
   ((start
     :initarg :start
@@ -791,12 +837,12 @@
                     (- (universal-time start)
                        (universal-time end)))))
 
-(defun format-period (p)
+(defmethod format-value ((p period))
   ;; TODO: We should write down in the class `period' if the user
   ;; specifies a duration or a end datetime, in order to format it so.
   (format nil "~a/~a" (period-start p) (period-end p)))
 
-(defun parse-period (string)
+(defmethod parse-value (string (type (eql 'period)))
   (destructuring-bind (start end)
       (split-string string "/")
     (let ((dstart (parse-datetime start)))
@@ -808,6 +854,8 @@
 
 
 ;;;; Recur data type
+
+(define-value-type recur "RECUR")
 
 (defclass recur ()
   ((freq
@@ -940,7 +988,7 @@
       (error "Empty rule part in the recurrence '~a'." string))
     (mapcar #'parse-rule-part parts)))
 
-(defun parse-recur (string)
+(defmethod parse-value (string (type (eql 'recur)))
   (let ((rules (parse-rules string)))
     ;; Check errores
     (when (duplicatep rules :key #'car :test #'string=)
