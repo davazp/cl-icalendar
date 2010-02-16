@@ -1,2 +1,15 @@
 *~
 *.fasl
+*.aux
+*.cp
+*.dvi
+*.fn
+*.ky
+*.log
+*.pdf
+*.info
+*.pg
+*.tmp
+*.toc
+*.tp
+*.vr

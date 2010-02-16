@@ -1,0 +1,90 @@
+\input texinfo
+@c -*-texinfo-*-
+@c %**start of header
+@setfilename cl-icalendar.info
+@settitle cl-icalendar
+@c %**end of header
+
+@set EDITION draft
+@include version.texi
+
+@copying
+This is the @cite{@value{EDITION}} edition of the @cite{Common Lisp iCalendar Library Reference}, @*
+updated for the version @cite{@value{VERSION}}.
+
+@sp 0.5
+Copyright @copyright{} 2010  Mario Castel@'an Castro @*
+Copyright @copyright{} 2010  David V@'azquez P@'ua
+@sp 0.5
+
+@quotation
+Permission is granted to copy, distribute and/or modify this document
+under the terms of the GNU Free Documentation License, Version 1.3
+or any later version published by the Free Software Foundation;
+with no Invariant Sections, no Front-Cover Texts, and no Back-Cover Texts.
+A copy of the license is included in the section entitled ``GNU
+Free Documentation License''.
+
+A copy of the license is also available from the Free Software
+Foundation Web site at @url{http://www.gnu.org/licenses/fdl.html}.
+
+@end quotation
+
+The document was typeset with
+@uref{http://www.texinfo.org/, GNU Texinfo}.
+
+@end copying
+
+@titlepage
+@title Common Lisp iCalendar Library
+@subtitle An implementation of the iCalendar specification
+@subtitle for cl-icalendar version @value{VERSION}.
+@author Mario Castel@'an Castro
+@author David V@'azquez P@'ua
+@page
+@vskip 0pt plus 1filll
+@insertcopying
+@end titlepage
+
+@c Output the table of the contents at the beginning.
+@contents
+
+@ifnottex
+@node Top
+@top Common Lisp iCalendar Library Reference
+
+@insertcopying
+@end ifnottex
+
+@c Generate the nodes for this menu with `C-c C-u C-m'.
+@menu
+* Chapter One::                 
+* Copying This Manual::         
+* Index::                       
+@end menu
+
+@c Update all node entries with `C-c C-u C-n'.
+@c Insert new nodes with `C-c C-c n'.
+@node Chapter One
+@chapter Chapter One
+
+
+
+@node Copying This Manual
+@appendix Copying This Manual
+
+@menu
+* GNU Free Documentation License::  License for copying this manual.
+@end menu
+
+@c Get fdl.texi from http://www.gnu.org/licenses/fdl.html
+@include fdl.texi
+
+@node Index
+@unnumbered Index
+
+@printindex cp
+
+@bye
+
+@c cl-icalendar.texi ends here
