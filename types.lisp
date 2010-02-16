@@ -438,10 +438,10 @@
 (defclass datetime ()
   ((date
     :initarg :date
-    :accessor datetime-date)
+    :accessor %datetime-date)
    (time
     :initarg :time
-    :accessor datetime-time)))
+    :accessor %datetime-time)))
 
 ;;; TODO: The TZONE argument will be implemented when the module
 ;;; components is ready.
@@ -513,9 +513,9 @@
 (defmethod format-value ((dt datetime))
   (check-type dt datetime)
   (concatenate 'string
-               (format-value (datetime-date dt))
+               (format-value (%datetime-date dt))
                "T"
-               (format-value (datetime-time dt))))
+               (format-value (%datetime-time dt))))
 
 (defmethod parse-value (string (type (eql 'datetime)))
   ;; TODO: Handling timezones
@@ -528,14 +528,11 @@
       (let ((date   (parse-value string-date 'date))
             (time   (parse-value string-time 'time)))
         (make-datetime (date-day    date)
-                       (date-month  date)
-                       (date-year   date)
-                       (time-hour   time)
-                       (time-minute time)
-                       (time-second time))))))
-
-
-
+		       (date-month  date)
+		       (date-year   date)
+		       (time-hour   time)
+		       (time-minute time)
+		       (time-second time))))))
 
 
 ;;;; Duration data type
