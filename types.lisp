@@ -354,7 +354,7 @@
 
 (defgeneric time-hour (x))
 (defgeneric time-minute(x))
-(defgeneric time-secon (x))
+(defgeneric time-second (x))
 
 (defun make-time (hour minute second)
   (make-instance 'time :timestamp (+ (* hour 3600) (* minute 60) second)))
@@ -551,6 +551,7 @@
     :initform 0
     :reader %duration-seconds)))
 
+(defgeneric duration-days (duration))
 (defgeneric duration-hours (duration))
 (defgeneric duration-minutes (duration))
 (defgeneric duration-seconds (duration))
