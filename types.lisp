@@ -50,7 +50,7 @@
   "TRUE")
 
 (defmethod format-value ((bool (eql 'nil)))
-  "TRUE")
+  "FALSE")
 
 (defmethod parse-value (string (type (eql 'boolean)))
   (cond
