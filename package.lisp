@@ -23,19 +23,14 @@
   (:nicknames :icalendar :ical)
   (:use :cl :trivial-gray-streams)
   (:shadow #:time)
-  (:export ;; Basic types
-           #:format-boolean
-           #:format-float
-           #:parse-boolean
-           #:parse-float
+  (:export #:format-value
+           #:parse-value
            ;; Text
            #:text
            #:textp
            #:text
            #:text-language
            #:make-text
-           #:format-text
-           #:parse-text
            ;; Datetime
            #:make-datetime
            #:datetimep
@@ -52,7 +47,6 @@
            #:datetime>=
            #:datetime+
            #:datetime-
-           #:parse-datetime
            ;; Date
            #:make-date
            #:datep
@@ -63,7 +57,6 @@
            #:date>=
            #:date+
            #:date-
-           #:parse-date
            ;; Time
            #:make-time
            #:timep
@@ -74,7 +67,6 @@
            #:time>=
            #:time+
            #:time-
-           #:parse-time
            ;; Duration
            #:make-duration
            #:duration
@@ -83,8 +75,6 @@
            #:duration-hours
            #:duration-minutes
            #:duration-seconds
-           #:duration-backward-p
-           #:format-duration
-           #:parse-duration))
+           #:duration-backward-p))
 
 ;;; package.lisp ends here
