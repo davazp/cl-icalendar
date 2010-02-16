@@ -20,7 +20,8 @@
 
 (in-package :cl-icalendar)
 
-(defvar *value-types* nil)
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (defvar *value-types* nil))
 
 (defgeneric format-value (value))
 (defgeneric parse-value (string type))
@@ -437,10 +438,10 @@
 (defclass datetime ()
   ((date
     :initarg :date
-    :accessor %datetime-date)
+    :accessor datetime-date)
    (time
     :initarg :time
-    :accessor %datetime-time)))
+    :accessor datetime-time)))
 
 ;;; TODO: The TZONE argument will be implemented when the module
 ;;; components is ready.
@@ -512,9 +513,9 @@
 (defmethod format-value ((dt datetime))
   (check-type dt datetime)
   (concatenate 'string
-               (format-date (datetime-date dt))
+               (format-value (datetime-date dt))
                "T"
-               (format-time (datetime-time dt))))
+               (format-value (datetime-time dt))))
 
 (defmethod parse-value (string (type (eql 'datetime)))
   ;; TODO: Handling timezones
@@ -524,8 +525,8 @@
              (error "Bad datetime format.")))
       (unless (char= (elt string 8) #\T)
         (ill-formed))
-      (let ((date   (parse-date string-date))
-            (time   (parse-time string-time)))
+      (let ((date   (parse-value string-date 'date))
+            (time   (parse-value string-time 'time)))
         (make-datetime (date-day    date)
                        (date-month  date)
                        (date-year   date)
@@ -578,7 +579,7 @@
 (defun duration (durspec)
   (etypecase durspec
     (duration durspec)
-    (string (parse-duration durspec))))
+    (string (parse-value durspec 'duration))))
 
 
 ;;; Accessor for duration designators
@@ -830,26 +831,19 @@
 (defun make-period (start end)
   (make-instance 'period :start start :end end))
 
-(defun period-duration (period)
-  (let ((start (period-start period))
-        (end   (period-end period)))
-    (make-duration  :seconds
-                    (- (universal-time start)
-                       (universal-time end)))))
-
 (defmethod format-value ((p period))
   ;; TODO: We should write down in the class `period' if the user
   ;; specifies a duration or a end datetime, in order to format it so.
   (format nil "~a/~a" (period-start p) (period-end p)))
 
-(defmethod parse-value (string (type (eql 'period)))
-  (destructuring-bind (start end)
-      (split-string string "/")
-    (let ((dstart (parse-datetime start)))
-      (make-period dstart
-                   (if (char= (char end 0) #\P)
-                       (datetime+ dstart (parse-duration end))
-                       (parse-datetime end))))))
+;; (defmethod parse-value (string (type (eql 'period)))
+;;   (destructuring-bind (start end)
+;;       (split-string string "/")
+;;     (let ((dstart (parse-datetime start)))
+;;       (make-period dstart
+;;                    (if (char= (char end 0) #\P)
+;;                        (datetime+ dstart (parse-duration end))
+;;                        (parse-datetime end))))))
 
 
 
@@ -1018,8 +1012,8 @@
                (%until (value)
                  (setf (slot-value recur 'until)
                        (case (length value)
-                         (8 (parse-date value))
-                         (t (parse-datetime value)))))
+                         (8 (parse-value value 'date))
+                         (t (parse-value value 'datetime)))))
 
                (%count (value)
                  (setf (slot-value recur 'count)
