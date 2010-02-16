@@ -110,13 +110,6 @@
      (declaim (inline ,name))
      (defun ,name ,args ,@body)))
 
-(defmacro defstruct-class (name-and-options &rest slots)
-  (let ((name (typecase name-and-options
-		(list (first name-and-options))
-		(symbol name-and-options))))
-    `(defclass ,name ()
-       ,slots)))
-
 (defun split-string (string &optional (separators " ") (omit-nulls t))
   (declare (type string string))
   (flet ((separator-p (char)
