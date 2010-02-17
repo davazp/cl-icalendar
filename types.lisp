@@ -25,6 +25,7 @@
 
 (defgeneric format-value (value))
 (defgeneric parse-value (string type))
+(defgeneric parse-values (string type))
 
 (defmacro define-value-type (type string)
   (check-type type   symbol)
@@ -41,6 +42,12 @@
         (no-applicable-method 'parse-value string typestring)
         (parse-value string type))))
 
+(defmethod parse-values (string (typestring string))
+  (parse-values string (lookup-type typestring)))
+
+(defmethod parse-values (string (type symbol))
+  (loop for token in (split-string string ",")
+	collect (parse-value token type)))
 
 ;;;; Boolean
 
