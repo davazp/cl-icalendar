@@ -22,37 +22,46 @@
 
 (defvar *properties* (make-hash-table :test #'equal))
 
-(defclass property ()
-  ((types :accessor property-types
+(defclass property-type ()
+  ((types :accessor %types
 	  :documentation "A list of the allowed types (As strings) in
 	  this property, the first is the default"
 	  :initarg :types)
-   (validator :accessor property-validator
-	      :initarg :validator)))
+   (multival-p :accessor %multival-p
+	       :initarg :multival-p)))
+
+
 
 (defgeneric default-type (x))
 
-(defmethod default-type ((self property))
-  (first (property-types self)))
+(defmethod default-type ((self property-type))
+  (first (%types self)))
 
 (defmethod default-type ((property-name string))
   (default-type (gethash property-name *properties*)))
 
 (defmacro define-property (name
 			   types
-			   &key
-			   (validator (constantly t)))
+			   multival-p)
+  "Define a property type"
   `(setf (gethash ,name *properties*)
-	 (make-instance 'property
+	 (make-instance 'property-type
 			:types ',types
-			:validator ,validator)))
+			:multival-p ,multival-p)))
+
+(defun parse-property-name (string)
+  (or (gethash string *properties*)
+      (error "Undefined property")))
 
 (defun process-property (content-line)
+  "Process a content-line property and return it value (or values in a
+list, if a multivalue property)"
   (with-slots (name params value) content-line
-    (let* ((property (gethash name *properties*))
+    (let* ((property (parse-property-name name))
 	   (type (default-type property))
-	   (value (parse-value value type)))
-      (funcall (property-validator type) value)
+	   (value (if (%multival-p property)
+		      (parse-values value type)
+		      (parse-value value type))))
       (values value name))))
 
 ;; properties.lisp ends here
