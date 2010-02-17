@@ -473,6 +473,15 @@
 (defmethod date-year ((x datetime))
   (date-year (%datetime-date x)))
 
+(defmethod time-hour ((x datetime))
+  (time-hour (%datetime-time x)))
+
+(defmethod time-minute ((x datetime))
+  (time-minute (%datetime-time x)))
+
+(defmethod time-second ((x datetime))
+  (time-second (%datetime-time x)))
+
 
 ;;; Relational functions
 
