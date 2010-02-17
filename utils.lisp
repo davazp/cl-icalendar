@@ -38,7 +38,7 @@
 (defmacro with-gensyms ((&rest vars) &body code)
   `(let ,(loop for i in vars
 	       collect (etypecase i
-			 (symbol `(,i (gensym)))
+			 (symbol `(,i (gensym ,(symbol-name i))))
 			 (list `(,(first i) (gensym ,(second i))))))
      ,@code))
 
