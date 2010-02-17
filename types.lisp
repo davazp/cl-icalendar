@@ -46,7 +46,7 @@
   (parse-values string (lookup-type typestring)))
 
 (defmethod parse-values (string (type symbol))
-  (loop for token in (split-string string ",")
+  (loop for token in (split-string string "," nil)
 	collect (parse-value token type)))
 
 ;;;; Boolean
@@ -860,7 +860,7 @@
 ;;                        (parse-datetime end))))))
 
 
-
+
 ;;;; Recur data type
 
 (define-value-type recur "RECUR")
@@ -969,9 +969,14 @@
       (check-type-list bysecond (integer 0 60))
       (check-type-list byminute (integer 0 59))
       (check-type-list byhour   (integer 0 23))
-      ;; TODO: Write a checker for byday
-      ;;(check-type-list byday)
-
+      (check-member byday (SU
+			   MO
+			   TU
+			   WE
+			   TH
+			   FR
+			   SA)
+		    :test #'string=)
       (check-type-list bymonthday (non-zero-integer  -31  31))
       (check-type-list byyearday  (non-zero-integer -366 366))
       (check-type-list byweekno   (non-zero-integer   -7   7))
@@ -1134,6 +1139,5 @@
         ;; Return the recur instance
         (check-valid-recur recur)
         recur))))
-
-
+
 ;;; types.lisp ends here
