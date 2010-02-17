@@ -75,6 +75,10 @@
 (defun strip (x seq &rest rest &key &allow-other-keys)
   (subseq seq 0 (apply #'position x seq rest)))
 
+(defmacro check-member (item list &key (test #'eql))
+  `(if (not (position ,item ',list :test ,test))
+       (error "Not a member of the specified list")))
+
 ;; TODO: Use do-sequence for this
 (defun some* (predicate sequence &key (start 0) end)
   (loop for index from start below (or end (length sequence))
@@ -147,6 +151,5 @@
              for b = (cdr x)
              thereis (find a b :key key :test test))
        t))
-
 
 ;;; utils.lisp ends here
