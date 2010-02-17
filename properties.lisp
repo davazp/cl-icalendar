@@ -22,44 +22,37 @@
 
 (defvar *properties* (make-hash-table :test #'equal))
 
-;; A property consist of a list of valid types, the first is the
-;; default and no more are supported currently
 (defclass property ()
-  ((types)))
+  ((types :accessor property-types
+	  :documentation "A list of the allowed types (As strings) in
+	  this property, the first is the default"
+	  :initarg :types)
+   (validator :accessor property-validator
+	      :initarg :validator)))
 
-(defun default-type (property-name)
-  (first (slot-value (gethash property-name *properties*) 'types)))
+(defgeneric default-type (x))
 
-(defmacro define-property (name types)
-  `(let ((new-property (make-instance 'property)))
-     (setf (slot-value new-property 'types) ',types)
-     (setf (gethash ,name *properties*) new-property)))
+(defmethod default-type ((self property))
+  (first (property-types self)))
+
+(defmethod default-type ((property-name string))
+  (default-type (gethash property-name *properties*)))
+
+(defmacro define-property (name
+			   types
+			   &key
+			   (validator (constantly t)))
+  `(setf (gethash ,name *properties*)
+	 (make-instance 'property
+			:types ',types
+			:validator ,validator)))
 
 (defun process-property (content-line)
-  (let* ((name (content-line-name content-line))
-	 (parameters (content-line-params content-line))
-	 (value (content-line-value content-line))
-	 (type (loop for i in parameters
-		     for param-name = (first i)
-		     for param-value = (second i)
-		     do (when (string= param-name "VALUE")
-			  (return param-value))
-		     finally (return (default-type name)))))
-    (values (parse-value value type)
-	    name)))
-
-(define-property "DTSTART" (datetime))
-(define-property "FOO" (boolean))
-
-(when nil
-  (with-input-from-string (str "DTSTART:19980403T120000
-")
-    (process-property (read-content-line str))) ; Give a Unable to
-						; display error
-						; condition, why?
-  (with-input-from-string (str "FOO:TRUE
-")
-    (process-property (read-content-line str))) ; T, "FOO", correct
-  )
+  (with-slots (name params value) content-line
+    (let* ((property (gethash name *properties*))
+	   (type (default-type property))
+	   (value (parse-value value type)))
+      (funcall (property-validator type) value)
+      (values value name))))
 
 ;; properties.lisp ends here
