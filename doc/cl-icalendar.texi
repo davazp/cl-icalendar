@@ -117,7 +117,7 @@ The document was typeset with
 @section Date
 
 @node Time
-@section time
+@section Time
 
 @node Datetime
 @section Datetime
