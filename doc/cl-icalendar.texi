@@ -56,17 +56,87 @@ The document was typeset with
 
 @c Generate the nodes for this menu with `C-c C-u C-m'.
 @menu
-* Chapter One::                 
+* Overview::                    
+* Data types::                  
+* Components::                  
+* High level abstractions::     
 * GNU Free Documentation License::  
 * Index::                       
 @end menu
 
 @c Update all node entries with `C-c C-u C-n'.
 @c Insert new nodes with `C-c C-c n'.
-@node Chapter One
-@chapter Chapter One
+@node Overview
+@chapter Overview
+
+@node Data types
+@chapter Data types
+
+@menu
+* Boolean::                     
+* Integer::                     
+* Float::                       
+* Text::                        
+* Binary::                      
+* URI::                         
+* Cal-address::                 
+* UTC-Offset::                  
+* Date::                        
+* Time::                        
+* Datetime::                    
+* Duration::                    
+* Period::                      
+* Recur::                       
+@end menu
+
+@node Boolean
+@section Boolean
+
+@node Integer
+@section Integer
+
+@node Float
+@section Float
+
+@node Text
+@section Text
+
+@node Binary
+@section Binary
+
+@node URI
+@section URI
+
+@node Cal-address
+@section Cal-address
+
+@node UTC-Offset
+@section UTC-Offset
+
+@node Date
+@section Date
+
+@node Time
+@section time
+
+@node Datetime
+@section Datetime
+
+@node Duration
+@section Duration
+
+@node Period
+@section Period
+
+@node Recur
+@section Recur
 
 
+@node Components
+@chapter Components
+
+@node High level abstractions
+@chapter High level abstractions
 
 @node GNU Free Documentation License
 @appendix GNU Free Documentation License
