@@ -261,6 +261,9 @@
            (divisiblep year 400))))
 
 (defun make-date (day month year)
+  (check-type day day)
+  (check-type month month)
+  (check-type year year)
   (let ((days-from-1900
          (+ (* 365 (- year 1900))
             (if (> month 2)
