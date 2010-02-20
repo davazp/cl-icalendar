@@ -165,4 +165,13 @@
              thereis (find a b :key key :test test))
        t))
 
+;;; Like `string=' but it is case-insensitive.
+(defun string-ci= (str1 str2)
+  (declare (string str1 str2))
+  (every (lambda (c1 c2)
+           (char= (char-upcase c1)
+                  (char-upcase c2)))
+         str1
+         str2))
+
 ;;; utils.lisp ends here

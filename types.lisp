@@ -31,11 +31,10 @@
   (check-type type   symbol)
   (check-type string string)
   `(eval-when (:compile-toplevel :load-toplevel :execute)
-     (pushnew (cons ,string ',type) *value-types* :key #'car :test #'string=)))
+     (pushnew (cons ,string ',type) *value-types* :key #'car :test #'string-ci=)))
 
 (defun lookup-type (string)
-  (let ((upcased (string-upcase string)))
-    (cdr (assoc upcased *value-types* :test #'string=))))
+  (cdr (assoc string *value-types* :test #'string-ci=)))
 
 (defmethod parse-value (string (typestring string))
   (let ((type (lookup-type typestring)))
