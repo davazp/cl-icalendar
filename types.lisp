@@ -46,8 +46,21 @@
   (parse-values string (lookup-type typestring)))
 
 (defmethod parse-values (string (type symbol))
-  (loop for token in (split-string string "," nil)
-	collect (parse-value token type)))
+  (labels ( ;; Find the position of the separator character (,) from
+            ;; the character at START position.
+           (position-separator (start)
+             (let ((position (position #\, string :start start)))
+               (if (and (integerp position)
+                        (< 0 position)
+                        (char= #\\ (char string (1- position))))
+                   (position-separator (1+ position))
+                   position))))
+    ;; Collect values
+    (loop for start = 0 then (1+ end)
+          for end = (position-separator start)
+          for sub = (subseq string start end)
+          collect (parse-value sub type)
+          while end)))
 
 ;;;; Boolean
 
@@ -544,8 +557,8 @@
              (error "Bad datetime format.")))
       (unless (char= (elt string 8) #\T)
         (ill-formed))
-      (let ((date   (parse-value string-date 'date))
-            (time   (parse-value string-time 'time)))
+      (let ((date (parse-value string-date 'date))
+            (time (parse-value string-time 'time)))
         (make-datetime (date-day    date)
 		       (date-month  date)
 		       (date-year   date)
