@@ -54,20 +54,25 @@
 
 ;; TODO: Enhanche this with a optional finally section, mantaning
 ;; backward compatibility is not need
+(defun %do-sequence (function sequence &key (start 0) end)
+  (typecase sequence
+    (list
+     (if (not end)
+         (loop for x in sequence do (funcall function x))
+         (loop for x in sequence
+               for i from start below end
+               do (funcall function x))))
+    (t
+     (loop for i from start below (or end (length sequence))
+           for x = (elt sequence i)
+           do (funcall function x)))))
+
 (defmacro do-sequence ((var sequence &key (start 0) end) &body body)
-  (with-gensyms (i seq)
-    `(let ((,seq ,sequence))
-       (typecase ,seq
-        (vector
-         (loop for ,var across ,seq do (progn ,@body)))
-        (list
-         (loop for ,var in ,seq do (progn ,@body)))
-        ;; vector and list is not required to be an exhaustive
-        ;; partition of sequence.
-        (t
-         (loop for ,i from ,start below ,(or end `(length ,seq))
-               for ,var = (elt ,seq ,i)
-               do (progn ,@body)))))))
+  (check-type var symbol)
+  `(%do-sequence (lambda (,var) ,@body)
+                 ,sequence
+                 :start ,start
+                 :end ,end))
 
 
 (defmacro define-transitive-relation (name (arg1 arg2) &body body)
@@ -88,13 +93,12 @@
   `(if (not (position ,item ',list :test ,test))
        (error "Not a member of the specified list")))
 
-;; TODO: Use do-sequence for this
+;;; Like `some', but it works on bound sequences
 (defun some* (predicate sequence &key (start 0) end)
-  (loop for index from start below (or end (length sequence))
-	for item = (elt sequence index)
-	do (unless (funcall predicate item)
-	     (return nil))
-	finally (return t)))
+  (do-sequence (item sequence :start start :end end)
+    (when (funcall predicate item)
+      (return-from some* t)))
+  nil)
 
 (defun read-until (stream char-bag &optional (not-expect "") (eof-error-p t))
   (flet (;; Check if CH is a terminal char
