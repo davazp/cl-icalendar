@@ -81,7 +81,10 @@
        ;; SBCL fails here if we use (block nil ...) indeed of progn.
        (loop for (,arg1 ,arg2) on ,argsvar
              while ,arg2
-             always (progn ,@body)))))
+             always
+             (block nil
+               ((lambda ()
+                  ,@body)))))))
 
 (defun strip-if (func seq &rest rest &key &allow-other-keys)
   (subseq seq 0 (apply #'position-if func seq rest)))
@@ -151,7 +154,8 @@
 
 ;;; Integer division
 (definline idiv (a b)
-  (declare (integer a b))
+  (declare (integer a b)
+           (optimize speed))
   (values (truncate a b)))
 
 (definline divisiblep (m n)
@@ -166,14 +170,14 @@
        t))
 
 ;;; Like `char=' but is it case-insensitive.
-(defun char-ci= (char1 char2)
+(define-transitive-relation char-ci= (char1 char2)
   (declare (character char1 char2))
   (char= (char-upcase char1)
          (char-upcase char2)))
 
 ;;; Like `string=' but it is case-insensitive.
-(defun string-ci= (str1 str2)
-  (declare (string str1 str2))
-  (every #'char-ci= str1 str2))
+(defun string-ci= (string &rest more-strings)
+  (apply #'every #'char-ci= (cons string more-strings)))
+
 
 ;;; utils.lisp ends here
