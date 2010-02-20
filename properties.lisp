@@ -54,6 +54,7 @@
       (error "Undefined property")))
 
 (defun process-property (content-line)
+  (declare (content-line content-line))
   "Process a content-line property and return it value (or values in a
 list, if a multivalue property)"
   (with-slots (name params value) content-line
@@ -63,5 +64,57 @@ list, if a multivalue property)"
 		      (parse-values value type)
 		      (parse-value value type))))
       (values value name))))
+
+
+;;; Property database
+
+;; Calendar properties
+(define-property "CALSCALE" ("TEXT") nil)
+(define-property "METHOD" ("TEXT") nil)
+(define-property "PRODID" ("TEXT") nil)
+(define-property "VERSION" ("TEXT") nil)
+
+;; Component properties
+(define-property "ATTACH" ("URI" "BINARY") nil)
+(define-property "CATEGORIES" ("TEXT") t)
+(define-property "CLASS" ("TEXT")  nil)
+(define-property "COMMENT" ("TEXT") nil)
+(define-property "DESCRIPTION" ("TEXT") nil)
+(define-property "GEO" ("FLOAT") t) ; Must be 2 comma separated values
+(define-property "LOCATION" ("TEXT") nil)
+(define-property "PERCENT-COMPLETE" ("INTEGER") nil)
+(define-property "PRIORITY" ("INTEGER") nil) ; 0 to 9 (Inclusive),
+(define-property "RESOURCES" ("TEXT") nil)
+(define-property "STATUS" ("TEXT") nil)
+(define-property "SUMMARY" ("TEXT") nil)
+(define-property "COMPLETED" ("DATE-TIME") nil)
+(define-property "DTEND" ("DATE-TIME" "DATE") nil)
+(define-property "DUE" ("DATE-TIME" "DATE") nil)
+(define-property "DTSTART" ("DATE-TIME" "DATE") nil)
+(define-property "DURATION" ("DURATION") nil)
+(define-property "FREEBUSY" ("PERIOD") t)
+(define-property "TRANSP" ("TEXT") nil)
+(define-property "TZID" ("TEXT") nil)
+(define-property "TZNAME" ("TEXT") nil)
+(define-property "TZOFFSETFROM" ("UTC-OFFSET") nil)
+(define-property "TZOFFSETTO" ("UTC-OFFSET") nil)
+(define-property "TZURL" ("URI") nil)
+(define-property "ATTENDEE" ("CAL-ADDRESS") nil)
+(define-property "CONTACT" ("TEXT") nil)
+(define-property "ORGANIZER" ("CAL-ADRESS") nil)
+(define-property "RECURRENCE-ID" ("DATE-TIME" "DATE") nil)
+(define-property "RELATED-TO" ("TEXT") nil)
+(define-property "URL" ("URI") nil)
+(define-property "UID" ("TEXT") nil)
+(define-property "EXDATE" ("DATE-TIME" "DATE") t)
+(define-property "RDATE" ("DATE-TIME" "DATE" "PERIOD") t)
+(define-property "RRULE" ("RECUR") nil)
+(define-property "ACTION" ("TEXT") nil)
+(define-property "REPEAT" ("INTEGER") nil)
+(define-property "TRIGGER" ("DURATION" "DATE-TIME") nil) ; UTC
+(define-property "CREATED" ("DATE-TIME") nil)
+(define-property "DTSTAMP" ("DATE-TIME") nil)
+(define-property "LAST-MODIFIED" ("DATE-TIME") nil)
+(define-property "SEQUENCE" ("INTEGER") nil)
 
 ;; properties.lisp ends here
