@@ -34,7 +34,8 @@
      (pushnew (cons ,string ',type) *value-types* :key #'car :test #'string=)))
 
 (defun lookup-type (string)
-  (cdr (assoc string *value-types* :test #'string=)))
+  (let ((upcased (string-upcase string)))
+    (cdr (assoc upcased *value-types* :test #'string=))))
 
 (defmethod parse-value (string (typestring string))
   (let ((type (lookup-type typestring)))
