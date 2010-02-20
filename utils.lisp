@@ -55,11 +55,20 @@
 ;; TODO: Enhanche this with a optional finally section, mantaning
 ;; backward compatibility is not need
 (defmacro do-sequence ((var sequence &key (start 0) end) &body body)
-  (with-gensyms (i tmp)
-    `(let ((,tmp ,sequence))
-      (loop for ,i from ,start below ,(or end `(length ,tmp))
-	    do (let ((,var (elt ,tmp ,i)))
-		 ,@body)))))
+  (with-gensyms (i seq)
+    `(let ((,seq ,sequence))
+       (typecase ,seq
+        (vector
+         (loop for ,var across ,seq do (progn ,@body)))
+        (list
+         (loop for ,var in ,seq do (progn ,@body)))
+        ;; vector and list is not required to be an exhaustive
+        ;; partition of sequence.
+        (t
+         (loop for ,i from ,start below ,(or end `(length ,seq))
+               for ,var = (elt ,seq ,i)
+               do (progn ,@body)))))))
+
 
 (defmacro define-transitive-relation (name (arg1 arg2) &body body)
   (with-gensyms (argsvar)
