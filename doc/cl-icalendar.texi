@@ -117,6 +117,7 @@ The document was typeset with
 * Data types::                  
 * Components::                  
 * High level abstractions::     
+* Conditions and error handling::  
 * GNU Free Documentation License::  
 * Index::                       
 @end menu
@@ -205,15 +206,15 @@ represented by string.
 @end lisp
 
 @c Affected by
-@item {Affected by}
+@item Affected by
 @code{*icalendar*}
 
 @c Side effects
-@item {Side effects}
+@item Side effects
 None.
 
 @c See also
-@item {See also}
+@item See also
 @code{format-value} and @code{icalendar-valuep}.
 
 @c Notes
@@ -271,7 +272,7 @@ None.
 @node High level abstractions
 @chapter High level abstractions
 
-@node Conditions and error handling@*
+@node Conditions and error handling
 @appendix Conditions and error handling@*
 
 @node GNU Free Documentation License
