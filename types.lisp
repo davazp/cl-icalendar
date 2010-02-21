@@ -20,21 +20,12 @@
 
 (in-package :cl-icalendar)
 
-(eval-when (:compile-toplevel :load-toplevel :execute)
-  (defvar *value-types* nil))
-
 (defgeneric format-value (value))
 (defgeneric parse-value (string type))
 (defgeneric parse-values (string type))
 
-(defmacro define-value-type (type string)
-  (check-type type   symbol)
-  (check-type string string)
-  `(eval-when (:compile-toplevel :load-toplevel :execute)
-     (pushnew (cons ,string ',type) *value-types* :key #'car :test #'string-ci=)))
-
 (defun lookup-type (string)
-  (cdr (assoc string *value-types* :test #'string-ci=)))
+  (find-symbol (string-upcase string) :cl-icalendar))
 
 (defmethod parse-value (string (typestring string))
   (let ((type (lookup-type typestring)))
@@ -64,8 +55,6 @@
 
 ;;;; Boolean
 
-(define-value-type boolean "BOOLEAN")
-
 (defmethod format-value ((bool (eql 't)))
   "TRUE")
 
@@ -82,8 +71,6 @@
 
 ;;;; Integer
 
-(define-value-type integer "INTEGER")
-
 (defmethod format-value ((n integer))
   (format nil "~a" n))
 
@@ -92,8 +79,6 @@
 
 
 ;;;; Float
-
-(define-value-type float "FLOAT")
 
 (defmethod format-value ((x float))
   (format nil "~f" x))
@@ -130,7 +115,7 @@
 
 ;;;; Text
 
-(define-value-type text "TEXT")
+(deftype text () 'text*)
 
 (defclass text* ()
   ((language
@@ -211,8 +196,6 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; Time data types ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;;; Date
-
-(define-value-type date "DATE")
 
 (deftype day   () '(integer 1 31))
 (deftype month () '(integer 1 12))
@@ -368,8 +351,6 @@
 
 ;;; Time
 
-(define-value-type time "TIME")
-
 (defclass time ()
   ((timestamp
     :initarg :timestamp
@@ -456,7 +437,7 @@
 
 ;;;; Datetime
 
-(define-value-type datetime "DATE-TIME")
+(deftype date-time () 'datetime)
 
 (defclass datetime ()
   ((date
@@ -568,8 +549,6 @@
 
 
 ;;;; Duration data type
-
-(define-value-type duration "DURATION")
 
 (defvar *print-duration-abbrev* nil)
 
@@ -848,8 +827,6 @@
 
 ;;;; Period
 
-(define-value-type period "PERIOD")
-
 (defclass period ()
   ((start
     :initarg :start
@@ -878,8 +855,6 @@
 
 
 ;;;; Recur data type
-
-(define-value-type recur "RECUR")
 
 (defclass recur ()
   ((freq
