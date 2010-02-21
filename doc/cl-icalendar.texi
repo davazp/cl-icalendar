@@ -7,6 +7,62 @@
 
 @include version.texi
 
+@ignore
+@c ---------------
+@deffn {Generic function} name arg1 arg2 ... @result{} result
+@table @strong
+
+@c Parameters and values
+@item Arguments and values
+@table @var
+@item arg1
+...
+@item arg2
+...
+@item result
+...
+@end table
+
+@c Description
+@item Description
+...
+...
+
+@c Exceptional situations
+@item Exceptional situations
+...
+
+@c Examples
+@item Examples
+@lisp
+...
+@end lisp
+
+@c Affected by
+@item {Affected by}
+@c ...
+
+@c Side effects
+@item {Side effects}
+@c ...
+
+@c See also
+@item {See also}
+@c ...
+
+@c Notes
+@item Notes
+@c ...
+@end table
+@end deffn
+@end ignore
+
+
+@c Copy the type, variable and function indexes to the cp one.
+@syncodeindex tp cp
+@syncodeindex vr cp
+@syncodeindex fn cp
+
 @copying
 This is the @cite{Common Lisp iCalendar Library Reference} updated for
 the version @cite{@value{VERSION}}.
@@ -25,13 +81,13 @@ Free Documentation License''.
 
 A copy of the license is also available from the Free Software
 Foundation Web site at @url{http://www.gnu.org/licenses/fdl.html}.
-
 @end quotation
 
 The document was typeset with
 @uref{http://www.texinfo.org/, GNU Texinfo}.
 
 @end copying
+
 
 @titlepage
 @title Common Lisp iCalendar Library
@@ -56,6 +112,7 @@ The document was typeset with
 
 @c Generate the nodes for this menu with `C-c C-u C-m'.
 @menu
+* Introduction::                
 * Overview::                    
 * Data types::                  
 * Components::                  
@@ -66,6 +123,25 @@ The document was typeset with
 
 @c Update all node entries with `C-c C-u C-n'.
 @c Insert new nodes with `C-c C-c n'.
+@node Introduction
+@chapter Introduction
+
+@menu
+* Instalation::                 
+* Conventions::                 
+@end menu
+
+@node Instalation
+@section Instalation
+
+@node Conventions
+@section Conventions
+
+Se asume que todos los ejemplos listados en este documento son evaluados
+globalmente, de forma que todos los simbolos exportados por el paquete
+cl-icalendar esten accesibles.
+
+
 @node Overview
 @chapter Overview
 
@@ -88,6 +164,64 @@ The document was typeset with
 * Period::                      
 * Recur::                       
 @end menu
+
+
+@deftp {Data type} icalendar-value-type
+@end deftp
+
+@c ---------------
+@deffn {Generic function} parse-value string type @result{} object
+@table @strong
+
+@c Parameters and values
+@item Arguments and values
+@table @var
+@item string
+A string object.
+@item type
+A symbol denoting a iCalendar type.
+@item object
+An iCalendar type object.
+@end table
+
+@c Description
+@item Description
+
+Parse @var{string} as a object of type @var{type} according to the
+syntax specified in the specification. The outcoming object is returned.
+
+@c Exceptional situations
+@item Exceptional situations
+A error of type @code{icalendar-parse-error} is signaled if no object is
+represented by string.
+
+@c Examples
+@item Examples
+@lisp
+(parse-value "true"  'boolean) @result{} t
+(parse-value "FALSE" 'boolean) @result{} nil
+(parse-value "23.1"  'float)   @result{} 23.1
+(parse-value "23."   'float)   @result{} @error{}
+@end lisp
+
+@c Affected by
+@item {Affected by}
+@code{*icalendar*}
+
+@c Side effects
+@item {Side effects}
+None.
+
+@c See also
+@item {See also}
+@code{format-value} and @code{icalendar-valuep}.
+
+@c Notes
+@item Notes
+None.
+@end table
+@end deffn
+
 
 @node Boolean
 @section Boolean
@@ -131,22 +265,22 @@ The document was typeset with
 @node Recur
 @section Recur
 
-
 @node Components
 @chapter Components
 
 @node High level abstractions
 @chapter High level abstractions
 
+@node Conditions and error handling@*
+@appendix Conditions and error handling@*
+
 @node GNU Free Documentation License
 @appendix GNU Free Documentation License
-
 @c Get fdl.texi from http://www.gnu.org/licenses/fdl.html
 @include fdl.texi
 
 @node Index
 @unnumbered Index
-
 @printindex cp
 
 @bye
