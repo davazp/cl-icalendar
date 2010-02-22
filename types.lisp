@@ -20,6 +20,12 @@
 
 (in-package :cl-icalendar)
 
+;;; This file contains code which implement the values that iCalendar
+;;; properties can take. We provide a data type specifier,
+;;; constructor, accessors, and utilities functions for each one of
+;;; them. Indeed, we provide 3 common functions in order to turn these
+;;; objects to strings and vice versa.
+
 (defgeneric format-value (value))
 (defgeneric parse-value (string type))
 (defgeneric parse-values (string type))
@@ -53,6 +59,7 @@
           collect (parse-value sub type)
           while end)))
 
+
 ;;;; Boolean
 
 (defmethod format-value ((bool (eql 't)))
@@ -63,8 +70,8 @@
 
 (defmethod parse-value (string (type (eql 'boolean)))
   (cond
-    ((string= string "TRUE")  t)
-    ((string= string "FALSE") nil)
+    ((string-ci= string "TRUE")  t)
+    ((string-ci= string "FALSE") nil)
     (t
      (error "~a is not a boolean data type." string))))
 
