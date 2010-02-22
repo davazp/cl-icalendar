@@ -960,14 +960,6 @@
       (check-type-list bysecond (integer 0 60))
       (check-type-list byminute (integer 0 59))
       (check-type-list byhour   (integer 0 23))
-      (check-member byday (SU
-			   MO
-			   TU
-			   WE
-			   TH
-			   FR
-			   SA)
-		    :test #'string=)
       (check-type-list bymonthday (non-zero-integer  -31  31))
       (check-type-list byyearday  (non-zero-integer -366 366))
       (check-type-list byweekno   (non-zero-integer   -7   7))
