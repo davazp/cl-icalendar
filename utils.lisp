@@ -170,14 +170,14 @@
        t))
 
 ;;; Like `char=' but is it case-insensitive.
-(define-transitive-relation char-ci= (char1 char2)
+(defun char-ci= (char1 char2)
   (declare (character char1 char2))
   (char= (char-upcase char1)
          (char-upcase char2)))
 
 ;;; Like `string=' but it is case-insensitive.
-(defun string-ci= (string &rest more-strings)
-  (apply #'every #'char-ci= (cons string more-strings)))
-
+(defun string-ci= (str1 str2)
+  (declare (string str1 str2))
+  (every #'char-ci= str1 str2))
 
 ;;; utils.lisp ends here
