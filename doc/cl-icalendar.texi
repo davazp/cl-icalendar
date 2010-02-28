@@ -138,10 +138,16 @@ The document was typeset with
 @node Conventions
 @section Conventions
 
-Se asume que todos los ejemplos listados en este documento son evaluados
-globalmente, de forma que todos los simbolos exportados por el paquete
-cl-icalendar esten accesibles.
+All examples in this document are meant to be evaluated globally, so
+all the cl-icalendar exported symbols are accesible.
 
+@node Grammar notation
+@subsection Grammar notation
+
+We use a modification of the BNF syntax, here called XBNF, wich is as
+follows (In itself):
+
+@verbatiminclude xbnf
 
 @node Overview
 @chapter Overview
@@ -166,78 +172,56 @@ cl-icalendar esten accesibles.
 * Recur::                       
 @end menu
 
-
 @deftp {Data type} icalendar-value-type
 @end deftp
 
 @c ---------------
 @deffn {Generic function} parse-value string type @result{} object
-@table @strong
-
-@c Parameters and values
-@item Arguments and values
-@table @var
-@item string
-A string object.
-@item type
-A symbol denoting a iCalendar type.
-@item object
-An iCalendar type object.
-@end table
-
-@c Description
-@item Description
-
-Parse @var{string} as a object of type @var{type} according to the
-syntax specified in the specification. The outcoming object is returned.
-
-@c Exceptional situations
-@item Exceptional situations
-A error of type @code{icalendar-parse-error} is signaled if no object is
-represented by string.
-
-@c Examples
-@item Examples
-@lisp
-(parse-value "true"  'boolean) @result{} t
-(parse-value "FALSE" 'boolean) @result{} nil
-(parse-value "23.1"  'float)   @result{} 23.1
-(parse-value "23."   'float)   @result{} @error{}
-@end lisp
-
-@c Affected by
-@item Affected by
-@code{*icalendar*}
-
-@c Side effects
-@item Side effects
-None.
-
-@c See also
-@item See also
-@code{format-value} and @code{icalendar-valuep}.
-
-@c Notes
-@item Notes
-None.
-@end table
+This function parse the @var{string} acording to the symbol
+@var{type}, if a symbol use it directly, if a string call lookup-type.
 @end deffn
 
+@deffn Function lookup-type string
+When string is ``BOOLEAN'', ``CAL-ADDRE, ``DATE'', ``DATE-TIME,
+``DURATION', ``FLOAT'', ``INTEGER'', ``PERIOD'', ``TIME'', ``URI'',
+... convert it to a symbol with @code{intern}, else signal an error.
+
+@c TODO: Add rest types
+@end multitable
+@end deffn
 
 @node Boolean
 @section Boolean
 
+A value ethier nil for FALSE and t for TRUE
+
 @node Integer
 @section Integer
+
+@deftypefun integer parse-value string (eq ``INTEGER'')
+Parse a base-10 integer with the syntax
+
+@end deftypefun
 
 @node Float
 @section Float
 
+@deftypefun float parse-value string (eq ``FLOAT'')
+Parse a float:
+
+@end deftypefun
+
 @node Text
 @section Text
 
+@deftypefn {Value Type} string parse-value string (eq ``TEXT''
+This function 
+@end deftypefn
+
 @node Binary
 @section Binary
+
+
 
 @node URI
 @section URI
@@ -248,14 +232,79 @@ None.
 @node UTC-Offset
 @section UTC-Offset
 
+
 @node Date
 @section Date
+@deffn Method parse-value string (eq ``DATE'')
+Convert a string of the from YYYYMMDD to a @var{date} object.
+@end deffn
+
+@deftp {Value type} date day
+
+A Date represent a range of 24 hours begining in hour 0, it is, a
+``day'', ethier in the local timezone or in a defined timezone.
+
+@defvr Slot day
+An integer counting the days from or until if negative to
+2000--03--01.
+@end defvr
+
+@defvr Slot timezone
+A @var{timezone} or nil, if is a floating
+@end defvr
+
+@deffn Method date-year
+Gives the year of the date, counting from 1 A.C.
+@end deffn
+
+@deffn Method date-month
+Gives the month of the date, 1 for January --- 12 for December
+@end deffn
+
+@deffn Method date-day
+Gives the day of month of the date, counting from 1
+@end deffn
+
+@end deftp
 
 @node Time
 @section Time
 
+Time represent a offset from the begin of a day in UTC or in the local
+timezone, 2 separate types are used:
+
+Class: @var{floating-time} hours seconds
+
+Represent a time wich is not timezone bind,
+
+Class @var{absolute-time} seconds
+
+Is a time always bound to UTC.
+
+Method: 
+
 @node Datetime
 @section Datetime
+
+Datetime is a absolute point in time.
+
+@deftp {Value type} datetime day seconds subsecond
+
+@defvr Slot day
+is an integer counting the days from or until if negative to
+2000--03--01, as in @var{date} type.
+@end defvr
+
+@defvr Slot seconds
+Is the offset in SI seconds from 00:00:00 of the day.
+@end defvr
+
+@defvr Slot subsecond
+Is a rational 0 <= @var{subsecond} < 1 representing
+the sub-second offset from the begin of the @var{second}.
+@end defvr
+
+@end deftp
 
 @node Duration
 @section Duration
