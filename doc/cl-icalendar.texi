@@ -129,7 +129,7 @@ The document was typeset with
 
 @menu
 * Instalation::                 
-* Conventions::                 
+* Conventions::
 @end menu
 
 @node Instalation
@@ -141,13 +141,33 @@ The document was typeset with
 All examples in this document are meant to be evaluated globally, so
 all the cl-icalendar exported symbols are accesible.
 
-@node Grammar notation
-@subsection Grammar notation
+All value types desciption include at least items syntax,
+representation, parsing, formatting and handling, with an optional
+note.  Representation refert to the representation of the iCalendar
+value as a Common Lisp object.  Parsing refers to the function(s) to
+convert a string to it Common Lisp representation, formatting is the
+reverse processess and handing the functions meant to deal with the
+parsed object.
 
 We use a modification of the BNF syntax, here called XBNF, wich is as
 follows (In itself):
 
-@verbatiminclude xbnf
+@verbatim
+xbnf = 1*entry
+entry = 1*alphanum = object [comment]
+object = *( group | option | optional | times | verbatim-string )
+group = "(" object ")"
+option = object 1*( "|" object )
+optional = "[" object "]"
+times = "*" [ unsigned-integer [ "-" unsigned-integer ] object
+positive-range = unsigned-integer "-" unsigned-integer
+unsigned-integer = 1*digit
+digit = 0-9
+verbatim-string = "\"" 1*(alphanum | space) "\""
+comment = ";" ascii
+@end verbatim
+
+@c TODO: Add a english description of XBNF.
 
 @node Overview
 @chapter Overview
@@ -176,135 +196,368 @@ follows (In itself):
 @end deftp
 
 @c ---------------
-@deffn {Generic function} parse-value string type @result{} object
-This function parse the @var{string} acording to the symbol
-@var{type}, if a symbol use it directly, if a string call lookup-type.
+@deffn {Generic function} parse-value string type &optional (properties nil)
+This function is used for the pasing of all value types, acording to
+@var{type}.  If @var{type} is a symbol use it directly, if is a string
+call lookup-type first.
+
+Propierties must be a alist in the from @code{(("KEY0" . "VALUE0)
+("KEY1" . "VALUE1") ("KEYN" . "VALUEN"))} given in the
+content line where the string to be parsed is found.  If is not given
+no properties are assumed.
+@end deffn
+
+@deffn {Generic function} format-value value &optional stream &key type
+If stream is nil evaluate return a string representing the given
+value, else evaluate to @var{value} and write it to the stream.
+
+If @var{*lowercase-p*} special variable is defined and is non-nil
+write the characters than are part of the syntax in lowercase.  The
+syntax letters are written in lowercase.  The letters part of the
+value itself are not affected by *lowercase-p*.
+
+Example:
+@lisp
+(let ((*lowercase-p* t))
+  (list (format-value "ABCD")
+        (format-value "AB
+CD")))
+@result{} ("ABCD" "AB\nCD") ; Note the lowercase N
+
+(let ((*lowercase-p* nil))
+  (list (format-value "ABCD")
+        (format-value "AB
+CD")))
+@result{} ("ABCD" "AB\NCD") ; Note the uppercase N
+@end lisp
+
+When the value type can't be infered from the @var{value}. @var{type}
+state what value-type should be used (Should be a symbol).
+
+@c TODO: Think and write what should happen when a type non matching
+@c the value is given, like if type = date-time value = 2.
 @end deffn
 
 @deffn Function lookup-type string
-When string is ``BOOLEAN'', ``CAL-ADDRE, ``DATE'', ``DATE-TIME,
+When string is ``BOOLEAN'', ``CAL-ADDRES'', ``DATE'', ``DATE-TIME'',
 ``DURATION', ``FLOAT'', ``INTEGER'', ``PERIOD'', ``TIME'', ``URI'',
-... convert it to a symbol with @code{intern}, else signal an error.
+... convert it to a symbol with @code{intern}, wich are the
+representation for the type values, else signal an error.
 
 @c TODO: Add rest types
-@end multitable
 @end deffn
 
 @node Boolean
 @section Boolean
+@table @asis
+@item Syntax
+@verbatim
+boolean = "TRUE" | "FALSE"
+@end verbatim
 
-A value ethier nil for FALSE and t for TRUE
+@item Representation
+An object that may be t or nil.
+
+@item Parsing
+@deffn Method parse-value string (eq 'boolean)
+Return @code{t} if string is @code{"TRUE"}
+@code{equal} to ``FALSE'' and signal an error otherwise.
+@end deffn
+
+@item Formatting
+@deffn Method write-value string (eq 't) &optional stream
+Write @code{"TRUE"} to the stream.
+@end deffn
+@deffn Method write-value string (eq 'nil) &optinal stream
+Write @code{"FALSE"} to the stream.
+@end deffn
+
+@item Handling
+As with any other boolean.
+@end table
 
 @node Integer
 @section Integer
+@table @asis
 
-@deftypefun integer parse-value string (eq ``INTEGER'')
-Parse a base-10 integer with the syntax
+@item Syntax
+@verbatim
+integer = signed-integer | unsigned-integer
+@end verbatim
 
-@end deftypefun
+@item Representation
+The Common Lisp type @code{integer} is used to represent this value type.
+
+@item Parsing
+@deffn Method parse-value string (type (eq integer))
+Parse a integer.
+@end deffn
+
+@item Formatting
+@deffn Method format-value (value integer) &optional stream &key always-sign
+Write an integer.  If the value is negative or always-sign is non-nil
+write the minus sign.
+@end deffn
+
+@item Handling
+As with any other Common Lisp integer.
+
+@end table
 
 @node Float
 @section Float
 
-@deftypefun float parse-value string (eq ``FLOAT'')
-Parse a float:
+@table @asis
 
+@item Syntax
+@verbatim
+float = integer [ "." unsigned-integer ]
+@end verbatim
+
+@item Representation
+The Common Lisp @code{float} type is used for represent this value
+type.
+
+@item Parsing
+@deftypefun float parse-value string (type (eq float))
+Parse a @code{float}, if the maxium presicion is exeded round it.
 @end deftypefun
+
+@item Formatting
+@deffn Method format-value (value float) &optional stream &key always-sign
+Write an float.  If the value is negative or always-sign is non-nil
+write the minus sign.
+@end deffn
+
+@item Handling
+As with any other Common Lisp float.
+@end table
 
 @node Text
 @section Text
 
-@deftypefn {Value Type} string parse-value string (eq ``TEXT''
-This function 
-@end deftypefn
+@table @asis
+
+@item Syntax
+@verbatim
+text = *text-char
+text-char = quoted-char
+            | 0x21 | 0x23-2B | 0x2D-39 | 0x3C-5B | 0x5D-7E
+            | NON-US-ASCII ;
+quoted-char = "\\" | "\;" | "\," | "\N" | "\n"
+@end verbatim
+
+In short a ``TEXT'' may contain any non-control and `\', `;', `N' and
+`n' if quoted with a `\'
+
+@item Representation
+The Common Lisp @code{string} type is used for represent this value type. 
+
+@item Parsing
+@deffn Method string parse-value string (type (eq text))
+Convert the quoted characters in the string the the corresponding
+value they represent:
+@multitable @columnfractions .4 .4
+@headitem quoted-char @tab representation
+@item \\ @tab #\\
+@item \; @tab #\;
+@item \, @tab #\.
+@item \N @tab Line Feed: ASCII 0x10, Lisp #\newline
+@item \n @tab equivalent to \N
+@end multitable
+@end deffn
+Note: The CATEGORY property support comma-separated multiple values of
+this type, @code{parse-values} must be used for parse multiple values
+text, wich will split the string by each non quoted comma and call
+@code{parse-value} with each token.
+
+@item Formatting
+@deffn Function format-value (value string) &optional type &key (quote t)
+If @var{quote} is non-nil replace the needed charactes by their quoted
+representation (See above) if needed, and write them, verbatim unless
+@var{quote}.
+@end deffn
+
+@item Handling
+As with any other Common Lisp string.
+
+@end table
 
 @node Binary
 @section Binary
 
+@table @asis
 
+@item Syntax
+@verbatim
+base64-string = base64-mid-block
+                | *base64-mid-block base64-final-block
+base64-final-block = base64-16-bit-block | base-64-8-bit-block
+base64-mid-block = base64-24-bit-block
+base64-24-bit-block = 4-4*base64-char
+base64-16-bit-block = 3-3*base64-char "="
+base64-8-bit-block = 2-2*base64-char "=="
+base64-char = A - Z | a - z | 0 - 9 | "+" | "/"
+@end verbatim
+
+@item Description
+Data coded in base64 is split into 24 bit blocks.  Each full block is
+coded as 4 @code{base64-char}s.  If data length is not multiple of 3
+bytes padding is performed as follows: If the final block is 2 bytes
+long these bytes are coded as 3 @code{base64-char}s, and 1 `=' is 
+added for padding; if the final block is only one byte long the byte
+is coded as 2 @code{base64-char}s and 2 `=' are added as padding.
+
+@item Parsing
+@deffn Function parse-base64 string &key (junk-allowed nil)
+Convert a base64-string to a byte vector, containing only integers
+from 0 to 255 (Inclusive).
+
+If junk-allowed is nil and a non @code{base-64-char} is found a error
+is signaled, else the character is silenty ignored.
+@end deffn
+
+@deffn Method parse-value string (type (eq binary))
+Equivalent to @code{(parse-base64 string)}.
+@end deffn
+
+@deffn Macro with-input-from-base64-str (stream string)
+Makes an binary (@code{:element-type} is @code{(unsigned-byte 8)})
+input stream wich reads to the decoded data.
+@end deffn
+
+@item Formatting
+@deffn Macro with-output-to-base64 (stream)
+Evaluate to the data written to a lexical scope stream encoded as
+base64, with padding if nessesary.
+@end deffn
+@deffn Function format
+@end deffn
+
+@end table
 
 @node URI
 @section URI
 
+URIs are resources identifiers.  cl-icalendar provides no specific
+handling for them.
+
 @node Cal-address
 @section Cal-address
+
+@c TODO: Write this seection
 
 @node UTC-Offset
 @section UTC-Offset
 
+@c TODO: Write this section
 
 @node Date
 @section Date
-@deffn Method parse-value string (eq ``DATE'')
+
+@table @asis
+
+@item Syntax
+@verbatim
+date = year month day-of-month
+year = 4-4*digit 
+@end verbatim
+
+@item Representation
+@deftp {Class} day
+@defvr Slot day
+The number of days since 2000-03-01.
+@end defvr
+@end deftp
+
+@item Parsing
+@deffn Method parse-value string 'date
 Convert a string of the from YYYYMMDD to a @var{date} object.
 @end deffn
 
-@deftp {Value type} date day
-
-A Date represent a range of 24 hours begining in hour 0, it is, a
-``day'', ethier in the local timezone or in a defined timezone.
-
-@defvr Slot day
-An integer counting the days from or until if negative to
-2000--03--01.
-@end defvr
-
-@defvr Slot timezone
-A @var{timezone} or nil, if is a floating
-@end defvr
-
-@deffn Method date-year
-Gives the year of the date, counting from 1 A.C.
+@item Handling
+@deffn Function make-date year month day
+Make and return a new @code{date} object with the given year, month
+and day.
+@end deffn
+@deffn Function %make-date day
+Make a date with a given value for slot @var{day}.
+@end deffn
+@deffn Method date-year (self date)
+Compute and return the year.
+@end deffn
+@deffn Method date-month (self date)
+Compute and return the month, begin in 1 for January.
+@end deffn
+@deffn Method date-day-of-month (self date)
+Compute and return the day of the month begin from 1. 
+@end deffn
+@deffn {Method} date-day (self date)
+Return the slot @var{day}.
 @end deffn
 
-@deffn Method date-month
-Gives the month of the date, 1 for January --- 12 for December
+@item Formating
+@deffn Method format-value (value date) &optional stream
+Write a @var{Date}
 @end deffn
 
-@deffn Method date-day
-Gives the day of month of the date, counting from 1
-@end deffn
-
-@end deftp
+@end table
 
 @node Time
 @section Time
 
-Time represent a offset from the begin of a day in UTC or in the local
-timezone, 2 separate types are used:
+@table @asis
 
-Class: @var{floating-time} hours seconds
+@item Syntax
+@verbatim
+time = hour minute second
+hour = 2*digit
+minute = 2*digit
+second = 2*digit
+@end verbatim
 
-Represent a time wich is not timezone bind,
+@item Representation
+3 Clases are defined for this value type.
 
-Class @var{absolute-time} seconds
+@deftp Class {absolute-time (time)}
+Represents a point in the day, relative to UTC.
+@defvr Slot seconds
+The seconds offset from midnight.
+@end defvr
+@end deftp
 
-Is a time always bound to UTC.
+@deftp Class {relative-time (time)}
+The hour -> minute conversion is not always 
 
-Method: 
+@defvr Slot hours
+The hour offset from midnight.
+@end defvr
+@defvr Slot second
+The seconds offset from the begin of the given hour.
+@end defvr
+@end deftp
+
+@deftp Class time
+Just an abstraction (And superclass) of both the above classess,
+contain no slots.
+@end deftp
+
+@item Parsing
+@deffn Method parse-value string (eq time) &
+Parse a time, if is in UTC 
+@end deffn
+
+@item Handling
+@deffn Method fix-time (self time) (timezone timezone)
+Return the absolute representation of the time in the given timezone.
+@end deffn
+
+@end table
 
 @node Datetime
 @section Datetime
 
-Datetime is a absolute point in time.
-
-@deftp {Value type} datetime day seconds subsecond
-
-@defvr Slot day
-is an integer counting the days from or until if negative to
-2000--03--01, as in @var{date} type.
-@end defvr
-
-@defvr Slot seconds
-Is the offset in SI seconds from 00:00:00 of the day.
-@end defvr
-
-@defvr Slot subsecond
-Is a rational 0 <= @var{subsecond} < 1 representing
-the sub-second offset from the begin of the @var{second}.
-@end defvr
-
-@end deftp
+@c TODO: Write this section
 
 @node Duration
 @section Duration
