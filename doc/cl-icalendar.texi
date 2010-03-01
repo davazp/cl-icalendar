@@ -142,15 +142,15 @@ All examples in this document are meant to be evaluated globally, so
 all the cl-icalendar exported symbols are accesible.
 
 All value types desciption include at least items syntax,
-representation, parsing, formatting and handling, with an optional
-note.  Representation refert to the representation of the iCalendar
-value as a Common Lisp object.  Parsing refers to the function(s) to
-convert a string to it Common Lisp representation, formatting is the
-reverse processess and handing the functions meant to deal with the
-parsed object.
+representation, parsing, formatting and handling, with an optional note.
+Representation refert to the representation of the iCalendar value as a
+Common Lisp object.  Parsing refers to the function(s) to convert a
+string to it Common Lisp representation, formatting is the reverse
+processess and handing the functions meant to deal with the parsed
+object.
 
-We use a modification of the BNF syntax, here called XBNF, wich is as
-follows (In itself):
+We use a modification of the @cite{BNF} syntax, here called @cite{XBNF},
+wich is as follows (In itself):
 
 @verbatim
 xbnf = 1*entry
@@ -193,10 +193,12 @@ comment = ";" ascii
 @end menu
 
 @deftp {Data type} icalendar-value-type
+@c TBD Describe the data type.
 @end deftp
 
 @c ---------------
 @deffn {Generic function} parse-value string type &optional (properties nil)
+
 This function is used for the pasing of all value types, acording to
 @var{type}.  If @var{type} is a symbol use it directly, if is a string
 call lookup-type first.
@@ -236,15 +238,6 @@ state what value-type should be used (Should be a symbol).
 
 @c TODO: Think and write what should happen when a type non matching
 @c the value is given, like if type = date-time value = 2.
-@end deffn
-
-@deffn Function lookup-type string
-When string is ``BOOLEAN'', ``CAL-ADDRES'', ``DATE'', ``DATE-TIME'',
-``DURATION', ``FLOAT'', ``INTEGER'', ``PERIOD'', ``TIME'', ``URI'',
-... convert it to a symbol with @code{intern}, wich are the
-representation for the type values, else signal an error.
-
-@c TODO: Add rest types
 @end deffn
 
 @node Boolean
