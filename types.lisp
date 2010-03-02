@@ -198,6 +198,86 @@
                                 (#\n #\newline)))
                           out))))))
 
+
+;;;; Base64
+
+;; The buffer is arranged in this manner, with example:
+;; Decoded (ASCII)     M         a          n
+;; Buffer     MSB  010011|01^0110|0001^01|101110 LSB
+;; Encoded (ASCII    19      22      5       46
+;; Encoded (Index)   T       W       F       u
+
+(defconstant +base64-alphabet+
+  "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/")
+
+(defclass base64-encoder-stream (fundamental-binary-output-stream)
+  ((buffer :initform 0)
+   (buffer-size :initform 0)
+   (stream :initarg :stream)))
+
+(defun make-base64-encoder-stream (backend-stream)
+  (if (and (or (output-stream-p backend-stream)
+	       (error "Not an output stream has been given")))
+      (make-instance 'base64-encoder-stream :stream backend-stream)))
+
+(defmethod stream-write-byte ((self base64-encoder-stream) byte)
+  (with-slots (buffer buffer-size stream) self
+    
+    (setf buffer (logior buffer
+			 (ash byte (* (- 2 buffer-size) 8))))
+    (incf buffer-size)
+    (assert (<= buffer-size 3))	   ; Just in the case of a hardware or
+					; cl-icalendar bug...
+    (when (= buffer-size 3)
+      (flush-buffer self))))
+
+(defmethod flush-buffer ((self base64-encoder-stream) &optional (chars 4))
+  (with-slots (buffer buffer-size stream) self
+    (and (>= chars 1)
+         (stream-write-char stream
+			    (elt +base64-alphabet+
+				 (ash (logand buffer
+					      #b111111000000000000000000)
+				      -18)))
+	 (>= chars 2)
+         (stream-write-char stream
+			    (elt +base64-alphabet+
+				 (ash (logand buffer
+					      #b000000111111000000000000)
+				      -12)))
+	 (>= chars 3)
+         (stream-write-char stream
+			    (elt +base64-alphabet+
+				 (ash (logand buffer
+					      #b000000000000111111000000)
+				      -6)))
+	 (= chars 4)
+         (stream-write-char stream
+			    (elt +base64-alphabet+
+				 (logand buffer
+					 #b000000000000000000111111)))
+	 (> chars 4)
+	 (error "Blocks are of 4 characters, at most"))
+    (zerof buffer-size)
+    (zerof buffer)))
+
+(defmethod close ((self base64-encoder-stream) &key abort)
+  (with-slots (buffer buffer-size stream) self
+    (case buffer-size
+      (1 (flush-buffer self 2) (format stream "=="))
+      (2 (flush-buffer self 3) (format stream "=")))
+    (close stream :abort abort)))
+
+(defmacro with-base64-encoder ((binary-stream &optional char-stream) &body body)
+  "Write a base64 representation of data written to binary-stream to
+  char-stream if non nil, else evauate to the result "
+  (with-gensyms (char-stream-tmp)
+    `(let* ((,char-stream-tmp ,char-stream)
+	    (,binary-stream (make-base64-encoder-stream ,char-stream-tmp)))
+       (unwind-protect
+	    (prog1 (progn ,@body)
+	      (close ,char-stream-tmp))
+	 (close ,binary-stream)))))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; Time data types ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
