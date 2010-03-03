@@ -26,23 +26,23 @@
 ;;; them. Indeed, we provide 3 common functions in order to turn these
 ;;; objects to strings and vice versa.
 
-(defgeneric format-value (value))
-(defgeneric parse-value (string type))
-(defgeneric parse-values (string type))
+(defgeneric format-value (value &rest params &key &allow-other-keys))
+(defgeneric parse-value (string type &rest params &key &allow-other-keys))
+(defgeneric parse-values (string type &rest params &key &allow-other-keys))
 
 (defun lookup-type (string)
   (find-symbol (string-upcase string) :cl-icalendar))
 
-(defmethod parse-value (string (typestring string))
+(defmethod parse-value (string (typestring string) &rest params &key &allow-other-keys)
   (let ((type (lookup-type typestring)))
     (if (null type)
         (no-applicable-method 'parse-value string typestring)
-        (parse-value string type))))
+        (apply #'parse-value string type params))))
 
-(defmethod parse-values (string (typestring string))
-  (parse-values string (lookup-type typestring)))
+(defmethod parse-values (string (typestring string) &rest params &key &allow-other-keys)
+  (apply #'parse-values string (lookup-type typestring) params))
 
-(defmethod parse-values (string (type symbol))
+(defmethod parse-values (string (type symbol) &rest params &key &allow-other-keys)
   (labels ( ;; Find the position of the separator character (,) from
             ;; the character at START position.
            (position-separator (start)
@@ -56,19 +56,22 @@
     (loop for start = 0 then (1+ end)
           for end = (position-separator start)
           for sub = (subseq string start end)
-          collect (parse-value sub type)
+          collect (apply #'parse-value sub type params)
           while end)))
 
 
 ;;;; Boolean
 
-(defmethod format-value ((bool (eql 't)))
+(defmethod format-value ((bool (eql 't)) &rest params &key &allow-other-keys)
+  (declare (ignore params))
   "TRUE")
 
-(defmethod format-value ((bool (eql 'nil)))
+(defmethod format-value ((bool (eql 'nil)) &rest params &key &allow-other-keys)
+  (declare (ignore params))
   "FALSE")
 
-(defmethod parse-value (string (type (eql 'boolean)))
+(defmethod parse-value (string (type (eql 'boolean)) &rest params &key &allow-other-keys)
+  (declare (ignore params))
   (cond
     ((string-ci= string "TRUE")  t)
     ((string-ci= string "FALSE") nil)
@@ -78,19 +81,24 @@
 
 ;;;; Integer
 
-(defmethod format-value ((n integer))
+(defmethod format-value ((n integer) &rest params &key &allow-other-keys)
+  (declare (ignore params))
   (format nil "~a" n))
 
-(defmethod parse-value (string (type (eql 'integer)))
+(defmethod parse-value (string (type (eql 'integer)) &rest params &key &allow-other-keys)
+  (declare (ignore params))
   (values (parse-integer string)))
 
 
 ;;;; Float
 
-(defmethod format-value ((x float))
+(defmethod format-value ((x float) &rest params &key &allow-other-keys)
+  (declare (ignore params))           
   (format nil "~f" x))
 
-(defmethod parse-value (string (type (eql 'float)))
+
+(defmethod parse-value (string (type (eql 'float)) &rest params &key &allow-other-keys)
+  (declare (ignore params))
   (let ((sign 1)                        ; the sign
         (x 0)                           ; integer part
         (y 0))                          ; fractional part
@@ -156,7 +164,8 @@
       (make-instance 'text* :text string :language language)
       string))
 
-(defmethod format-value ((text string))
+(defmethod format-value ((text string) &rest params &key &allow-other-keys)
+  (declare (ignore params))
   (with-input-from-string (in text)
     (with-output-to-string (out)
       (loop for ch = (read-char in nil)
@@ -178,10 +187,14 @@
               (t
                (write-char ch out)))))))
 
-(defmethod format-value ((text text*))
+
+(defmethod format-value ((text text*) &rest params &key &allow-other-keys)
+  (declare (ignore params))
   (format-value (text text)))
 
-(defmethod parse-value (text (type (eql 'text)))
+
+(defmethod parse-value (text (type (eql 'text)) &rest params &key &allow-other-keys)
+  (declare (ignore params))
   (let ((string (text text)))
     (with-input-from-string (in string)
       (with-output-to-string (out)
@@ -207,7 +220,7 @@
 ;; Encoded (ASCII    19      22      5       46
 ;; Encoded (Index)   T       W       F       u
 
-(defconstant +base64-alphabet+
+(defvar +base64-alphabet+
   "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/")
 
 (defclass base64-encoder-stream (fundamental-binary-output-stream)
@@ -421,14 +434,15 @@
       (error "The duration ~a is not multiple of days" dur))
     (make-instance 'date :datestamp (- (datestamp date) days))))
 
-(defmethod format-value ((date date))
-  (check-type date date)
+(defmethod format-value ((date date) &rest params &key &allow-other-keys)
+  (declare (ignore params))
   (format nil "~4,'0d~2,'0d~2,'0d"
           (date-year date)
           (date-month date)
           (date-day date)))
 
-(defmethod parse-value (string (type (eql 'date)))
+(defmethod parse-value (string (type (eql 'date)) &rest params &key &allow-other-keys)
+  (declare (ignore params))
   (unless (= (length string) 8)
     (error "parse error."))
   (make-date (parse-unsigned-integer string :start 6 :end 8)
@@ -506,14 +520,15 @@
               (- (truncate tstamp 86400)
                  (if (< tstamp 0) 1 0))))))
 
-(defmethod format-value ((time time))
-  (check-type time time)
+(defmethod format-value ((time time) &rest params &key &allow-other-keys)
+  (declare (ignore params))
   (format nil "~2,'0d~2,'0d~2,'0d"
           (time-hour   time)
           (time-minute time)
           (time-second time)))
 
-(defmethod parse-value (string (type (eql 'time)))
+(defmethod parse-value (string (type (eql 'time)) &rest params &key &allow-other-keys)
+  (declare (ignore params))
   (unless (or (= (length string) 6)
               (= (length string) 7))
     (error "parse error."))
@@ -610,14 +625,15 @@
 
 ;;; Parser
 
-(defmethod format-value ((dt datetime))
-  (check-type dt datetime)
+(defmethod format-value ((dt datetime) &rest params &key &allow-other-keys)
+  (declare (ignore params))
   (concatenate 'string
                (format-value (%datetime-date dt))
                "T"
                (format-value (%datetime-time dt))))
 
-(defmethod parse-value (string (type (eql 'datetime)))
+(defmethod parse-value (string (type (eql 'datetime)) &rest params &key &allow-other-keys)
+  (declare (ignore params))
   ;; TODO: Handling timezones
   (let ((string-date (subseq string 0  8))
         (string-time (subseq string 9 15)))
@@ -741,7 +757,8 @@
 
 ;;; Return a string which stand for DURSPECS in the format described
 ;;; in the RFC5545 section 3.3.6.
-(defmethod format-value ((dur duration))
+(defmethod format-value ((dur duration) &rest params &key &allow-other-keys)
+  (declare (ignore params))
   (let ((days       (duration-days dur))
         (hours      (duration-hours dur))
         (minutes    (duration-minutes dur))
@@ -775,7 +792,8 @@
 
 ;;; Parse a duration according to the format which is described in the
 ;;; RFC5545 section 3.3.6.
-(defmethod parse-value (string (type (eql 'duration)))
+(defmethod parse-value (string (type (eql 'duration)) &rest params &key &allow-other-keys)
+  (declare (ignore params))
   (with-input-from-string (in string)
     (flet ( ;; Get a token from IN
            (get-token ()
@@ -925,7 +943,8 @@
 (defun make-period (start end)
   (make-instance 'period :start start :end end))
 
-(defmethod format-value ((p period))
+(defmethod format-value ((p period) &rest params &key &allow-other-keys)
+  (declare (ignore params))
   ;; TODO: We should write down in the class `period' if the user
   ;; specifies a duration or a end datetime, in order to format it so.
   (format nil "~a/~a" (period-start p) (period-end p)))
@@ -1071,7 +1090,8 @@
       (error "Empty rule part in the recurrence '~a'." string))
     (mapcar #'parse-rule-part parts)))
 
-(defmethod parse-value (string (type (eql 'recur)))
+(defmethod parse-value (string (type (eql 'recur)) &rest params &key &allow-other-keys)
+  (declare (ignore params))
   (let ((rules (parse-rules string)))
     ;; Check errores
     (when (duplicatep rules :key #'car :test #'string=)
