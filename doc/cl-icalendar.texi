@@ -337,13 +337,58 @@ properties.
 @end deffn
 
 
-
-
 @node Boolean
 @section Boolean
 
+This value type is used to identify properties that contain either a
+"TRUE" or "FALSE" Boolean value.
+
+@deftp {ANSI Common Lisp type} boolean
+@table @strong
+@item Syntax
+@verbatim
+boolean = "TRUE" / "FALSE"
+@end verbatim
+@item Description
+These values are case insensitive text.
+@item Examples
+@example
+TrUE
+TRUE
+False
+@end example
+@end table
+@end deftp
+
 @node Integer
 @section Integer
+
+This value type is used to identify properties that contain a signed
+integer value.
+
+@deftp {ANSI Common Lisp type} integer
+@table @strong
+@item Syntax
+@verbatim
+integer = (["+"] / "-") 1*DIGIT
+@end verbatim
+@item Description
+If the sign is not specified, then the value is assumed to be
+positive.
+@item Examples
+@example
+1234567890
+-1234567890
++1234567890
+432109876
+@end example
+@item Notes
+@cite{cl-icalendar} do not define any limit for integer values, however,
+the iCalendar specification sets the valid range is -2147483648 to
+2147483647.
+@end table
+@end deftp
+
 
 @node Float
 @section Float
@@ -389,6 +434,15 @@ properties.
 
 @node Conditions and error handling
 @appendix Conditions and error handling@*
+
+@deftp {Condition} ical-parse-error
+@table @strong
+@item Condition Precedence List
+error, t
+@end table
+TODO: To be implemented.
+@endtp
+
 
 @node GNU Free Documentation License
 @appendix GNU Free Documentation License
