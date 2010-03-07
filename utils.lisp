@@ -144,6 +144,14 @@
           collect seq
           while end)))
 
+(defun join-strings (strings &optional (separator #\space))
+  (if (null strings)
+      (make-string 0)
+      (reduce (lambda (s1 s2)
+                (concatenate 'string s1 (string separator) s2))
+              strings)))
+
+
 ;;; Like `parse-integer' but it is not allowed to have a sign (+\-).
 (defun parse-unsigned-integer (string &rest keyargs &key &allow-other-keys)
   (unless (or (zerop (length string))

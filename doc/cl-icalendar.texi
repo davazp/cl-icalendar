@@ -160,6 +160,185 @@ The document was typeset with
 * Recur::                       
 @end menu
 
+@deftp {Data type} ical-value
+@table @strong
+@item Type Precedence List
+ical-value, t
+@item Description
+The type of the objects which can be value of iCalendar values.
+@end table
+@end deftp
+
+
+@deffn {Generic function} parse-value string type &rest parameters &key &allow-other-keys @result{} object
+@table @strong
+
+@c Parameters and values
+@item Arguments and values
+@table @var
+@item string
+A string.
+@item type
+A symbol.
+@item parameters
+A parameter list.
+@item object
+An object of type @var{type}.
+@end table
+
+@c Description
+@item Description
+@code{parse-value} parses an iCalendar value according to the syntax for
+a object of type @var{type}.
+
+@code{parse-value} ignores the unknown parameters. See the documentation
+for each type in order to know how the parameters are treated.
+
+@c Exceptional situations
+@item Exceptional situations
+If string is not a valid representation for a object according for the
+syntax for objects of type @var{type}, then a @code{ical-parse-error}
+condition is signaled.
+
+@c Examples
+@item Examples
+@lisp
+(parse-value "12" 'integer) @result 12
+(parse-value "12.1" 'float) @result 12.1
+(parse-value "DT3H" 'duration) @result <#DURATION 3 hours>
+;; TODO: Write wrong examples.
+@end lisp
+
+@c See also
+@item See also
+@code{parse-values}.
+
+@end table
+@end deffn
+
+
+@deffn {Generic function} parse-values string type &rest parameters &key &allow-other-keys @result{} objects
+@table @strong
+
+@c Parameters and values
+@item Arguments and values
+@table @var
+@item string
+A string.
+@item type
+A symbol.
+@item parameters
+A parameter list.
+@item object
+A list of objects of type @var{type}.
+@end table
+
+@c Description
+@item Description
+@code{parse-value} parses a comma-delimited list of iCalendar values
+according to the syntax for a object of type @var{type}.
+
+@code{parse-value} ignores the unknown parameters. See the documentation
+for each type in order to know how the parameters are treated.
+
+@c Exceptional situations
+@item Exceptional situations
+If the representation for some object is not valid according for the
+syntax for objects of type @var{type}, then a @code{ical-parse-error}
+condition is signaled.
+
+@c Examples
+@item Examples
+@lisp
+(parse-value "0,1,2" 'integer) @result (0 1 2)
+(parse-value "foo,bar,1\\,2 and 3." 'text) @* @result ("foo" "bar" "1, 2 and 3.")
+@end lisp
+
+@c See also
+@item See also
+@code{parse-value}.
+
+@end table
+@end deffn
+
+
+@c ---------------
+@deffn {Generic function} format-value object &rest parameters &key &allow-other-keys @result{} @code{nil}
+@table @strong
+
+@c Parameters and values
+@item Arguments and values
+@table @var
+@item object
+A @code{ical-value} object.
+@item parameters
+A parameter list.
+@end table
+
+@c Description
+@item Description
+Return a string which is an external representation of
+@var{object}. This representation could be affected by the list of
+@var{parameters}. See the documentation of specific ypes for futher
+information.
+
+@c Exceptional situations
+@item Exceptional situations
+If object is not an @code{ical-value} object, a error is signaled.
+
+@c Examples
+@item Examples
+@lisp
+(format-value "lisp" :encoding :base64) @result "bGlzcA=="
+;; TODO: Write more examples
+@end lisp
+
+@end table
+@end deffn
+
+
+@c ---------------
+@deffn {Generic function} format-values objects &rest parameters &key &allow-other-keys @result{} @code{nil}
+@table @strong
+
+@c Parameters and values
+@item Arguments and values
+@table @var
+@item object
+A list of @code{ical-value} objects.
+@item parameters
+A parameter list.
+@end table
+
+@c Description
+@item Description
+@code{format-values} return a string which is an external representation
+of multiple @var{objects}. This representation could be affected by the
+list of @var{parameters}. See the documentation of specific ypes for
+futher information.
+
+@c Exceptional situations
+@item Exceptional situations
+If some object is not an @code{ical-value} object, a error is signaled.
+
+@c Examples
+@item Examples
+@lisp
+;; TODO: Write more examples
+@end lisp
+
+@c Notes
+@item Notes
+@code{format-values} does not signal error if all objects are
+@code{ical-value} ones. However, if there are objects whose types are
+different, the outcoming string is not a valid value for iCalendar
+properties.
+@end table
+@end deffn
+
+
+
+
 @node Boolean
 @section Boolean
 

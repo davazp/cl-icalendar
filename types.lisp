@@ -20,6 +20,16 @@
 
 (in-package :cl-icalendar)
 
+(deftype ical-value ()
+  '(or
+    boolean integer float text          ; binary
+    uri cal-address utc-offset date time date-time
+    duration period recur
+    ;; x-type??
+    ;; A (satisfies x-typep) be placed here soon.
+    ))
+
+
 ;;; This file contains code which implement the values that iCalendar
 ;;; properties can take. We provide a data type specifier,
 ;;; constructor, accessors, and utilities functions for each one of
@@ -86,7 +96,11 @@
           collect (apply #'parse-value sub type params)
           while end)))
 
-
+(defmethod format-values (objects &rest params &key &allow-other-keys)
+  (join-strings (mapcar (lambda (x)
+                          (apply #'format-value x params))
+                        objects)
+                #\,))
 
 
 ;;;; Boolean
