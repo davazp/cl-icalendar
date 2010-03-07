@@ -39,6 +39,33 @@
         (no-applicable-method 'parse-value string typestring)
         (apply #'parse-value string type params))))
 
+;;; Wrapper for both standard as user-defined format-value and
+;;; parse-value methods. The :around methods are used to implement
+;;; global parameters.
+
+;;; I am not sure if it is allowed by the iCalendar specification to
+;;; use the encoding parameter on all types. I assume it is
+;;; so. Otherwise it should be a method for BINARY data type.
+;;; -- DVP
+
+(defmethod format-value :around (string &rest params &key (encoding :8bit) &allow-other-keys)
+  (declare (ignore string params))
+  (ecase encoding
+    (:base64
+     (base64:string-to-base64-string (call-next-method)))
+    (:8bit
+     (call-next-method))))
+
+(defmethod parse-value :around (string type &rest params &key (encoding :8bit) &allow-other-keys)
+  (ecase encoding
+    (:base64
+     (apply #'call-next-method (base64:base64-string-to-string string) type params))
+    (:8bit
+     (call-next-method))))
+
+
+;;; Multiple-value versions
+
 (defmethod parse-values (string (typestring string) &rest params &key &allow-other-keys)
   (apply #'parse-values string (lookup-type typestring) params))
 
@@ -58,6 +85,8 @@
           for sub = (subseq string start end)
           collect (apply #'parse-value sub type params)
           while end)))
+
+
 
 
 ;;;; Boolean
