@@ -235,10 +235,10 @@ A list of objects of type @var{type}.
 
 @c Description
 @item Description
-@code{parse-value} parses a comma-delimited list of iCalendar values
+@code{parse-values} parses a comma-delimited list of iCalendar values
 according to the syntax for a object of type @var{type}.
 
-@code{parse-value} ignores the unknown parameters. See the documentation
+@code{parse-values} ignores the unknown parameters. See the documentation
 for each type in order to know how the parameters are treated.
 
 @c Exceptional situations
@@ -250,8 +250,8 @@ condition is signaled.
 @c Examples
 @item Examples
 @lisp
-(parse-value "0,1,2" 'integer) @result (0 1 2)
-(parse-value "foo,bar,1\\,2 and 3." 'text) @* @result ("foo" "bar" "1, 2 and 3.")
+(parse-values "0,1,2" 'integer) @result (0 1 2)
+(parse-values "foo,bar,1\\,2 and 3." 'text) @* @result ("foo" "bar" "1, 2 and 3.")
 @end lisp
 
 @c See also
