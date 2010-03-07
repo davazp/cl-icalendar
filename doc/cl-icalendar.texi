@@ -203,9 +203,9 @@ condition is signaled.
 @c Examples
 @item Examples
 @lisp
-(parse-value "12" 'integer) @result 12
-(parse-value "12.1" 'float) @result 12.1
-(parse-value "DT3H" 'duration) @result <#DURATION 3 hours>
+(parse-value "12" 'integer) @result{} 12
+(parse-value "12.1" 'float) @result{} 12.1
+(parse-value "DT3H" 'duration) @result{} <#DURATION 3 hours>
 ;; TODO: Write wrong examples.
 @end lisp
 
@@ -250,8 +250,8 @@ condition is signaled.
 @c Examples
 @item Examples
 @lisp
-(parse-values "0,1,2" 'integer) @result (0 1 2)
-(parse-values "foo,bar,1\\,2 and 3." 'text) @* @result ("foo" "bar" "1, 2 and 3.")
+(parse-values "0,1,2" 'integer) @result{} (0 1 2)
+(parse-values "foo,bar,1\\,2 and 3." 'text) @* @result{} ("foo" "bar" "1, 2 and 3.")
 @end lisp
 
 @c See also
@@ -289,7 +289,7 @@ If object is not an @code{ical-value} object, a error is signaled.
 @c Examples
 @item Examples
 @lisp
-(format-value "lisp" :encoding :base64) @result "bGlzcA=="
+(format-value "lisp" :encoding :base64) @result{} "bGlzcA=="
 ;; TODO: Write more examples
 @end lisp
 
@@ -441,7 +441,7 @@ the iCalendar specification sets the valid range is -2147483648 to
 error, t
 @end table
 TODO: To be implemented.
-@endtp
+@end deftp
 
 
 @node GNU Free Documentation License
