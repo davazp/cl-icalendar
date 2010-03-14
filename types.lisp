@@ -364,7 +364,7 @@
     (1+ rem)))
 
 ;; Begins in 0 for Monday
-(defmethod day-of-week ((x date))
+(defmethod date-day-of-week ((x date))
   (mod (datestamp x) 7))
 
 (define-transitive-relation date= (x y)
