@@ -363,6 +363,9 @@
     (declare (ignore ign))
     (1+ rem)))
 
+;; Begins in 0 for Monday
+(defmethod day-of-week ((x date))
+  (mod (datestamp x) 7))
 
 (define-transitive-relation date= (x y)
   (= (datestamp x) (datestamp y)))
@@ -420,7 +423,7 @@
     :reader timestamp)))
 
 (defgeneric time-hour (x))
-(defgeneric time-minute(x))
+(defgeneric time-minute (x))
 (defgeneric time-second (x))
 
 (defun make-time (hour minute second)
@@ -534,6 +537,9 @@
 
 (defmethod date-day ((x datetime))
   (date-day (%datetime-date x)))
+
+(defmethod date-day-of-week ((x datetime))
+  (date-day-of-week (%datetime-date x)))
 
 (defmethod date-month ((x datetime))
   (date-month (%datetime-date x)))
