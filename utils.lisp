@@ -74,7 +74,6 @@
                  :start ,start
                  :end ,end))
 
-
 (defmacro define-transitive-relation (name (arg1 arg2) &body body)
   (with-gensyms (argsvar)
     `(defun ,name (&rest ,argsvar)
@@ -95,6 +94,9 @@
 (defmacro check-member (item list &key (test #'eql))
   `(if (not (position ,item ',list :test ,test))
        (error "Not a member of the specified list")))
+
+(defun implies (x y)
+  (if x y t))
 
 ;;; Like `some', but it works on bound sequences
 (defun some* (predicate sequence &key (start 0) end)
