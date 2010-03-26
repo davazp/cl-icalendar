@@ -393,6 +393,28 @@ the iCalendar specification sets the valid range is -2147483648 to
 @node Float
 @section Float
 
+This value type is used to identify properties that contain a real
+number value.
+
+@deftp {ANSI Common Lisp type} integer
+@table @strong
+@item Syntax
+@verbatim
+float = (["+"] / "-") 1*DIGIT ["." 1*DIGIT]
+@end verbatim
+@item Description
+If the property permits, multiple "float" values are specified by a
+COMMA character (US-ASCII decimal 44) separated list of values.
+@item Examples
+@example
+1000000.0000001
+1.333
+-3.14
+@end example
+@end table
+@end deftp
+
+
 @node Text
 @section Text
 
