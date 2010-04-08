@@ -318,6 +318,21 @@
        (or (not (divisiblep year 100))
            (divisiblep year 400))))
 
+;; Return a date pointing to the first day of week of the nth week in
+;; the given year.
+
+;; Monday = 0.
+;; TODO: Support wkst /= 0
+(defun %year-week (year week wkst)
+  (declare (ignore wkst))
+  (let* ((first-day (print (year-start-day year 0)))
+	 (first-monday (print (mod (- 7 first-day) 7))))
+    (make-date-offset-year year (+ first-monday
+				   (* 7 week)
+				   (if (> first-day 3)
+				       -7
+				       0)))))
+
 (defun make-date (day month year)
   (check-type day day)
   (check-type month month)
@@ -331,6 +346,12 @@
             (1- day))))
     (make-instance 'date :datestamp days-from-1900)))
 
+(defun make-date-offset-year (year day)
+  (check-type year year)
+  (make-instance 'date :datestamp (+ (* 365 (- year 1900))
+				     (leap-years-before year)
+				     day)))
+
 ;;; Accessors
 
 (defmethod date-year ((x date))
@@ -340,7 +361,6 @@
           for t3 = (- stamp t2)
           while (< t3 0)
           finally (return (values (+ 1900 t1) t3)))))
-
 
 (defmethod date-month ((x date))
   (multiple-value-bind (year rem)
