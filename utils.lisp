@@ -190,4 +190,14 @@
   (declare (string str1 str2))
   (every #'char-ci= str1 str2))
 
+
+;;; Define a predicate named NAME in order to check if an object is a
+;;; object TYPE. If NAME is omitted, NAMEP is used.
+(defmacro define-predicate-type (type &optional name)
+  (check-type name (or nil symbol))
+  (let ((fname (or name (intern (format nil "~aP" type)))))
+    `(defun ,fname (x)
+       (typep x ',type))))
+
+
 ;;; utils.lisp ends here
