@@ -173,8 +173,6 @@
 
 ;;;; Text
 
-(deftype text () 'text*)
-
 (defclass text* ()
   ((language
     :initarg :language
@@ -184,17 +182,16 @@
     :initarg :text
     :reader text)))
 
+(deftype text ()
+  '(or string text*))
+
+(define-predicate-type text)
+
 (defmethod print-object ((x text*) stream)
   (print-unreadable-object (x stream)
     (format stream "TEXT :LANG ~a ~w"
             (text-language x)
             (text x))))
-
-(deftype text ()
-  '(or string text*))
-
-(defun textp (x)
-  (typep x 'text))
 
 (defmethod text ((x string))
   x)
@@ -269,12 +266,11 @@
     :initarg :datestamp
     :reader datestamp)))
 
+(define-predicate-type date)
+
 (defgeneric date-day (x))
 (defgeneric date-month (x))
 (defgeneric date-year (x))
-
-(defun datep (x)
-  (typep x 'date))
 
 (defmethod print-object ((x date) stream)
   (print-unreadable-object (x stream :type t)
@@ -317,21 +313,6 @@
   (and (divisiblep year 4)
        (or (not (divisiblep year 100))
            (divisiblep year 400))))
-
-;; Return a date pointing to the first day of week of the nth week in
-;; the given year.
-
-;; Monday = 0.
-;; TODO: Support wkst /= 0
-(defun %year-week (year week wkst)
-  (declare (ignore wkst))
-  (let* ((first-day (print (year-start-day year 0)))
-	 (first-monday (print (mod (- 7 first-day) 7))))
-    (make-date-offset-year year (+ first-monday
-				   (* 7 week)
-				   (if (> first-day 3)
-				       -7
-				       0)))))
 
 (defun make-date (day month year)
   (check-type day day)
@@ -449,8 +430,7 @@
 (defun make-time (hour minute second)
   (make-instance 'time :timestamp (+ (* hour 3600) (* minute 60) second)))
 
-(defun timep (x)
-  (typep x 'time))
+(define-predicate-type time)
 
 (defmethod print-object ((x time) stream)
   (print-unreadable-object (x stream :type t)
@@ -531,15 +511,14 @@
     :initarg :datetimestamp
     :accessor datetimestamp)))
 
+(define-predicate-type datetime)
+
 ;;; TODO: The TZONE argument will be implemented when the module
 ;;; components is ready.
 (defun make-datetime (day month year hour minute second &optional tzone)
   (declare (ignore tzone))
   (make-instance 'datetime
                  :datetimestamp (encode-universal-time second minute hour day month year)))
-
-(defun datetimep (x)
-  (typep x 'datetime))
 
 (defmethod print-object ((x datetime) stream)
   (print-unreadable-object (x stream :type t)
@@ -552,102 +531,25 @@
             (time-second x))))
 
 (defmethod date-day ((x datetime))
-  (multiple-value-bind (second
-			minute
-			hour
-			day
-			month
-			year
-			day-of-week
-			dst-p
-			time-zone)
-      (decode-universal-time (datetimestamp x))
-    (declare (ignore second minute hour month year day-of-week dst-p time-zone))
-    day))
+  (nth-value 3 (decode-universal-time (datetimestamp x))))
 
 (defmethod date-day-of-week ((x datetime))
-  (multiple-value-bind (second
-			minute
-			hour
-			day
-			month
-			year
-			day-of-week
-			dst-p
-			time-zone)
-      (decode-universal-time (datetimestamp x))
-    (declare (ignore second minute hour day month year dst-p time-zone))
-    day-of-week))
+  (nth-value 6 (decode-universal-time (datetimestamp x))))
 
 (defmethod date-month ((x datetime))
-  (multiple-value-bind (second
-			minute
-			hour
-			day
-			month
-			year
-			day-of-week
-			dst-p
-			time-zone)
-      (decode-universal-time (datetimestamp x))
-    (declare (ignore second minute hour day year day-of-week dst-p time-zone))
-    month))
+  (nth-value 4 (decode-universal-time (datetimestamp x))))
 
 (defmethod date-year ((x datetime))
-  (multiple-value-bind (second
-			minute
-			hour
-			day
-			month
-			year
-			day-of-week
-			dst-p
-			time-zone)
-      (decode-universal-time (datetimestamp x))
-    (declare (ignore second minute hour day month day-of-week dst-p time-zone))
-    year))
+  (nth-value 5 (decode-universal-time (datetimestamp x))))
 
 (defmethod time-hour ((x datetime))
-  (multiple-value-bind (second
-			minute
-			hour
-			day
-			month
-			year
-			day-of-week
-			dst-p
-			time-zone)
-      (decode-universal-time (datetimestamp x))
-    (declare (ignore second minute day month year day-of-week dst-p time-zone))
-    hour))
+  (nth-value 2 (decode-universal-time (datetimestamp x))))
 
 (defmethod time-minute ((x datetime))
-  (multiple-value-bind (second
-			minute
-			hour
-			day
-			month
-			year
-			day-of-week
-			dst-p
-			time-zone)
-      (decode-universal-time (datetimestamp x))
-    (declare (ignore second hour day month year day-of-week dst-p time-zone))
-    minute))
+  (nth-value 1 (decode-universal-time (datetimestamp x))))
 
 (defmethod time-second ((x datetime))
-  (multiple-value-bind (second
-			minute
-			hour
-			day
-			month
-			year
-			day-of-week
-			dst-p
-			time-zone)
-      (decode-universal-time (datetimestamp x))
-    (declare (ignore minute hour day month year day-of-week dst-p time-zone))
-    second))
+  (nth-value 0 (decode-universal-time (datetimestamp x))))
 
 
 ;;; Relational functions
@@ -667,50 +569,36 @@
 (define-transitive-relation datetime>= (x y)
   (>= (datetimestamp x) (datetimestamp y)))
 
-Compositional functions
+;; Compositional functions
 
 ;; This is a fast and inaccurate implementation to be replaced once
 ;; recur is done - MXCC
-
-(defvar day-seconds (* 24 60 60))
 
 (defun datetime+ (datetime durspec)
   (make-instance 'datetime
 		 :datetimestamp (+ (datetimestamp datetime)
 				   (%duration-seconds durspec)
-				   (* day-seconds (%duration-days durspec)))))
+				   (* 86400 (%duration-days durspec)))))
 
 (defun datetime- (datetime durspec)
   (make-instance 'datetime
 		 :datetimestamp (- (datetimestamp datetime)
 				   (%duration-seconds durspec)
-				   (* day-seconds (%duration-days durspec)))))
+				   (* 86400 (%duration-days durspec)))))
 
 
 ;;; Parser
 
 (defmethod format-value ((dt datetime) &rest params &key &allow-other-keys)
   (declare (ignore params))
-  (multiple-value-bind (second
-			minute
-			hour
-			day
-			month
-			year
-			day-of-week
-			dst-p
-			time-zone)
-      (decode-universal-time (datetimestamp dt))
-    (declare (ignore day-of-week dst-p time-zone))
-    (print second)
-    (format nil
-	    "~4,'0d~2,'0d~2,'0dT~2,'0d~2,'0d~2,'0d"
-	    year
-	    month
-	    day
-	    hour
-	    minute
-	    second)))
+  (format nil
+          "~4,'0d~2,'0d~2,'0dT~2,'0d~2,'0d~2,'0d"
+          (date-year dt)
+          (date-month dt)
+          (date-day dt)
+          (time-hour dt)
+          (time-minute dt)
+          (time-second dt)))
 
 (defmethod parse-value (string (type (eql 'datetime)) &rest params &key &allow-other-keys)
   (declare (ignore params))
@@ -745,14 +633,13 @@ Compositional functions
     :initform 0
     :reader %duration-seconds)))
 
+(define-predicate-type duration)
+
 (defgeneric duration-days (duration))
 (defgeneric duration-hours (duration))
 (defgeneric duration-minutes (duration))
 (defgeneric duration-seconds (duration))
 (defgeneric duration-backward-p (duration))
-
-(defun durationp (x)
-  (typep x 'duration))
 
 (defun make-duration (&key (days 0) (hours 0) (minutes 0) (seconds 0) backward-p)
   (check-type days    (integer 0 *))
@@ -1020,6 +907,8 @@ Compositional functions
     :initarg :end
     :reader period-end)))
 
+(define-predicate-type period)
+
 (defun make-period (start end)
   (make-instance 'period :start start :end end))
 
@@ -1100,6 +989,7 @@ Compositional functions
     :initform nil
     :reader recur-wkst)))
 
+(define-predicate-type recur)
 
 (deftype non-zero-integer (a b)
   `(or (integer ,(- b) ,(- a))
