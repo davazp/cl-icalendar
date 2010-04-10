@@ -527,20 +527,16 @@
 (deftype date-time () 'datetime)
 
 (defclass datetime ()
-  ((date
-    :initarg :date
-    :accessor %datetime-date)
-   (time
-    :initarg :time
-    :accessor %datetime-time)))
+  ((datetimestamp
+    :initarg :datetimestamp
+    :accessor datetimestamp)))
 
 ;;; TODO: The TZONE argument will be implemented when the module
 ;;; components is ready.
 (defun make-datetime (day month year hour minute second &optional tzone)
   (declare (ignore tzone))
   (make-instance 'datetime
-                 :date (make-date day month year)
-                 :time (make-time hour minute second)))
+                 :datetimestamp (encode-universal-time second minute hour day month year)))
 
 (defun datetimep (x)
   (typep x 'datetime))
@@ -556,69 +552,165 @@
             (time-second x))))
 
 (defmethod date-day ((x datetime))
-  (date-day (%datetime-date x)))
+  (multiple-value-bind (second
+			minute
+			hour
+			day
+			month
+			year
+			day-of-week
+			dst-p
+			time-zone)
+      (decode-universal-time (datetimestamp x))
+    (declare (ignore second minute hour month year day-of-week dst-p time-zone))
+    day))
 
 (defmethod date-day-of-week ((x datetime))
-  (date-day-of-week (%datetime-date x)))
+  (multiple-value-bind (second
+			minute
+			hour
+			day
+			month
+			year
+			day-of-week
+			dst-p
+			time-zone)
+      (decode-universal-time (datetimestamp x))
+    (declare (ignore second minute hour day month year dst-p time-zone))
+    day-of-week))
 
 (defmethod date-month ((x datetime))
-  (date-month (%datetime-date x)))
+  (multiple-value-bind (second
+			minute
+			hour
+			day
+			month
+			year
+			day-of-week
+			dst-p
+			time-zone)
+      (decode-universal-time (datetimestamp x))
+    (declare (ignore second minute hour day year day-of-week dst-p time-zone))
+    month))
 
 (defmethod date-year ((x datetime))
-  (date-year (%datetime-date x)))
+  (multiple-value-bind (second
+			minute
+			hour
+			day
+			month
+			year
+			day-of-week
+			dst-p
+			time-zone)
+      (decode-universal-time (datetimestamp x))
+    (declare (ignore second minute hour day month day-of-week dst-p time-zone))
+    year))
 
 (defmethod time-hour ((x datetime))
-  (time-hour (%datetime-time x)))
+  (multiple-value-bind (second
+			minute
+			hour
+			day
+			month
+			year
+			day-of-week
+			dst-p
+			time-zone)
+      (decode-universal-time (datetimestamp x))
+    (declare (ignore second minute day month year day-of-week dst-p time-zone))
+    hour))
 
 (defmethod time-minute ((x datetime))
-  (time-minute (%datetime-time x)))
+  (multiple-value-bind (second
+			minute
+			hour
+			day
+			month
+			year
+			day-of-week
+			dst-p
+			time-zone)
+      (decode-universal-time (datetimestamp x))
+    (declare (ignore second hour day month year day-of-week dst-p time-zone))
+    minute))
 
 (defmethod time-second ((x datetime))
-  (time-second (%datetime-time x)))
+  (multiple-value-bind (second
+			minute
+			hour
+			day
+			month
+			year
+			day-of-week
+			dst-p
+			time-zone)
+      (decode-universal-time (datetimestamp x))
+    (declare (ignore minute hour day month year day-of-week dst-p time-zone))
+    second))
 
 
 ;;; Relational functions
 
 (define-transitive-relation datetime= (x y)
-  (= (%datetime-date x) (%datetime-date y)
-     (%datetime-time x) (%datetime-time y)))
+  (= (datetimestamp x) (datetimestamp y)))
 
 (define-transitive-relation datetime< (x y) 
-  (or (< (%datetime-date x) (%datetime-date y))
-      (and (= (%datetime-date x) (%datetime-date y))
-           (< (%datetime-time x) (%datetime-time y)))))
+  (< (datetimestamp x) (datetimestamp y)))
 
 (define-transitive-relation datetime<= (x y)
-  (or (< (%datetime-date x) (%datetime-date y))
-      (and (= (%datetime-date x) (%datetime-date y))
-           (<= (%datetime-time x) (%datetime-time y)))))
+  (<= (datetimestamp x) (datetimestamp y)))
 
 (define-transitive-relation datetime> (x y)
-  (datetime< y x))
+  (> (datetimestamp x) (datetimestamp y)))
 
 (define-transitive-relation datetime>= (x y)
-  (datetime<= y x))
+  (>= (datetimestamp x) (datetimestamp y)))
 
+Compositional functions
 
-;;; Compositional functions
+;; This is a fast and inaccurate implementation to be replaced once
+;; recur is done - MXCC
 
-;; (defun datetime+ (datetime durspec)
-;;   ;; TBD
-;;   )
+(defvar day-seconds (* 24 60 60))
 
-;; (defun datetime- (datetime durspec)
-;;   ;; TBD
-;;   )
+(defun datetime+ (datetime durspec)
+  (make-instance 'datetime
+		 :datetimestamp (+ (datetimestamp datetime)
+				   (%duration-seconds durspec)
+				   (* day-seconds (%duration-days durspec)))))
+
+(defun datetime- (datetime durspec)
+  (make-instance 'datetime
+		 :datetimestamp (- (datetimestamp datetime)
+				   (%duration-seconds durspec)
+				   (* day-seconds (%duration-days durspec)))))
 
 
 ;;; Parser
 
 (defmethod format-value ((dt datetime) &rest params &key &allow-other-keys)
   (declare (ignore params))
-  (concatenate 'string
-               (format-value (%datetime-date dt))
-               "T"
-               (format-value (%datetime-time dt))))
+  (multiple-value-bind (second
+			minute
+			hour
+			day
+			month
+			year
+			day-of-week
+			dst-p
+			time-zone)
+      (decode-universal-time (datetimestamp dt))
+    (declare (ignore day-of-week dst-p time-zone))
+    (print second)
+    (format nil
+	    "~4,'0d~2,'0d~2,'0dT~2,'0d~2,'0d~2,'0d"
+	    year
+	    month
+	    day
+	    hour
+	    minute
+	    second)))
 
 (defmethod parse-value (string (type (eql 'datetime)) &rest params &key &allow-other-keys)
   (declare (ignore params))
