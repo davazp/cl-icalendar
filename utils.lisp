@@ -30,6 +30,11 @@
 (defmacro nilf (place)
   `(setf ,place nil))
 
+(defmacro modf (place divisor)
+  (with-gensyms (place-tmp)
+    `(let ((,place-tmp ,place))
+       (setf ,place-tmp (mod ,place-tmp ,divisor)))))
+
 (defmacro while (condition &body code)
   `(do ()
        ((not ,condition))
