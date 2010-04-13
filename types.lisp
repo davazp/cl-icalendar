@@ -571,21 +571,40 @@
 
 ;; Compositional functions
 
-;; This is a fast and inaccurate implementation to be replaced once
-;; recur is done - MXCC
+;; Assume hour = 60 min = 3600 s
 
+;; FIXME: (datetime+ (make-datetime 28 2 2010 0 0 0) (make-duration
+;; :days 1)) => #<DATETIME 29-01-2010 00:00:00> note 2010 is not leap
+;; year.
 (defun datetime+ (datetime durspec)
-  (make-instance 'datetime
-		 :datetimestamp (+ (datetimestamp datetime)
-				   (%duration-seconds durspec)
-				   (* 86400 (%duration-days durspec)))))
+  (let* ((%year (date-year datetime))
+	 (month (1- (date-month datetime))) ; Start from 0
+         (%day-offset (+ (if (leap-year-p %year)
+                             (elt *days-before-month-leap-year* month)
+                             (elt *days-before-month* month))
+                         (1- (date-day datetime))))
+         (%second-offset (+ (* 60 (time-minute datetime))
+                            (* 3600 (time-hour datetime)))))
+    (multiple-value-bind (time overflow-days)
+        (time+ (make-instance 'time
+                              :timestamp %second-offset)
+               (make-instance 'duration
+                              :seconds (%duration-seconds durspec)))
+      (setf %second-offset (timestamp time))
+      (incf %day-offset (print overflow-days))
+      (let ((date (make-date-offset-year %year (+ %day-offset (%duration-days durspec)))))
+        (make-datetime (date-day date)
+                       (date-month date)
+                       (date-year date)
+                       (time-hour time)
+                       (time-minute time)
+                       (time-second time))))))
 
 (defun datetime- (datetime durspec)
   (make-instance 'datetime
 		 :datetimestamp (- (datetimestamp datetime)
 				   (%duration-seconds durspec)
 				   (* 86400 (%duration-days durspec)))))
-
 
 ;;; Parser
 
