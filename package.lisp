@@ -75,6 +75,9 @@
            #:duration-hours
            #:duration-minutes
            #:duration-seconds
-           #:duration-backward-p))
+           #:duration-backward-p
+           ;; Period
+           #:period
+           #:periodp))
 
 ;;; package.lisp ends here

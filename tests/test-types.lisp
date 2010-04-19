@@ -50,4 +50,14 @@
   (signals error (make-date  01 -01  2000))
   (signals error (make-date  01 -01 -2000)))
 
+
+;;; Period type
+
+(test parse-value-period-001
+  (is (periodp (parse-value "19970101T180000Z/PT5H30M" 'period))))
+
+(test parse-value-period-002
+  (is (periodp (parse-value "19970101T180000Z/19970102T070000Z" 'period))))
+
+
 ;;; test-types.lisp ends here
