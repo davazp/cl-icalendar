@@ -791,7 +791,8 @@
              ;; The following of the following token
              (token2 (get-token)))
 
-        (labels ( ;; Return the following token, then upgrade the
+        (labels (
+                 ;; Return the following token, then upgrade the
                  ;; values of token1 and token2. If there is not
                  ;; following token, then signal a error.
                  (scan ()
@@ -823,9 +824,8 @@
                      (ill-formed)))
 
                  ;; The following functions stand for a state, which
-                 ;; parse a subset of the grammar and return the
-                 ;; number of seconds which is represented by the
-                 ;; matched part in input.
+                 ;; parse a subset of the grammar and return a partial
+                 ;; duration object.
                  ;;
                  ;; If the input is not matched then an error is
                  ;; signaled.
