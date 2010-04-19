@@ -136,7 +136,7 @@
 ;;;; Float
 
 (defmethod format-value ((x float) &rest params &key &allow-other-keys)
-  (declare (ignore params))           
+  (declare (ignore params))
   (format nil "~f" x))
 
 
@@ -153,11 +153,11 @@
         (#\-
          (setf sign -1)
          (read-char in)))
-        
+
       ;; Read integer part
       (let ((istring (read-until in (complement #'digit-char-p) nil nil)))
         (setf x (parse-integer istring)))
-        
+
       ;; Read fractinal part (if any)
       (let ((dot (read-char in nil)))
         (unless (null dot)
@@ -557,7 +557,7 @@
 (define-transitive-relation datetime= (x y)
   (= (datetimestamp x) (datetimestamp y)))
 
-(define-transitive-relation datetime< (x y) 
+(define-transitive-relation datetime< (x y)
   (< (datetimestamp x) (datetimestamp y)))
 
 (define-transitive-relation datetime<= (x y)
@@ -572,13 +572,9 @@
 ;; Compositional functions
 
 ;; Assume hour = 60 min = 3600 s
-
-;; FIXME: (datetime+ (make-datetime 28 2 2010 0 0 0) (make-duration
-;; :days 1)) => #<DATETIME 29-01-2010 00:00:00> note 2010 is not leap
-;; year.
 (defun datetime+ (datetime durspec)
   (let* ((%year (date-year datetime))
-	 (month (1- (date-month datetime))) ; Start from 0
+	 (month (date-month datetime))
          (%day-offset (+ (if (leap-year-p %year)
                              (elt *days-before-month-leap-year* month)
                              (elt *days-before-month* month))
@@ -586,12 +582,10 @@
          (%second-offset (+ (* 60 (time-minute datetime))
                             (* 3600 (time-hour datetime)))))
     (multiple-value-bind (time overflow-days)
-        (time+ (make-instance 'time
-                              :timestamp %second-offset)
-               (make-instance 'duration
-                              :seconds (%duration-seconds durspec)))
+        (time+ (make-instance 'time :timestamp %second-offset)
+               (make-instance 'duration :seconds (%duration-seconds durspec)))
       (setf %second-offset (timestamp time))
-      (incf %day-offset (print overflow-days))
+      (incf %day-offset overflow-days)
       (let ((date (make-date-offset-year %year (+ %day-offset (%duration-days durspec)))))
         (make-datetime (date-day date)
                        (date-month date)
@@ -727,7 +721,7 @@
                                  (duration-hours   x)
                                  (duration-minutes x)
                                  (duration-seconds x))
-                  unless (zerop n)  
+                  unless (zerop n)
                   collect n and collect c)))
       (cond
         ((null output)
@@ -829,7 +823,7 @@
                    (make-instance 'duration
                                   :days    (- (%duration-days    d1))
                                   :seconds (- (%duration-seconds d1))))
-                 
+
                  ;; Check the current token is the character CH and
                  ;; read a new token. Otherwise, a error is signaled.
                  (check-character (ch)
@@ -872,7 +866,7 @@
                               (if token1
                                   (dur-time)
                                   (make-duration))))
-                 
+
                  (dur-time ()
                    (check-character #\T)
                    (case token2
@@ -908,7 +902,7 @@
                    (prog1 (make-duration :days (scan))
                      (check-character #\D))))
 
-          ;; Estado inicial
+          ;; Initial state
           (prog1 (duration (dur-value))
             (unless (null token1)
               (ill-formed))))))))
@@ -1116,7 +1110,7 @@
                (%count (value)
                  (setf (slot-value recur 'count)
                        (parse-unsigned-integer value)))
-               
+
                (%interval (value)
                  (setf (slot-value recur 'interval)
                        (parse-unsigned-integer value)))
@@ -1157,7 +1151,7 @@
                  (setf (slot-value recur 'byyearday)
                        (do-list-values (sn value)
                          (parse-integer sn))))
-               
+
                (%bymonth (value)
                  (setf (slot-value recur 'byyearday)
                        (do-list-values (sn value)
@@ -1169,7 +1163,7 @@
                          (parse-integer sn))))
 
                (%wkst (value)
-                 (setf (slot-value recur 'wkst) 
+                 (setf (slot-value recur 'wkst)
                        (cond
                          ((string= value "SU") :sunday)
                          ((string= value "MO") :monday)
