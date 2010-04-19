@@ -1,5 +1,5 @@
 ;;                                                               -*- Lisp -*-
-;; cl-icalendar.asd -- 
+;; cl-icalendar.asd --
 ;;
 ;; Copyright (C) 2010 David Vazquez
 ;;
@@ -17,7 +17,7 @@
 ;;
 ;; You should have received a copy of the GNU General Public License
 ;; along with cl-icalendar.  If not, see <http://www.gnu.org/licenses/>.
-;; 
+;;
 
 (defsystem :cl-icalendar-tests
   :name "iCalendar library tests"
@@ -30,9 +30,6 @@
             :components
             ((:file "package")
              (:file "tsuite")
-             (:module "date"
-                      :serial t
-                      :components
-                      ((:file "test-make-date")))))))
+             (:file "test-types")))))
 
 ;; cl-icalendar.asd ends here

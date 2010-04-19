@@ -1,4 +1,4 @@
-;; test-make-date.lisp
+;; test-types.lisp
 ;;
 ;; Copyrigth (C) 2010 David Vázquez
 ;;
@@ -21,6 +21,8 @@
 
 (in-suite icalendar-types)
 
+;;; Date data type
+
 (test datep-001
   "Check `make-date' returns a date type."
   (is (datep (make-date 26 07 1989)))
@@ -35,4 +37,17 @@
   (is (not (datep '(1 . 2))))
   (is (not (datep #(0 1 2 3 4)))))
 
-;;; test-make-date.lisp ends here
+(test make-date-001
+  "Check arbitrary dates."
+  (finishes (make-date 26 07 1989))
+  (finishes (make-date 01 01 1970))
+  (finishes (make-date 01 01 1900)))
+
+(test make-date-002
+  "Check wrong dates."
+  (signals error (make-date  01  01  1001))
+  (signals error (make-date -01  01  2000))
+  (signals error (make-date  01 -01  2000))
+  (signals error (make-date  01 -01 -2000)))
+
+;;; test-types.lisp ends here

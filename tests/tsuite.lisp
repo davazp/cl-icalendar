@@ -22,5 +22,8 @@
 (def-suite icalendar-types
   :description "Test suite to check the types related functions.")
 
+;;; Run this function in order to run all registered tests.
+(defun run-tests ()
+  (run! 'icalendar-types))
 
 ;;; tsuite.lisp ends here
