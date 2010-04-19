@@ -921,16 +921,22 @@
   (declare (ignore params))
   ;; TODO: We should write down in the class `period' if the user
   ;; specifies a duration or a end datetime, in order to format it so.
-  (format nil "~a/~a" (period-start p) (period-end p)))
+  (concatenate 'string
+               (format-value (period-start p))
+               "/"
+               (format-value (period-end p))))
 
-;; (defmethod parse-value (string (type (eql 'period)))
-;;   (destructuring-bind (start end)
-;;       (split-string string "/")
-;;     (let ((dstart (parse-datetime start)))
-;;       (make-period dstart
-;;                    (if (char= (char end 0) #\P)
-;;                        (datetime+ dstart (parse-duration end))
-;;                        (parse-datetime end))))))
+(defmethod parse-value (string (type (eql 'period)) &rest params &key &allow-other-keys)
+  (declare (ignore params))
+  (destructuring-bind (start end)
+      (split-string string "/")
+    (list start end)
+    (let ((dstart (parse-value start 'datetime)))
+      (list dstart end)
+      (make-period dstart
+                   (if (char= (char end 0) #\P)
+                       (datetime+ dstart (parse-value end 'duration))
+                       (parse-value end 'datetime))))))
 
 
 
