@@ -268,10 +268,6 @@
 
 (define-predicate-type date)
 
-(defgeneric date-day (x))
-(defgeneric date-month (x))
-(defgeneric date-year (x))
-
 (defmethod print-object ((x date) stream)
   (print-unreadable-object (x stream :type t)
     (format stream "~2,'0d-~2,'0d-~4,'0d"
@@ -335,38 +331,42 @@
 
 ;;; Accessors
 
-(defmethod date-year ((x date))
-  (let ((stamp (datestamp x)))
-    (loop for t1 from (truncate stamp 365) downto 0
-          for t2 = (+ (* 365 t1) (leap-years-before (+ 1900 t1)))
-          for t3 = (- stamp t2)
-          while (< t3 0)
-          finally (return (values (+ 1900 t1) t3)))))
+(defgeneric date-year (x)
+  (:method ((x date))
+    (let ((stamp (datestamp x)))
+      (loop for t1 from (truncate stamp 365) downto 0
+         for t2 = (+ (* 365 t1) (leap-years-before (+ 1900 t1)))
+         for t3 = (- stamp t2)
+         while (< t3 0)
+         finally (return (values (+ 1900 t1) t3))))))
 
-(defmethod date-month ((x date))
-  (multiple-value-bind (year rem)
-      (date-year x)
-    (let* ((accumulative-days
-            (if (leap-year-p year)
-                *days-before-month-leap-year*
-                *days-before-month*)))
-      ;; Find the last month whose accumulative days is smaller than
-      ;; the remaining of the year.
-      (loop for i from (1- (length accumulative-days)) downto 0
-            as t1 = (elt accumulative-days i)
-            as t2 = (- rem t1)
-            while (< t2 0)
-            finally (return (values i t2))))))
+(defgeneric date-month (x)
+  (:method ((x date))
+    (multiple-value-bind (year rem)
+        (date-year x)
+      (let* ((accumulative-days
+              (if (leap-year-p year)
+                  *days-before-month-leap-year*
+                  *days-before-month*)))
+        ;; Find the last month whose accumulative days is smaller than
+        ;; the remaining of the year.
+        (loop for i from (1- (length accumulative-days)) downto 0
+           as t1 = (elt accumulative-days i)
+           as t2 = (- rem t1)
+           while (< t2 0)
+           finally (return (values i t2)))))))
 
-(defmethod date-day ((x date))
-  (multiple-value-bind (ign rem)
-      (date-month x)
-    (declare (ignore ign))
-    (1+ rem)))
+(defgeneric date-day (x)
+  (:method ((x date))
+    (multiple-value-bind (ign rem)
+        (date-month x)
+      (declare (ignore ign))
+      (1+ rem))))
 
 ;; Begins in 0 for Monday
-(defmethod date-day-of-week ((x date))
-  (mod (datestamp x) 7))
+(defgeneric date-day-of-week (x)
+  (:method ((x date))
+    (mod (datestamp x) 7)))
 
 (define-transitive-relation date= (x y)
   (= (datestamp x) (datestamp y)))
@@ -382,7 +382,6 @@
 
 (define-transitive-relation date>= (x y)
   (>= (datestamp x) (datestamp y)))
-
 
 (defun date+ (date durspec)
   (let* ((dur (duration durspec))
@@ -423,10 +422,6 @@
     :initarg :timestamp
     :reader timestamp)))
 
-(defgeneric time-hour (x))
-(defgeneric time-minute (x))
-(defgeneric time-second (x))
-
 (defun make-time (hour minute second)
   (make-instance 'time :timestamp (+ (* hour 3600) (* minute 60) second)))
 
@@ -439,14 +434,17 @@
             (time-minute x)
             (time-second x))))
 
-(defmethod time-hour ((x time))
-  (truncate (timestamp x) 3600))
+(defgeneric time-hour (x)
+  (:method ((x time))
+    (truncate (timestamp x) 3600)))
 
-(defmethod time-minute ((x time))
-  (mod (truncate (timestamp x) 60) 60))
+(defgeneric time-minute (x)
+  (:method ((x time))
+    (mod (truncate (timestamp x) 60) 60)))
 
-(defmethod time-second ((x time))
-  (mod (timestamp x) 60))
+(defgeneric time-second (x)
+  (:method ((x time))
+    (mod (timestamp x) 60)))
 
 (define-transitive-relation time= (x y)
   (= (timestamp x) (timestamp y)))
@@ -595,10 +593,7 @@
                        (time-second time))))))
 
 (defun datetime- (datetime durspec)
-  (make-instance 'datetime
-		 :datetimestamp (- (datetimestamp datetime)
-				   (%duration-seconds durspec)
-				   (* 86400 (%duration-days durspec)))))
+  (datetime+ datetime (duration-inverse durspec)))
 
 ;;; Parser
 
@@ -648,12 +643,6 @@
 
 (define-predicate-type duration)
 
-(defgeneric duration-days (duration))
-(defgeneric duration-hours (duration))
-(defgeneric duration-minutes (duration))
-(defgeneric duration-seconds (duration))
-(defgeneric duration-backward-p (duration))
-
 (defun make-duration (&key (days 0) (hours 0) (minutes 0) (seconds 0) backward-p)
   (check-type days    (integer 0 *))
   (check-type hours   (integer 0 *))
@@ -676,21 +665,25 @@
 
 ;;; Accessor for duration designators
 
-(defmethod duration-days ((x duration))
-  (abs (%duration-days x)))
+(defgeneric duration-days (duration)
+  (:method ((x duration))
+    (abs (%duration-days x))))
 
-(defmethod duration-hours ((x duration))
-  (idiv (abs (%duration-seconds x)) 3600))
+(defgeneric duration-hours (duration)
+  (:method ((x duration))
+    (idiv (abs (%duration-seconds x)) 3600)))
 
-(defmethod duration-minutes ((x duration))
-  (mod (abs (idiv (%duration-seconds x) 60)) 60))
+(defgeneric duration-minutes (duration)
+  (:method ((x duration))
+    (mod (abs (idiv (%duration-seconds x) 60)) 60)))
 
-(defmethod duration-seconds ((x duration))
-  (mod (abs (%duration-seconds x)) 60))
+(defgeneric duration-seconds (duration)
+  (:method ((x duration))
+    (mod (abs (%duration-seconds x)) 60)))
 
-(defmethod duration-backward-p ((x duration))
-  (< (%duration-seconds x) 0))
-
+(defgeneric duration-backward-p (duration)
+  (:method ((x duration))
+    (< (%duration-seconds x) 0)))
 
 (defmethod duration-days ((x string))
   (duration-days (duration x)))
@@ -707,6 +700,11 @@
 (defmethod duration-backward-p ((x string))
   (duration-backward-p (duration x)))
 
+(defgeneric duration-inverse (duration)
+  (:method ((d1 duration))
+    (make-instance 'duration
+                   :days    (- (%duration-days    d1))
+                   :seconds (- (%duration-seconds d1)))))
 
 ;;; Printer
 (defmethod print-object ((x duration) stream)
@@ -817,12 +815,6 @@
                                   :seconds
                                   (+ (%duration-seconds d1)
                                      (%duration-seconds d2))))
-
-                 ;; Return the backward duration of D1.
-                 (duration-inverse (d1)
-                   (make-instance 'duration
-                                  :days    (- (%duration-days    d1))
-                                  :seconds (- (%duration-seconds d1))))
 
                  ;; Check the current token is the character CH and
                  ;; read a new token. Otherwise, a error is signaled.
