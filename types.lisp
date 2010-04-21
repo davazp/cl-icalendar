@@ -37,6 +37,7 @@
 ;;; objects to strings and vice versa.
 
 (defgeneric format-value (value &rest params &key &allow-other-keys))
+(defgeneric format-values (values &rest params &key &allow-other-keys))
 (defgeneric parse-value (string type &rest params &key &allow-other-keys))
 (defgeneric parse-values (string type &rest params &key &allow-other-keys))
 
@@ -1086,6 +1087,7 @@
                         (assert (not (null ,list)))
                         (mapcar (lambda (,var) ,@body)
                                 ,list)))))
+        ;; FIXME: Check if any of rules is unknown
         (flet ((%freq (value)
                  (setf (slot-value recur 'freq)
                        (cond
@@ -1151,7 +1153,7 @@
                          (parse-integer sn))))
 
                (%bymonth (value)
-                 (setf (slot-value recur 'byyearday)
+                 (setf (slot-value recur 'bymonth)
                        (do-list-values (sn value)
                          (parse-unsigned-integer sn))))
 
