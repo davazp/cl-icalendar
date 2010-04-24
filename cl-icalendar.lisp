@@ -20,151 +20,6 @@
 
 (in-package :cl-icalendar)
 
-;;; Wrapped character streams
-
-;;; ANOTACION: Los streams wrapped hacen simplemente de envoltorios
-;;; sobre otro stream, de forma que la lectura y escritura se realiza
-;;; directamente sobre ese stream. De por sí esto no es útil, pero si
-;;; que es útil heredar de un stream de este tipo y especializar
-;;; algunos métodos. Así conseguimos crear STREAMS que transforman el
-;;; contenido.
-
-(defconstant +tab-character+    (code-char #x09))
-(defconstant +return-character+ (code-char #x0D))
-
-(defconstant +content-line-max-length+ 75)
-
-(defclass wrapped-character-stream (fundamental-character-input-stream
-                                    fundamental-character-output-stream)
-  (
-   ;; FIXME: Actualmente COLUMN marca el número de caracteres escritos
-   ;; en el stream desde el último #\Newline. Sin embargo esto no es
-   ;; correcto, según el RFC ninguna linea debe superar 75
-   ;; _octetos_. Y el conjunto de caracteres por defecto es UTF-8, por
-   ;; lo que algunos caracteres pueden tener más de un octeto. Hay que
-   ;; arreglar este stream para que cuente el número de octetos de
-   ;; cada caracter.
-   ;;
-   ;; Flexstreams parece soportar muchas codificaciones, además de un
-   ;; salto de linea configurable. Puede ser una opción..
-   (column
-    :initform 0
-    :accessor wrapped-stream-column)
-   (stream
-    :initarg :stream
-    :reader wrapped-stream)))
-
-(defmethod stream-read-char ((stream wrapped-character-stream))
-  (let ((character (read-char (wrapped-stream stream) nil :eof)))
-    (cond
-      ((eq character :eof)
-       :eof)
-      (t
-       (incf (wrapped-stream-column stream))
-       (when (char= character #\Newline)
-         (zerof (wrapped-stream-column stream)))
-       character))))
-
-(defmethod stream-unread-char ((stream wrapped-character-stream) character)
-  (prog1 (unread-char character (wrapped-stream stream))
-    (decf (wrapped-stream-column stream))
-    (when (char= character #\Newline)
-      (zerof (wrapped-stream-column stream)))))
-
-(defmethod stream-write-char ((stream wrapped-character-stream) character)
-  (prog1 (write-char character (wrapped-stream stream))
-    (incf (wrapped-stream-column stream))
-    (when (char= character #\Newline)
-      (zerof (wrapped-stream-column stream)))))
-
-(defmethod stream-line-column ((stream wrapped-character-stream))
-  (wrapped-stream-column stream))
-
-(defmethod stream-finish-output ((stream wrapped-character-stream))
-  (finish-output (wrapped-stream stream)))
-
-(defmethod stream-force-output ((stream wrapped-character-stream))
-  (force-output (wrapped-stream stream)))
-
-(defmethod stream-clear-output ((stream wrapped-character-stream))
-  (clear-output (wrapped-stream stream)))
-
-(defmethod close ((stream wrapped-character-stream) &key abort)
-  (close (wrapped-stream stream) :abort abort))
-
-
-;;; CRLF/LF Conversion stream
-
-;;; Convert UNIX type line endings to DOS.
-
-(defclass crlf-stream (wrapped-character-stream)
-  nil)
-
-(defmethod stream-read-char ((stream crlf-stream))
-  (let ((character (call-next-method)))
-    (cond
-      ((eq character :eof)
-       :eof)
-      ((char= character +return-character+)
-       (if (char= (peek-char nil (wrapped-stream stream) nil #\Space) #\Newline)
-           (call-next-method)
-           +return-character+))
-      (t
-       character))))
-
-(defmethod stream-write-char ((stream crlf-stream) character)
-  (when (char= character #\Newline)
-    (call-next-method stream +return-character+))
-  (call-next-method stream character))
-
-
-;;;; Folding/Unfolding stream
-
-;;; This stream implements the folding/unfolding algorithm described
-;;; in the RFC5545 and autochains with a CRLF stream.
-
-(defclass folding-stream (wrapped-character-stream)
-  nil)
-
-(defmethod initialize-instance :around ((inst folding-stream)
-                                        &rest initargs &key stream &allow-other-keys)
-  (declare (ignore initargs))
-  (call-next-method inst :stream (make-instance 'crlf-stream :stream stream)))
-
-(defun linear-whitespace-p (character)
-  (or (char= character #\Space)
-      (char= character +tab-character+)))
-
-(defmethod stream-read-char ((stream folding-stream))
-  (let ((character (call-next-method)))
-    (cond
-      ((eq character :eof)
-       :eof)
-      ((and (char= character #\Newline)
-            (linear-whitespace-p (peek-char nil (wrapped-stream stream) nil #\A)))
-       (call-next-method)
-       (call-next-method))
-      (t
-       character))))
-
-(defmethod stream-write-char ((stream folding-stream) character)
-  (when (= (stream-line-column stream) +content-line-max-length+)
-    (call-next-method stream #\Newline)
-    (call-next-method stream #\Space))
-  (call-next-method stream character))
-
-
-(defun make-folding-stream (stream)
-  (make-instance 'folding-stream :stream stream))
-
-(defmacro with-folding-stream ((var stream) &body code)
-  (check-type var symbol)
-  `(let ((,var (make-folding-stream ,stream)))
-     (unwind-protect
-          (progn ,@code)
-       (close ,var))))
-
-
 ;;; Parsing
 
 ;;; Parseamos las lineas de contenido como es descrito en el RFC.
@@ -173,8 +28,6 @@
   name
   params
   value)
-
-
 
 (defun read-params-value (stream)
   (if (char= (peek-char nil stream) #\")
@@ -205,7 +58,7 @@
 
 ;; (defun parse-date (string &optional (date (make-date)) &key (offset 0))
 ;;   (flet ((~ (x) (+ offset x)))
-;;     (setf 
+;;     (setf
 ;;      (date-year date) (parse-integer string :start (~ 0) :end (~ 4))
 ;;      (date-month date) (parse-integer string :start (~ 4) :end (~ 6))
 ;;      (date-day date) (parse-integer (subseq string 6 8))))
@@ -213,7 +66,7 @@
 
 ;; (defun parse-time (string &optional (date (make-date)) &key (offset 0))
 ;;   (flet ((~ (x) (+ offset x)))
-;;     (setf 
+;;     (setf
 ;;      (date-hour date) (parse-integer string :start (~ 0) :end (~ 2))
 ;;      (date-minute date) (parse-integer string :start (~ 2) :end (~ 4))
 ;;      (date-second date) (parse-integer string :start (~ 4) :end (~ 8))))
@@ -247,7 +100,7 @@ tree"
 
 (defun search-content-lines (tree name)
   "return all content lines with a given name"
-  (with-collecting 
+  (with-collecting
     (dolist (i (icalendar-block-items tree))
       (if (string= (content-line-name i) name)
           (collect i)))))
@@ -377,11 +230,11 @@ don't cover."
 ;;     (&required
 ;;      prodid
 ;;      version
-     
+
 ;;      &optional-once
 ;;      calscale
 ;;      method
-     
+
 ;;      &optional-once
 ;;      xprop
 ;;      iana-prop))
@@ -390,7 +243,7 @@ don't cover."
 ;;     (&required
 ;;      dtstamp
 ;;      uid
-     
+
 ;;      &optional-once
 ;;      dtstart
 ;;      class
@@ -407,7 +260,7 @@ don't cover."
 ;;      transp
 ;;      url
 ;;      recurid
-     
+
 ;;      &optional-multi
 ;;      rrule ; optional but SHOULD appear only once at most
 ;;      attach

@@ -23,7 +23,10 @@
   (:nicknames :icalendar :ical)
   (:use :cl :trivial-gray-streams)
   (:shadow #:time)
-  (:export #:format-value
+  (:export #:make-folding-stream
+           #:with-folding-stream
+           ;;;; Data types
+           #:format-value
            #:parse-value
            ;; Boolean
            #:booleanp
