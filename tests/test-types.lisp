@@ -75,6 +75,28 @@
   (is (string= (format-value 0)  "0")))
 
 
+;;; Float data type
+
+(test parse-value-float-001
+  "Parse some float values."
+  (is (= 23     (parse-value "23" 'float)))
+  (is (= 3.1415 (parse-value "3.1415" 'float)))
+  (is (= -0.001 (parse-value "-0.001" 'float))))
+
+(test parse-value-float-002
+  "Parse some non-integer values."
+  (signals error (parse-value "23." 'float))
+  (signals error (parse-value ".1"  'float))
+  (signals error (parse-value "-.1" 'float)))
+
+(test format-value-float-001
+  "Format some integer values."
+  (is (string= (format-value 2.0) "2.0"))
+  (is (string= (format-value 3.1) "3.1"))
+  (is (string= (format-value -3)  "-3")))
+
+
+
 ;;; Date data type
 
 (test datep-001
