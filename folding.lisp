@@ -116,11 +116,6 @@
 (defclass folding-stream (wrapped-character-stream)
   nil)
 
-(defmethod initialize-instance :around ((inst folding-stream)
-                                        &rest initargs &key stream &allow-other-keys)
-  (declare (ignore initargs))
-  (call-next-method inst :stream (make-instance 'crlf-stream :stream stream)))
-
 (defun linear-whitespace-p (character)
   (or (char= character #\Space)
       (char= character +tab-character+)))
@@ -143,9 +138,9 @@
     (call-next-method stream #\Space))
   (call-next-method stream character))
 
-
 (defun make-folding-stream (stream)
-  (make-instance 'folding-stream :stream stream))
+  (let ((crlf (make-instance 'crlf-stream :stream stream)))
+    (make-instance 'folding-stream :stream crlf)))
 
 (defmacro with-folding-stream ((var stream) &body code)
   (check-type var symbol)
