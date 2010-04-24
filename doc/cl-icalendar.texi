@@ -111,14 +111,14 @@ The document was typeset with
 
 @c Generate the nodes for this menu with `C-c C-u C-m'.
 @menu
-* Introduction::                
-* Overview::                    
-* Data types::                  
-* Components::                  
-* High level abstractions::     
-* Conditions and error handling::  
-* GNU Free Documentation License::  
-* Index::                       
+* Introduction::
+* Overview::
+* Data types::
+* Components::
+* High level abstractions::
+* Conditions and error handling::
+* GNU Free Documentation License::
+* Index::
 @end menu
 
 @c Update all node entries with `C-c C-u C-n'.
@@ -127,7 +127,7 @@ The document was typeset with
 @chapter Introduction
 
 @menu
-* Instalation::                 
+* Instalation::
 * Conventions::
 @end menu
 
@@ -144,20 +144,20 @@ The document was typeset with
 @chapter Data types
 
 @menu
-* Boolean::                     
-* Integer::                     
-* Float::                       
-* Text::                        
-* Binary::                      
-* URI::                         
-* Cal-address::                 
-* UTC-Offset::                  
-* Date::                        
-* Time::                        
-* Datetime::                    
-* Duration::                    
-* Period::                      
-* Recur::                       
+* Boolean::
+* Integer::
+* Float::
+* Text::
+* Binary::
+* URI::
+* Cal-address::
+* UTC-Offset::
+* Date::
+* Time::
+* Datetime::
+* Duration::
+* Period::
+* Recur::
 @end menu
 
 @deftp {Data type} ical-value
@@ -432,6 +432,52 @@ COMMA character (US-ASCII decimal 44) separated list of values.
 
 @node Date
 @section Date
+
+@deffn {Function} make-date
+@end deffn
+
+@deffn {Function} today
+@end deffn
+
+@deffn {Function} datep
+@end deffn
+
+@deffn {Function} date-day
+@end deffn
+
+@deffn {Function} date-month
+@end deffn
+
+@deffn {Function} date-year
+@end deffn
+
+@deffn {Function} date-day-of-week
+@end deffn
+
+@deffn {Function} date-day-of-year
+@end deffn
+
+@deffn {Function} date=
+@end deffn
+
+@deffn {Function} date<
+@end deffn
+
+@deffn {Function} date<=
+@end deffn
+
+@deffn {Function} date>
+@end deffn
+
+@deffn {Function} date>=
+@end deffn
+
+@deffn {Function} date+
+@end deffn
+
+@deffn {Function} date-
+@end deffn
+
 
 @node Time
 @section Time

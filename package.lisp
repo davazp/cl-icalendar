@@ -25,6 +25,8 @@
   (:shadow #:time)
   (:export #:format-value
            #:parse-value
+           ;; Boolean
+           #:booleanp
            ;; Text
            #:text
            #:textp

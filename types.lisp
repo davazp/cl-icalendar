@@ -106,6 +106,8 @@
 
 ;;;; Boolean
 
+(define-predicate-type boolean)
+
 (defmethod format-value ((bool (eql 't)) &rest params &key &allow-other-keys)
   (declare (ignore params))
   "TRUE")
@@ -305,6 +307,10 @@
           (truncate years 100))
        (truncate (+ years 300) 400))))
 
+(defun leap-years-between (start end)
+  (- (leap-years-before end)
+     (leap-years-before start)))
+
 (defun leap-year-p (year)
   (declare (year year))
   (and (divisiblep year 4)
@@ -368,6 +374,12 @@
 (defgeneric date-day-of-week (x)
   (:method ((x date))
     (mod (datestamp x) 7)))
+
+;;; Begins in 0
+(defgeneric date-day-of-year (x)
+  (:method ((x date))
+    (- (datestamp x)
+       (datestamp (make-date 1 1 (date-year x))))))
 
 (define-transitive-relation date= (x y)
   (= (datestamp x) (datestamp y)))
@@ -596,6 +608,7 @@
 (defun datetime- (datetime durspec)
   (datetime+ datetime (duration-inverse durspec)))
 
+
 ;;; Parser
 
 (defmethod format-value ((dt datetime) &rest params &key &allow-other-keys)
@@ -630,8 +643,6 @@
 
 ;;;; Duration data type
 
-(defvar *print-duration-abbrev* nil)
-
 (defclass duration ()
   ((days
     :initarg :days
@@ -650,9 +661,7 @@
   (check-type minutes (integer 0 *))
   (check-type seconds (integer 0 *))
   (make-instance 'duration
-                 :days (if backward-p
-                           (- days)
-                           days)
+                 :days (if backward-p (- days) days)
                  :seconds (* (if backward-p -1 1)
                              (+ (* hours 3600)
                                 (* minutes 60)
@@ -663,6 +672,25 @@
     (duration durspec)
     (string (parse-value durspec 'duration))))
 
+(defun %truncate-and-coerce-duration (datetime duration unit)
+  (case unit
+    (:seconds
+     (- (datetimestamp (datetime+ datetime duration))
+        (datetimestamp datetime)))
+    (:minutes
+     (truncate (%truncate-and-coerce-duration datetime duration :second) 60))
+    (:hours
+     (truncate (%truncate-and-coerce-duration datetime duration :minute) 60))
+    (:years
+     (- (date-year (datetime+ datetime duration))
+        (date-year datetime)))
+    (:months
+     (* (%truncate-and-coerce-duration datetime duration :years) 12))
+    (:days
+
+     (* (%truncate-and-coerce-duration datetime duration :years) 365)
+
+     )))
 
 ;;; Accessor for duration designators
 
@@ -708,6 +736,8 @@
                    :seconds (- (%duration-seconds d1)))))
 
 ;;; Printer
+(defvar *print-duration-abbrev* nil)
+
 (defmethod print-object ((x duration) stream)
   (print-unreadable-object (x stream :type t)
     (let* ((component-names
@@ -918,6 +948,12 @@
 (defun make-period (start end)
   (make-instance 'period :start start :end end))
 
+(defgeneric duration-of (x)
+  (:method ((x period))
+    (make-duration
+     :seconds (- (datetimestamp (period-start x))
+                 (datetimestamp (period-end x))))))
+
 (defmethod format-value ((p period) &rest params &key &allow-other-keys)
   (declare (ignore params))
   ;; TODO: We should write down in the class `period' if the user
@@ -958,7 +994,7 @@
     :reader recur-count)
    (interval
     :initarg :interval
-    :initform nil
+    :initform 1
     :reader recur-interval)
    (bysecond
     :initarg :bysecond
@@ -1212,5 +1248,20 @@
         ;; Return the recur instance
         (check-valid-recur recur)
         recur))))
-
+
+
+
+;;; Check if DATETIME is a valid ocurrence in RECUR beginning at
+;;; DTSTART datetime.
+(defun recur-instance-p (dtstart recur datetime)
+  (duration-of (make-period datetime dtstart))
+  (case (recur-freq recur)
+    (:secondly)
+    (:minutely)
+    (:hourly)
+    (:daily)
+    (:weekly)
+    (:monthly)
+    (:yearly)))
+
 ;;; types.lisp ends here

@@ -21,6 +21,38 @@
 
 (in-suite icalendar-types)
 
+;;; Boolean data type
+
+(test booleanp-001
+  "Check membership to boolean data type."
+  (is (booleanp t))
+  (is (booleanp nil))
+  (is (not (booleanp 3)))
+  (is (not (booleanp "true"))))
+
+(test parse-value-boolean-001
+  "Parse some boolean values."
+  (is (parse-value "true" 'boolean))
+  (is (parse-value "TRUE" 'boolean))
+  (is (parse-value "tRUE" 'boolean))
+  (is (not (parse-value "false" 'boolean)))
+  (is (not (parse-value "FALSE" 'boolean)))
+  (is (not (parse-value "fAlse" 'boolean))))
+
+(test parse-value-boolean-002
+  "Parse some non-boolean values."
+  (signals error (parse-value "23" 'boolean))
+  (signals error (parse-value "t" 'boolean))
+  (signals error (parse-value "true2" 'boolean))
+  (signals error (parse-value "falses" 'boolean)))
+
+(test format-value-boolean-001
+  "Format some boolean values."
+  (is (string= (format-value t)   "TRUE"))
+  (is (string= (format-value nil) "FALSE")))
+
+
+
 ;;; Date data type
 
 (test datep-001

@@ -23,6 +23,7 @@
   :description "Test suite to check the types related functions.")
 
 ;;; Run this function in order to run all registered tests.
+(export 'run-tests)
 (defun run-tests ()
   (run! 'icalendar-types))
 

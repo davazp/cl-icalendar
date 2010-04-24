@@ -188,7 +188,8 @@
 ;;; Like `string=' but it is case-insensitive.
 (defun string-ci= (str1 str2)
   (declare (string str1 str2))
-  (every #'char-ci= str1 str2))
+  (and (= (length str1) (length str2))
+       (every #'char-ci= str1 str2)))
 
 
 ;;; Define a predicate named NAME in order to check if an object is a
