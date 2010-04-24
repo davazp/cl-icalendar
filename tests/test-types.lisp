@@ -52,6 +52,28 @@
   (is (string= (format-value nil) "FALSE")))
 
 
+;;; Integer data type
+
+(test parse-value-integer-001
+  "Parse some integer values."
+  (is (= 23   (parse-value "23" 'integer)))
+  (is (= -123 (parse-value "-123" 'integer)))
+  (is (= 0    (parse-value "0" 'integer))))
+
+(test parse-value-integer-002
+  "Parse some non-integer values."
+  (signals error (parse-value "23.1" 'integer))
+  (signals error (parse-value "2x" 'integer))
+  (signals error (parse-value "++3" 'integer))
+  (signals error (parse-value "--2" 'integer)))
+
+(test format-value-integer-001
+  "Format some integer values."
+  (is (string= (format-value 2)  "2"))
+  (is (string= (format-value 3)  "3"))
+  (is (string= (format-value -3) "-3"))
+  (is (string= (format-value 0)  "0")))
+
 
 ;;; Date data type
 
