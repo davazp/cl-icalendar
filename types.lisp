@@ -142,7 +142,6 @@
   (declare (ignore params))
   (format nil "~f" x))
 
-
 (defmethod parse-value (string (type (eql 'float)) &rest params &key &allow-other-keys)
   (declare (ignore params))
   (let ((sign 1)                        ; the sign
@@ -1115,7 +1114,6 @@
     (when (duplicatep rules :key #'car :test #'string=)
       (error "Duplicate key in recurrence."))
     (let ((recur (make-instance 'recur)))
-
       (macrolet (;; Iterate on the substrings in a multiple-value.
                  (do-list-values ((var value) &body body)
                    (with-gensyms (list)
@@ -1243,7 +1241,9 @@
                 ((string= key "BYSETPOS")
                  (%bysetpos value))
                 ((string= key "WKST")
-                 (%wkst value))))))
+                 (%wkst value))
+                (t
+                 (error "Unknown recurrence component ~a" key))))))
 
         ;; Return the recur instance
         (check-valid-recur recur)
