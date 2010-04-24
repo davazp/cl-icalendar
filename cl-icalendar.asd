@@ -1,5 +1,5 @@
 ;;                                                               -*- Lisp -*-
-;; cl-icalendar.asd -- 
+;; cl-icalendar.asd --
 ;;
 ;; Copyright (C) 2010 David Vazquez
 ;;
@@ -17,7 +17,7 @@
 ;;
 ;; You should have received a copy of the GNU General Public License
 ;; along with cl-icalendar.  If not, see <http://www.gnu.org/licenses/>.
-;; 
+;;
 
 (defsystem :cl-icalendar
   :name "iCalendar library"
@@ -30,6 +30,7 @@
    (:file "package")
    (:file "utils")
    (:file "types")
+   (:file "folding")
    (:file "cl-icalendar")))
 
 ;; cl-icalendar.asd ends here
