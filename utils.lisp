@@ -24,6 +24,9 @@
   `(let ((it ,condition))
      (if it ,then ,else)))
 
+(defmacro aif* (condition then)
+  `(aif ,condition ,then t))
+
 (defmacro zerof (place)
   `(setf ,place 0))
 
