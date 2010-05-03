@@ -279,6 +279,11 @@
 
 ;;; Part of the following code is based in the file time.lisp of the
 ;;; SBCL system.
+(defvar *days-in-month*
+  '(0 31 28 31 30 31 30 31 31 30 31 30 31))
+
+(defvar *days-in-month-leap-year*
+  '(0 31 29 31 30 31 30 31 31 30 31 30 31))
 
 (defvar *days-before-month*
   #.(let ((reversed-result nil)
@@ -332,8 +337,23 @@
 (defun make-date-offset-year (year day)
   (check-type year year)
   (make-instance 'date :datestamp (+ (* 365 (- year 1900))
-				     (leap-years-before year)
-				     day)))
+                                     (leap-years-before year)
+                                     day)))
+
+;; Compute the first day of the first week in the given year.  Return
+;; it as a offset in days since january 1th.
+
+;; TODO: Implement wkst /= 0
+;; TODO: Write tests
+
+(defun year-first-week (year)
+  ;; DOW=day of week
+  (let ((first-day-dow (mod (+ (- year 1900)
+                               (leap-years-before year))
+                            7)))
+    (if (> first-day-dow 3)
+        (- 7 first-day-dow 7)
+        (- 7 first-day-dow))))
 
 ;;; Accessors
 
@@ -361,6 +381,15 @@
            as t2 = (- rem t1)
            while (< t2 0)
            finally (return (values i t2)))))))
+
+;; Start from 0
+(defun %date-week (x)
+  (floor (- (date-day-of-year x) (year-first-week (date-year x)))
+         7))
+
+(defgeneric date-week (x)
+  (:method ((x date))
+    (1+ (%date-week x))))
 
 (defgeneric date-day (x)
   (:method ((x date))
@@ -584,7 +613,7 @@
 ;; Assume hour = 60 min = 3600 s
 (defun datetime+ (datetime durspec)
   (let* ((%year (date-year datetime))
-	 (month (date-month datetime))
+         (month (date-month datetime))
          (%day-offset (+ (if (leap-year-p %year)
                              (elt *days-before-month-leap-year* month)
                              (elt *days-before-month* month))
@@ -607,6 +636,21 @@
 (defun datetime- (datetime durspec)
   (datetime+ datetime (duration-inverse durspec)))
 
+;; TODO:  Implement this for rest orders
+(defun duration-in (to from order)
+  (ecase order
+    (:seconds (- (datetimestamp to) (datetimestamp from)))
+    (:days
+     (- (datestamp (make-date (date-day to)
+                              (date-month to)
+                              (date-year to)))
+        (datestamp (make-date (date-day from)
+                              (date-month from)
+                              (date-year from)))))
+    (:month
+     (+ (* 12 (duration-in to from :years))
+        (- (date-month to) (date-month from))))
+    (:years (- (date-year to) (date-year from)))))
 
 ;;; Parser
 
@@ -633,11 +677,11 @@
       (let ((date (parse-value string-date 'date))
             (time (parse-value string-time 'time)))
         (make-datetime (date-day    date)
-		       (date-month  date)
-		       (date-year   date)
-		       (time-hour   time)
-		       (time-minute time)
-		       (time-second time))))))
+                       (date-month  date)
+                       (date-year   date)
+                       (time-hour   time)
+                       (time-minute time)
+                       (time-second time))))))
 
 
 ;;;; Duration data type
@@ -1052,16 +1096,6 @@
     :monthly
     :yearly))
 
-(deftype weekday ()
-  '(member
-    :sunday
-    :monday
-    :tuesday
-    :wednesday
-    :thursday
-    :friday
-    :saturday))
-
 (defun check-valid-recur (recur)
   (with-slots (freq until count interval
                     bysecond byminute byhour
@@ -1114,7 +1148,7 @@
     (when (duplicatep rules :key #'car :test #'string=)
       (error "Duplicate key in recurrence."))
     (let ((recur (make-instance 'recur)))
-      (macrolet (;; Iterate on the substrings in a multiple-value.
+      (macrolet ( ;; Iterate on the substrings in a multiple-value.
                  (do-list-values ((var value) &body body)
                    (with-gensyms (list)
                      `(let ((,list (split-string ,value "," nil)))
@@ -1199,13 +1233,13 @@
                (%wkst (value)
                  (setf (slot-value recur 'wkst)
                        (cond
-                         ((string= value "SU") :sunday)
-                         ((string= value "MO") :monday)
-                         ((string= value "TU") :tuesday)
-                         ((string= value "WE") :wednesday)
-                         ((string= value "TH") :thursday)
-                         ((string= value "FR") :friday)
-                         ((string= value "SA") :saturday)
+                         ((string= value "MO") 0)
+                         ((string= value "TU") 1)
+                         ((string= value "WE") 2)
+                         ((string= value "TH") 3)
+                         ((string= value "FR") 4)
+                         ((string= value "SA") 5)
+                         ((string= value "SU") 6)
                          (t
                           (error "No a weekday."))))))
 
@@ -1249,19 +1283,60 @@
         (check-valid-recur recur)
         recur))))
 
+;; TODO: Implementation pending
+(defun recur-instances (start recur &key count end)
+  (error "Implementation pending"))
 
+;; Check if DATETIME is a valid ocurrence in RECUR beginning at
+;; DTSTART datetime.
+(defun recur-instance-p (start recur datetime)
+  (let ((time-unit (case (recur-freq recur)
+                     (:secondly :seconds)
+                     (:minutely :minutes)
+                     (:hourly :hours)
+                     (:daily :days)
+                     (:weekly :weeks)
+                     (:monthly :months)
+                     (:yearly :years))))
+    (if (recur-count recur)
+        ;; TODO: Implementation pending
+        (error "Implementation pending"))
+    (and (aif* (recur-until recur)
+               (datetime< start it))
+         (aif* (recur-interval recur)
+               (zerop (mod (duration-in start datetime time-unit)
+                           it)))
+         (aif* (recur-bysecond recur)
+               (find (time-second datetime) it))
+         (aif* (recur-byminute recur)
+               (find (time-minute datetime) it))
+         (aif* (recur-byhour recur)
+               (find (time-hour datetime) it))
+         (aif* (recur-byday recur)
+               (find  (date-day-of-week datetime) it))
+         (aif* (recur-bymonth recur)
+               (or (find (date-month datetime) it)
+                   (find (- 11 (date-month datetime)) it)))
+         (aif* (recur-bymonthday recur)
+               (let* ((month-days (if (leap-year-p (date-year datetime))
+                                      *days-in-month-leap-year*
+                                      *days-in-month*))
+                      (negative-dom (- (elt month-days (date-day datetime))
+                                       (date-day datetime)
+                                       1)))
+                 (or (find (date-day datetime) it)
+                     (find negative-dom it))))
+         (aif* (recur-byyearday recur)
+               (let ((negative-doy (- (if (leap-year-p (date-year datetime))
+                                          366
+                                          365)
+                                      (date-day-of-year datetime)
+                                      1)))
+                 (or (find (date-day-of-year datetime) it)
+                     (find negative-doy it))))
+         (aif* (recur-byweekno recur)
+               ;; TODO: Implement suport for negative weeks
+               (find (date-week datetime) it)))))
 
-;;; Check if DATETIME is a valid ocurrence in RECUR beginning at
-;;; DTSTART datetime.
-(defun recur-instance-p (dtstart recur datetime)
-  (duration-of (make-period datetime dtstart))
-  (case (recur-freq recur)
-    (:secondly)
-    (:minutely)
-    (:hourly)
-    (:daily)
-    (:weekly)
-    (:monthly)
-    (:yearly)))
-
+
 ;;; types.lisp ends here
