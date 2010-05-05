@@ -1122,8 +1122,8 @@
       (check-type-list byweekno   (non-zero-integer   -7   7))
       (check-type-list bymonth    (integer 0 12))
       (check-type-list bysetpos   (non-zero-integer -366 366))
-
-      (and wkst (check-type wkst weekday )))))
+      (if wkst
+          (check-type wkst (integer 0 6))))))
 
 
 ;;; Parsing
@@ -1287,56 +1287,79 @@
 (defun recur-instances (start recur &key count end)
   (error "Implementation pending"))
 
+(defun %unbound-recur-next-instance)
+(defun %unbound-recur-initial-instance)
+
 ;; Check if DATETIME is a valid ocurrence in RECUR beginning at
 ;; DTSTART datetime.
-(defun recur-instance-p (start recur datetime)
-  (let ((time-unit (case (recur-freq recur)
-                     (:secondly :seconds)
-                     (:minutely :minutes)
-                     (:hourly :hours)
-                     (:daily :days)
-                     (:weekly :weeks)
-                     (:monthly :months)
-                     (:yearly :years))))
-    (if (recur-count recur)
-        ;; TODO: Implementation pending
-        (error "Implementation pending"))
-    (and (aif* (recur-until recur)
-               (datetime< start it))
-         (aif* (recur-interval recur)
-               (zerop (mod (duration-in start datetime time-unit)
-                           it)))
-         (aif* (recur-bysecond recur)
-               (find (time-second datetime) it))
-         (aif* (recur-byminute recur)
-               (find (time-minute datetime) it))
-         (aif* (recur-byhour recur)
-               (find (time-hour datetime) it))
-         (aif* (recur-byday recur)
-               (find  (date-day-of-week datetime) it))
-         (aif* (recur-bymonth recur)
-               (or (find (date-month datetime) it)
-                   (find (- 11 (date-month datetime)) it)))
-         (aif* (recur-bymonthday recur)
-               (let* ((month-days (if (leap-year-p (date-year datetime))
-                                      *days-in-month-leap-year*
-                                      *days-in-month*))
-                      (negative-dom (- (elt month-days (date-day datetime))
-                                       (date-day datetime)
-                                       1)))
-                 (or (find (date-day datetime) it)
-                     (find negative-dom it))))
-         (aif* (recur-byyearday recur)
-               (let ((negative-doy (- (if (leap-year-p (date-year datetime))
-                                          366
-                                          365)
-                                      (date-day-of-year datetime)
-                                      1)))
-                 (or (find (date-day-of-year datetime) it)
-                     (find negative-doy it))))
-         (aif* (recur-byweekno recur)
-               ;; TODO: Implement suport for negative weeks
-               (find (date-week datetime) it)))))
+(defun %unbound-recur-instance-p (start recur datetime)
+  (macrolet ((implyp (condition implication)
+               `(aif ,condition ,implication t)))
+    (let ((time-unit (case (recur-freq recur)
+                       (:secondly :seconds)
+                       (:minutely :minutes)
+                       (:hourly :hours)
+                       (:daily :days)
+                       (:weekly :weeks)
+                       (:monthly :months)
+                       (:yearly :years))))
+      (if (recur-count recur)
+          ;; TODO: Implementation pending
+          (error "Implementation pending"))
+      (and (implyp (recur-until recur)
+                   (datetime< start it))
+           
+           (implyp (recur-interval recur)
+                   (zerop (mod (duration-in start datetime time-unit)
+                               it)))
+           (aif (recur-bysecond recur)
+                (find (time-second datetime) it)
+                (implyp (not (eq :secondly (recur-freq recur)))
+                        (= (time-second datetime) (time-second start))))
+         
+           (aif (recur-byminute recur)
+                (find (time-minute datetime) it)
+                (implyp (not (eq :minutely (recur-freq recur)))
+                        (= (time-minute datetime) (time-minute start))))
+         
+           (aif (recur-byhour recur)
+                (find (time-hour datetime) it)
+                (implyp (not (eq :hourly (recur-freq recur)))
+                        (= (time-hour datetime) (time-hour start))))
+         
+           (aif (recur-byday recur)
+                (find  (date-day-of-week datetime) it)
+                (implyp (not (eq :daily (recur-freq recur)))
+                        (= (date-day datetime) (date-day start))))
+         
+           (aif (recur-bymonth recur)
+                (or (find (date-month datetime) it)
+                    (find (- 11 (date-month datetime)) it))
+                (implyp (not (eq :montly (recur-freq recur)))
+                        (= (date-month datetime) (date-month start))))
+         
+           (aif (recur-bymonthday recur)
+                (let* ((month-days (if (leap-year-p (date-year datetime))
+                                       *days-in-month-leap-year*
+                                       *days-in-month*))
+                       (negative-dom (- (elt month-days (date-day datetime))
+                                        (date-day datetime)
+                                        1)))
+                  (or (find (date-day datetime) it)
+                      (find negative-dom it))))
+         
+           (implyp (recur-byyearday recur)
+                   (let ((negative-doy (- (if (leap-year-p (date-year datetime))
+                                              366
+                                              365)
+                                          (date-day-of-year datetime)
+                                          1)))
+                     (or (find (date-day-of-year datetime) it)
+                         (find negative-doy it))))
+           
+           (implyp (recur-byweekno recur)
+                   ;; TODO: Implement suport for negative weeks
+                   (find (date-week datetime) it))))))
 
 
 ;;; types.lisp ends here
