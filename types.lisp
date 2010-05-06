@@ -1143,152 +1143,136 @@
 
 (defmethod parse-value (string (type (eql 'recur)) &rest params &key &allow-other-keys)
   (declare (ignore params))
-  (let ((rules (parse-rules string)))
-    ;; Check errores
+  (let ((rules (parse-rules string))
+        (recur (make-instance 'recur)))
     (when (duplicatep rules :key #'car :test #'string=)
       (error "Duplicate key in recurrence."))
-    (let ((recur (make-instance 'recur)))
-      (macrolet ( ;; Iterate on the substrings in a multiple-value.
-                 (do-list-values ((var value) &body body)
-                   (with-gensyms (list)
-                     `(let ((,list (split-string ,value "," nil)))
-                        (assert (not (null ,list)))
-                        (mapcar (lambda (,var) ,@body)
-                                ,list)))))
-        ;; FIXME: Check if any of rules is unknown
-        (flet ((%freq (value)
-                 (setf (slot-value recur 'freq)
-                       (cond
-                         ((string= value "SECONDLY") :secondly)
-                         ((string= value "MINUTELY") :minutely)
-                         ((string= value "HOURLY")   :hourly)
-                         ((string= value "DAILY")    :daily)
-                         ((string= value "WEEKLY")   :weekly)
-                         ((string= value "MONTHLY")  :monthly)
-                         ((string= value "YEARLY")   :yearly)
-                         (t
-                          (error "'~a' is not a valid value for the FREQ rule." value)))))
+    (flet ((parse-integer-list (x)
+             (mapcar #'parse-integer (split-string x ",")))
+           (parse-unsigned-integer-list (x)
+             (mapcar #'parse-unsigned-integer (split-string x ","))))
+    
+      (dolist (rule rules)
+        (destructuring-bind (key . value)
+            rule
+          (cond
+            ((string= key "FREQ")
+             (setf (slot-value recur 'freq)
+                   (cond
+                     ((string= value "SECONDLY") :secondly)
+                     ((string= value "MINUTELY") :minutely)
+                     ((string= value "HOURLY")   :hourly)
+                     ((string= value "DAILY")    :daily)
+                     ((string= value "WEEKLY")   :weekly)
+                     ((string= value "MONTHLY")  :monthly)
+                     ((string= value "YEARLY")   :yearly)
+                     (t
+                      (error "'~a' is not a valid value for the FREQ rule." value)))))
+                
+            ((string= key "UNTIL")
+             ;; TODO: Implement this
+             )
+              
+            ((string= key "COUNT")
+             (setf (slot-value recur 'count)
+                   (parse-unsigned-integer value)))
+              
+            ((string= key "INTERVAL")
+             (setf (slot-value recur 'interval)
+                   (parse-unsigned-integer value)))
+              
+            ((string= key "BYSECOND")
+             (setf (slot-value recur 'bysecond)
+                   (parse-unsigned-integer-list value)))
+              
+            ((string= key "BYMINUTE")
+             (setf (slot-value recur 'byminute)
+                   (parse-unsigned-integer-list value)))
+              
+            ((string= key "BYHOUR")
+             (setf (slot-value recur 'byhour)
+                   (parse-unsigned-integer-list value)))
+              
+            ((string= key "BYDAY")
+             (setf (slot-value recur 'byday)
+                   (parse-unsigned-integer-list value)))
 
-               (%until (value)
-                 (setf (slot-value recur 'until)
-                       (case (length value)
-                         (8 (parse-value value 'date))
-                         (t (parse-value value 'datetime)))))
+            ((string= key "BYMONTH")
+             (setf (slot-value recur 'bymonth)
+                   (parse-integer-list value)))
+              
+            ((string= key "BYMONTHDAY")
+             (setf (slot-value recur 'bymonthday)
+                   (parse-integer-list value)))
+              
+            ((string= key "BYYEARDAY")
+             (setf (slot-value recur 'byyearday)
+                   (parse-integer-list value)))
+              
+            ((string= key "BYWEEKNO")
+             (setf (slot-value recur 'byyearday)
+                   (parse-integer-list value)))
+           
+            ((string= key "BYSETPOS")
+             (setf (slot-value recur 'bysetpos)
+                   (parse-unsigned-integer value )))
+              
+            ((string= key "WKST")
+             (setf (slot-value recur 'wkst)
+                   (cond
+                     ((string= value "SECONDLY") :secondly)
+                     ((string= value "MINUTELY") :minutely)
+                     ((string= value "HOURLY")   :hourly)
+                     ((string= value "DAILY")    :daily)
+                     ((string= value "WEEKLY")   :weekly)
+                     ((string= value "MONTHLY")  :monthly)
+                     ((string= value "YEARLY")   :yearly))))
+              
+            (t
+             (error "Unknown recurrence component ~a" key)))))
 
-               (%count (value)
-                 (setf (slot-value recur 'count)
-                       (parse-unsigned-integer value)))
+      ;; Return the recur instance
+      (check-valid-recur recur)
+      recur)))
 
-               (%interval (value)
-                 (setf (slot-value recur 'interval)
-                       (parse-unsigned-integer value)))
-
-               (%bysecond (value)
-                 (setf (slot-value recur 'bysecond)
-                       (do-list-values (sn value)
-                         (parse-unsigned-integer sn))))
-
-               (%byminute (value)
-                 (setf (slot-value recur 'byminute)
-                       (do-list-values (sn value)
-                         (parse-unsigned-integer sn))))
-
-               (%byhour (value)
-                 (setf (slot-value recur 'byhour)
-                       (do-list-values (sn value)
-                         (parse-unsigned-integer sn))))
-
-               (%byday (value)
-                 (setf (slot-value recur 'byday)
-                       (do-list-values (str value)
-                         (multiple-value-bind (n endn)
-                             (parse-integer str :junk-allowed t)
-                           (list n (subseq str endn))))))
-
-               (%bymonthday (value)
-                 (setf (slot-value recur 'bymonthday)
-                       (do-list-values (sn value)
-                         (parse-unsigned-integer sn))))
-
-               (%byyearday (value)
-                 (setf (slot-value recur 'byyearday)
-                       (do-list-values (sn value)
-                         (parse-integer sn))))
-
-               (%byweekno (value)
-                 (setf (slot-value recur 'byyearday)
-                       (do-list-values (sn value)
-                         (parse-integer sn))))
-
-               (%bymonth (value)
-                 (setf (slot-value recur 'bymonth)
-                       (do-list-values (sn value)
-                         (parse-unsigned-integer sn))))
-
-               (%bysetpos (value)
-                 (setf (slot-value recur 'byyearday)
-                       (do-list-values (sn value)
-                         (parse-integer sn))))
-
-               (%wkst (value)
-                 (setf (slot-value recur 'wkst)
-                       (cond
-                         ((string= value "MO") 0)
-                         ((string= value "TU") 1)
-                         ((string= value "WE") 2)
-                         ((string= value "TH") 3)
-                         ((string= value "FR") 4)
-                         ((string= value "SA") 5)
-                         ((string= value "SU") 6)
-                         (t
-                          (error "No a weekday."))))))
-
-          ;; Scan rules
-          (dolist (rule rules)
-            (destructuring-bind (key . value)
-                rule
-              (cond
-                ((string= key "FREQ")
-                 (%freq value))
-                ((string= key "UNTIL")
-                 (%until value))
-                ((string= key "COUNT")
-                 (%count value))
-                ((string= key "INTERVAL")
-                 (%interval value))
-                ((string= key "BYSECOND")
-                 (%bysecond value))
-                ((string= key "BYMINUTE")
-                 (%byminute value))
-                ((string= key "BYHOUR")
-                 (%byhour value))
-                ((string= key "BYDAY")
-                 (%byday value))
-                ((string= key "BYMONTHDAY")
-                 (%bymonthday value))
-                ((string= key "BYYEARDAY")
-                 (%byyearday value))
-                ((string= key "BYWEEKNO")
-                 (%byweekno value))
-                ((string= key "BYMONTH")
-                 (%bymonth value))
-                ((string= key "BYSETPOS")
-                 (%bysetpos value))
-                ((string= key "WKST")
-                 (%wkst value))
-                (t
-                 (error "Unknown recurrence component ~a" key))))))
-
-        ;; Return the recur instance
-        (check-valid-recur recur)
-        recur))))
+(defmethod format-value ((recur recur) &rest params &key &allow-other-keys)
+  (declare (ignore params))
+  (with-output-to-string (s)
+    (format s "FREQ=~a"
+            (case (recur-freq recur)
+              (:secondly "SECONDLY")
+              (:minutely "MINUTELY")
+              (:hourly "HOURLY")
+              (:daily "DAILY")
+              (:monthly "MONTHLY")
+              (:yearly "YEARLY")))
+    (when (recur-count recur)
+      (format s "COUNT=~a" (recur-count recur)))
+    (when (recur-until recur)
+      (format s "UNTIL=~a" (recur-until recur)))
+    (when (recur-bysecond recur)
+      (format s ";BYSECOND=~{~A~^, ~}" (recur-bysecond recur)))
+    (when (recur-byminute recur)
+      (format s ";BYMINUTE=~{~A~^, ~}" (recur-byminute recur)))
+    (when (recur-byhour recur)
+      (format s ";BYHOUR=~{~A~^, ~}" (recur-byhour recur)))
+    (when (recur-byday recur)
+      (format s ";BYDAY=~{~A~^, ~}" (recur-byday recur)))
+    (when (recur-bymonth recur)
+      (format s ";BYMONTH=~{~A~^, ~}" (recur-bymonth recur)))
+    (when (recur-bymonthday recur)
+      (format s ";BYMONTHDAY=~{~A~^, ~}" (recur-bymonthday recur)))
+    (when (recur-byyearday recur)
+      (format s ";BYYEARDAY=~{~A~^, ~}" (recur-byyearday recur)))
+    (when (recur-byweekno recur)
+      (format s ";BYWEEKNO=~{~A~^, ~}" (recur-byweekno recur)))
+    (when (recur-bysetpos recur)
+      (format s ";BYSETPOS=~{~A~^, ~}" (recur-bysetpos recur)))))
 
 ;; TODO: Implementation pending
-(defun recur-instances (start recur &key count end)
-  (error "Implementation pending"))
-
-(defun %unbound-recur-next-instance)
-(defun %unbound-recur-initial-instance)
+(defun recur-instances nil t)
+(defun %unbound-recur-next-instance nil t)
+(defun %unbound-recur-initial-instance nil t)
 
 ;; Check if DATETIME is a valid ocurrence in RECUR beginning at
 ;; DTSTART datetime.
