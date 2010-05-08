@@ -24,9 +24,6 @@
   `(let ((it ,condition))
      (if it ,then ,else)))
 
-(defmacro aif* (condition then)
-  `(aif ,condition ,then t))
-
 (defmacro zerof (place)
   `(setf ,place 0))
 
@@ -97,9 +94,6 @@
 (defmacro check-member (item list &key (test #'eql))
   `(if (not (position ,item ',list :test ,test))
        (error "Not a member of the specified list")))
-
-(defun implies (x y)
-  (if x y t))
 
 ;;; Like `some', but it works on bound sequences
 (defun some* (predicate sequence &key (start 0) end)
