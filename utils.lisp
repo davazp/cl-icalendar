@@ -213,4 +213,18 @@
 (definline neq (x y)
   (not (eq x y)))
 
+;;; Mark a function as deprecated. When FUNCTION will be called, it
+;;; warns it is deprecated. If REPLACEMENT is given, it will recommend
+;;; to use REPLACEMENT indeed.
+;;; 
+;;; FUNCTION and REPLACEMENT are symbols.
+(defmacro deprecate-function (function &body ignore &key replacement)
+  (declare (ignore ignore))
+  (declare (symbol function replacement))
+  `(define-compiler-macro ,function (&whole form &rest args)
+     (declare (ignore args))
+     (warn "Function ~a is deprecated. ~@[Use ~a indeed.~]"
+           ',function ',replacement)
+     form))
+
 ;;; utils.lisp ends here
