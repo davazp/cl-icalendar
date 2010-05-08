@@ -1283,60 +1283,55 @@
       (if (recur-count recur)
           ;; TODO: Implementation pending
           (error "Implementation pending"))
-      (and (implyp (recur-until recur)
-                   (datetime< start it))
+      (and
+       (aif (recur-bysecond recur)
+            (find (time-second datetime) it)
+            (implyp (neq :secondly (recur-freq recur))
+                    (= (time-second datetime) (time-second start))))
            
-           (implyp (recur-interval recur)
-                   (zerop (mod (duration-in start datetime time-unit)
-                               it)))
-           (aif (recur-bysecond recur)
-                (find (time-second datetime) it)
-                (implyp (neq :secondly (recur-freq recur))
-                        (= (time-second datetime) (time-second start))))
+       (aif (recur-byminute recur)
+            (find (time-minute datetime) it)
+            (implyp (neq :minutely (recur-freq recur))
+                    (= (time-minute datetime) (time-minute start))))
            
-           (aif (recur-byminute recur)
-                (find (time-minute datetime) it)
-                (implyp (neq :minutely (recur-freq recur))
-                        (= (time-minute datetime) (time-minute start))))
+       (aif (recur-byhour recur)
+            (find (time-hour datetime) it)
+            (implyp (neq :hourly (recur-freq recur))
+                    (= (time-hour datetime) (time-hour start))))
            
-           (aif (recur-byhour recur)
-                (find (time-hour datetime) it)
-                (implyp (neq :hourly (recur-freq recur))
-                        (= (time-hour datetime) (time-hour start))))
+       (aif (recur-byday recur)
+            (find  (date-day-of-week datetime) it)
+            (implyp (neq :daily (recur-freq recur))
+                    (= (date-day datetime) (date-day start))))
            
-           (aif (recur-byday recur)
-                (find  (date-day-of-week datetime) it)
-                (implyp (neq :daily (recur-freq recur))
-                        (= (date-day datetime) (date-day start))))
+       (aif (recur-bymonth recur)
+            (or (find (date-month datetime) it)
+                (find (- 11 (date-month datetime)) it))
+            (implyp (neq :montly (recur-freq recur))
+                    (= (date-month datetime) (date-month start))))
            
-           (aif (recur-bymonth recur)
-                (or (find (date-month datetime) it)
-                    (find (- 11 (date-month datetime)) it))
-                (implyp (neq :montly (recur-freq recur))
-                        (= (date-month datetime) (date-month start))))
+       (aif (recur-bymonthday recur)
+            (let* ((month-days (if (leap-year-p (date-year datetime))
+                                   *days-in-month-leap-year*
+                                   *days-in-month*))
+                   (negative-dom (- (elt month-days (date-day datetime))
+                                    (date-day datetime)
+                                    1)))
+              (or (find (date-day datetime) it)
+                  (find negative-dom it))))
            
-           (aif (recur-bymonthday recur)
-                (let* ((month-days (if (leap-year-p (date-year datetime))
-                                       *days-in-month-leap-year*
-                                       *days-in-month*))
-                       (negative-dom (- (elt month-days (date-day datetime))
-                                        (date-day datetime)
-                                        1)))
-                  (or (find (date-day datetime) it)
-                      (find negative-dom it))))
+       (implyp (recur-byyearday recur)
+               (let ((negative-doy (- (if (leap-year-p (date-year datetime))
+                                          366
+                                          365)
+                                      (date-day-of-year datetime)
+                                      1)))
+                 (or (find (date-day-of-year datetime) it)
+                     (find negative-doy it))))
            
-           (implyp (recur-byyearday recur)
-                   (let ((negative-doy (- (if (leap-year-p (date-year datetime))
-                                              366
-                                              365)
-                                          (date-day-of-year datetime)
-                                          1)))
-                     (or (find (date-day-of-year datetime) it)
-                         (find negative-doy it))))
-           
-           (implyp (recur-byweekno recur)
-                   ;; TODO: Implement suport for negative weeks
-                   (find (date-week datetime) it))))))
+       (implyp (recur-byweekno recur)
+               ;; TODO: Implement suport for negative weeks
+               (find (date-week datetime) it))))))
 
 
 ;;; types.lisp ends here
