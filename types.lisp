@@ -1,4 +1,7 @@
-;; types.lisp
+;; types.lisp ---
+;;
+;;     This file implements the iCalendar data types described in the
+;;     RFC5545 and provide a plataform in order to add new data types.
 ;;
 ;; Copyrigth (C) 2009, 2010 Mario Castelán Castro <marioxcc>
 ;; Copyrigth (C) 2009, 2010 David Vázquez
