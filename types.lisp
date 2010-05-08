@@ -1288,28 +1288,28 @@
                                it)))
            (aif (recur-bysecond recur)
                 (find (time-second datetime) it)
-                (implyp (not (eq :secondly (recur-freq recur)))
+                (implyp (neq :secondly (recur-freq recur))
                         (= (time-second datetime) (time-second start))))
            
            (aif (recur-byminute recur)
                 (find (time-minute datetime) it)
-                (implyp (not (eq :minutely (recur-freq recur)))
+                (implyp (neq :minutely (recur-freq recur))
                         (= (time-minute datetime) (time-minute start))))
            
            (aif (recur-byhour recur)
                 (find (time-hour datetime) it)
-                (implyp (not (eq :hourly (recur-freq recur)))
+                (implyp (neq :hourly (recur-freq recur))
                         (= (time-hour datetime) (time-hour start))))
            
            (aif (recur-byday recur)
                 (find  (date-day-of-week datetime) it)
-                (implyp (not (eq :daily (recur-freq recur)))
+                (implyp (neq :daily (recur-freq recur))
                         (= (date-day datetime) (date-day start))))
            
            (aif (recur-bymonth recur)
                 (or (find (date-month datetime) it)
                     (find (- 11 (date-month datetime)) it))
-                (implyp (not (eq :montly (recur-freq recur)))
+                (implyp (neq :montly (recur-freq recur))
                         (= (date-month datetime) (date-month start))))
            
            (aif (recur-bymonthday recur)

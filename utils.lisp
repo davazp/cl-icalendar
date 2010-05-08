@@ -209,5 +209,8 @@
 (defun required-arg ()
   (error "A required &KEY or &OPTIONAL argument was not supplied."))
 
+;;; Check if X and Y are not eq.
+(definline neq (x y)
+  (not (eq x y)))
 
 ;;; utils.lisp ends here
