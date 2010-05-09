@@ -55,17 +55,17 @@
 ;; TODO: Enhanche this with a optional finally section, mantaning
 ;; backward compatibility is not need
 (defun %do-sequence (function sequence &key (start 0) end)
-  (typecase sequence
+  (etypecase sequence
     (list
-     (if (not end)
-         (loop for x in sequence do (funcall function x))
-         (loop for x in sequence
-               for i from start below end
-               do (funcall function x))))
-    (t
-     (loop for i from start below (or end (length sequence))
-           for x = (elt sequence i)
-           do (funcall function x)))))
+       (if (not end)
+           (loop for x in (nthcdr start sequence) do (funcall function x))
+           (loop for x in (nthcdr start sequence)
+                 for i from start below end
+                 do (funcall function x))))
+    (sequence
+       (loop for i from start below (or end (length sequence))
+             for x = (elt sequence i)
+             do (funcall function x)))))
 
 (defmacro do-sequence ((var sequence &key (start 0) end) &body body)
   (check-type var symbol)
@@ -95,9 +95,6 @@
   `(if (not (position ,item ',list :test ,test))
        (error "Not a member of the specified list")))
 
-(defun implies (x y)
-  (if x y t))
-
 ;;; Like `some', but it works on bound sequences
 (defun some* (predicate sequence &key (start 0) end)
   (do-sequence (item sequence :start start :end end)
@@ -124,9 +121,10 @@
             until (and (not eof-error-p) (null ch))
             until (terminal-char-p ch)
             when (not-expect-char-p ch)
-            do (error "Character ~w is not expected." ch)
+              do (error "Character ~w is not expected." ch)
             do (write-char (read-char stream) out)))))
 
+;;; Like `defun' but declare the function as inline.
 (defmacro definline (name args &body body)
   `(progn
      (declaim (inline ,name))
@@ -143,16 +141,16 @@
           for end = (position-if #'separator-p string :start start)
           as seq = (subseq string start end)
           unless (and omit-nulls (string= seq ""))
-          collect seq
+            collect seq
           while end)))
 
+;;; Concatenate the list of STRINGS.
 (defun join-strings (strings &optional (separator #\space))
   (if (null strings)
       (make-string 0)
       (reduce (lambda (s1 s2)
                 (concatenate 'string s1 (string separator) s2))
               strings)))
-
 
 ;;; Like `parse-integer' but it is not allowed to have a sign (+\-).
 (defun parse-unsigned-integer (string &rest keyargs &key &allow-other-keys)
@@ -168,10 +166,14 @@
            (optimize speed))
   (values (truncate a b)))
 
+;;; Check if M divides to N.
 (definline divisiblep (m n)
   (declare (integer m n))
   (zerop (mod m n)))
 
+;;; Check if there is duplicated elements in LIST. KEY functions are
+;;; applied to elements previosly. The elements are comparaed by TEST
+;;; function.
 (defun duplicatep (list &key (test #'eql) (key #'identity))
   (and (loop for x on list
              for a = (funcall key (car x))
@@ -191,7 +193,6 @@
   (and (= (length str1) (length str2))
        (every #'char-ci= str1 str2)))
 
-
 ;;; Define a predicate named NAME in order to check if an object is a
 ;;; object TYPE. If NAME is omitted, NAMEP is used.
 (defmacro define-predicate-type (type &optional name)
@@ -202,5 +203,28 @@
 
 ;;; (modf place N) set place to (mod place N)
 (define-modify-macro modf (n) mod)
+
+;;; This function is thought to use this function as default-value in
+;;; optional or keyword arguments.
+(defun required-arg ()
+  (error "A required &KEY or &OPTIONAL argument was not supplied."))
+
+;;; Check if X and Y are not eq.
+(definline neq (x y)
+  (not (eq x y)))
+
+;;; Mark a function as deprecated. When FUNCTION will be called, it
+;;; warns it is deprecated. If REPLACEMENT is given, it will recommend
+;;; to use REPLACEMENT indeed.
+;;; 
+;;; FUNCTION and REPLACEMENT are symbols.
+(defmacro deprecate-function (function &body ignore &key replacement)
+  (declare (ignore ignore))
+  (declare (symbol function replacement))
+  `(define-compiler-macro ,function (&whole form &rest args)
+     (declare (ignore args))
+     (warn "Function ~a is deprecated. ~@[Use ~a indeed.~]"
+           ',function ',replacement)
+     form))
 
 ;;; utils.lisp ends here

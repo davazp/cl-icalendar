@@ -1,4 +1,7 @@
-;; types.lisp
+;; types.lisp ---
+;;
+;;     This file implements the iCalendar data types described in the
+;;     RFC5545 and provide a plataform in order to add new data types.
 ;;
 ;; Copyrigth (C) 2009, 2010 Mario Castelán Castro <marioxcc>
 ;; Copyrigth (C) 2009, 2010 David Vázquez
@@ -63,16 +66,16 @@
   (declare (ignore string params))
   (ecase encoding
     (:base64
-     (base64:string-to-base64-string (call-next-method)))
+       (base64:string-to-base64-string (call-next-method)))
     (:8bit
-     (call-next-method))))
+       (call-next-method))))
 
 (defmethod parse-value :around (string type &rest params &key (encoding :8bit) &allow-other-keys)
   (ecase encoding
     (:base64
-     (apply #'call-next-method (base64:base64-string-to-string string) type params))
+       (apply #'call-next-method (base64:base64-string-to-string string) type params))
     (:8bit
-     (call-next-method))))
+       (call-next-method))))
 
 
 ;;; Multiple-value versions
@@ -82,7 +85,7 @@
 
 (defmethod parse-values (string (type symbol) &rest params &key &allow-other-keys)
   (labels ( ;; Find the position of the separator character (,) from
-            ;; the character at START position.
+           ;; the character at START position.
            (position-separator (start)
              (let ((position (position #\, string :start start)))
                (if (and (integerp position)
@@ -151,10 +154,10 @@
       ;; Read sign
       (case (peek-char nil in)
         (#\+
-         (read-char in))
+           (read-char in))
         (#\-
-         (setf sign -1)
-         (read-char in)))
+           (setf sign -1)
+           (read-char in)))
 
       ;; Read integer part
       (let ((istring (read-until in (complement #'digit-char-p) nil nil)))
@@ -213,21 +216,21 @@
       (loop for ch = (read-char in nil)
             while ch
             do
-            (cond
-              ((char= ch #\newline)
-               (write-char #\\ out)
-               (write-char #\n out))
-              ((char= ch #\\)
-               (write-char #\\ out)
-               (write-char #\\ out))
-              ((char= ch #\,)
-               (write-char #\\ out)
-               (write-char #\, out))
-              ((char= ch #\;)
-               (write-char #\\ out)
-               (write-char #\; out))
-              (t
-               (write-char ch out)))))))
+         (cond
+           ((char= ch #\newline)
+            (write-char #\\ out)
+            (write-char #\n out))
+           ((char= ch #\\)
+            (write-char #\\ out)
+            (write-char #\\ out))
+           ((char= ch #\,)
+            (write-char #\\ out)
+            (write-char #\, out))
+           ((char= ch #\;)
+            (write-char #\\ out)
+            (write-char #\; out))
+           (t
+            (write-char ch out)))))))
 
 
 (defmethod format-value ((text text*) &rest params &key &allow-other-keys)
@@ -243,15 +246,15 @@
         (loop for ch = (read-char in nil)
               while ch
               do
-              (write-char (if (char/= ch #\\)
-                              ch
-                              (ecase (read-char in nil)
-                                (#\\ #\\)
-                                (#\; #\;)
-                                (#\, #\,)
-                                (#\N #\newline)
-                                (#\n #\newline)))
-                          out))))))
+           (write-char (if (char/= ch #\\)
+                           ch
+                           (ecase (read-char in nil)
+                             (#\\ #\\)
+                             (#\; #\;)
+                             (#\, #\,)
+                             (#\N #\newline)
+                             (#\n #\newline)))
+                 out))))))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; Time data types ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -279,6 +282,11 @@
 
 ;;; Part of the following code is based in the file time.lisp of the
 ;;; SBCL system.
+(defvar *days-in-month*
+  '(0 31 28 31 30 31 30 31 31 30 31 30 31))
+
+(defvar *days-in-month-leap-year*
+  '(0 31 29 31 30 31 30 31 31 30 31 30 31))
 
 (defvar *days-before-month*
   #.(let ((reversed-result nil)
@@ -332,8 +340,23 @@
 (defun make-date-offset-year (year day)
   (check-type year year)
   (make-instance 'date :datestamp (+ (* 365 (- year 1900))
-				     (leap-years-before year)
-				     day)))
+                                     (leap-years-before year)
+                                     day)))
+
+;; Compute the first day of the first week in the given year.  Return
+;; it as a offset in days since january 1th.
+
+;; TODO: Implement wkst /= 0
+;; TODO: Write tests
+
+(defun year-first-week (year)
+  ;; DOW=day of week
+  (let ((first-day-dow (mod (+ (- year 1900)
+                               (leap-years-before year))
+                            7)))
+    (if (> first-day-dow 3)
+        (- 7 first-day-dow 7)
+        (- 7 first-day-dow))))
 
 ;;; Accessors
 
@@ -341,10 +364,10 @@
   (:method ((x date))
     (let ((stamp (datestamp x)))
       (loop for t1 from (truncate stamp 365) downto 0
-         for t2 = (+ (* 365 t1) (leap-years-before (+ 1900 t1)))
-         for t3 = (- stamp t2)
-         while (< t3 0)
-         finally (return (values (+ 1900 t1) t3))))))
+            for t2 = (+ (* 365 t1) (leap-years-before (+ 1900 t1)))
+            for t3 = (- stamp t2)
+            while (< t3 0)
+            finally (return (values (+ 1900 t1) t3))))))
 
 (defgeneric date-month (x)
   (:method ((x date))
@@ -357,10 +380,19 @@
         ;; Find the last month whose accumulative days is smaller than
         ;; the remaining of the year.
         (loop for i from (1- (length accumulative-days)) downto 0
-           as t1 = (elt accumulative-days i)
-           as t2 = (- rem t1)
-           while (< t2 0)
-           finally (return (values i t2)))))))
+              as t1 = (elt accumulative-days i)
+              as t2 = (- rem t1)
+              while (< t2 0)
+              finally (return (values i t2)))))))
+
+;; Start from 0
+(defun %date-week (x)
+  (floor (- (date-day-of-year x) (year-first-week (date-year x)))
+         7))
+
+(defgeneric date-week (x)
+  (:method ((x date))
+    (1+ (%date-week x))))
 
 (defgeneric date-day (x)
   (:method ((x date))
@@ -480,9 +512,9 @@
     (let ((tstamp (+ (timestamp time) sec)))
       (unless (zerop day)
         (error "The duration cannot specify a number of days"))
-    (values (make-instance 'time :timestamp (mod tstamp 86400))
-            (- (truncate tstamp 86400)
-               (if (< tstamp 0) 1 0))))))
+      (values (make-instance 'time :timestamp (mod tstamp 86400))
+              (- (truncate tstamp 86400)
+                 (if (< tstamp 0) 1 0))))))
 
 (defun time- (time durspec)
   (let* ((dur (duration durspec))
@@ -584,7 +616,7 @@
 ;; Assume hour = 60 min = 3600 s
 (defun datetime+ (datetime durspec)
   (let* ((%year (date-year datetime))
-	 (month (date-month datetime))
+         (month (date-month datetime))
          (%day-offset (+ (if (leap-year-p %year)
                              (elt *days-before-month-leap-year* month)
                              (elt *days-before-month* month))
@@ -607,6 +639,21 @@
 (defun datetime- (datetime durspec)
   (datetime+ datetime (duration-inverse durspec)))
 
+;; TODO:  Implement this for rest orders
+(defun duration-in (to from order)
+  (ecase order
+    (:seconds (- (datetimestamp to) (datetimestamp from)))
+    (:days
+       (- (datestamp (make-date (date-day to)
+                                (date-month to)
+                                (date-year to)))
+          (datestamp (make-date (date-day from)
+                                (date-month from)
+                                (date-year from)))))
+    (:month
+       (+ (* 12 (duration-in to from :years))
+          (- (date-month to) (date-month from))))
+    (:years (- (date-year to) (date-year from)))))
 
 ;;; Parser
 
@@ -633,11 +680,11 @@
       (let ((date (parse-value string-date 'date))
             (time (parse-value string-time 'time)))
         (make-datetime (date-day    date)
-		       (date-month  date)
-		       (date-year   date)
-		       (time-hour   time)
-		       (time-minute time)
-		       (time-second time))))))
+                       (date-month  date)
+                       (date-year   date)
+                       (time-hour   time)
+                       (time-minute time)
+                       (time-second time))))))
 
 
 ;;;; Duration data type
@@ -674,22 +721,22 @@
 (defun %truncate-and-coerce-duration (datetime duration unit)
   (case unit
     (:seconds
-     (- (datetimestamp (datetime+ datetime duration))
-        (datetimestamp datetime)))
+       (- (datetimestamp (datetime+ datetime duration))
+          (datetimestamp datetime)))
     (:minutes
-     (truncate (%truncate-and-coerce-duration datetime duration :second) 60))
+       (truncate (%truncate-and-coerce-duration datetime duration :second) 60))
     (:hours
-     (truncate (%truncate-and-coerce-duration datetime duration :minute) 60))
+       (truncate (%truncate-and-coerce-duration datetime duration :minute) 60))
     (:years
-     (- (date-year (datetime+ datetime duration))
-        (date-year datetime)))
+       (- (date-year (datetime+ datetime duration))
+          (date-year datetime)))
     (:months
-     (* (%truncate-and-coerce-duration datetime duration :years) 12))
+       (* (%truncate-and-coerce-duration datetime duration :years) 12))
     (:days
 
-     (* (%truncate-and-coerce-duration datetime duration :years) 365)
+       (* (%truncate-and-coerce-duration datetime duration :years) 365)
 
-     )))
+       )))
 
 ;;; Accessor for duration designators
 
@@ -750,7 +797,7 @@
                                  (duration-minutes x)
                                  (duration-seconds x))
                   unless (zerop n)
-                  collect n and collect c)))
+                    collect n and collect c)))
       (cond
         ((null output)
          (format stream "empty duration"))
@@ -811,8 +858,8 @@
                   nil)
                  ((digit-char-p ch)
                   (values
-                   (parse-integer
-                    (read-until in (complement #'digit-char-p) "" nil))))
+                    (parse-integer
+                     (read-until in (complement #'digit-char-p) "" nil))))
                  (t
                   (read-char in))))))
 
@@ -864,15 +911,15 @@
                  (dur-value ()
                    (funcall (case (scan)
                               (#\+
-                               (check-character #\P)
-                               #'identity)
+                                 (check-character #\P)
+                                 #'identity)
                               (#\-
-                               (check-character #\P)
-                               #'duration-inverse)
+                                 (check-character #\P)
+                                 #'duration-inverse)
                               (#\P
-                               #'identity)
+                                 #'identity)
                               (t
-                               (ill-formed)))
+                                 (ill-formed)))
                             (cond
                               ((eql token1 #\T)
                                (dur-time))
@@ -896,7 +943,7 @@
                      (#\M (dur-minute))
                      (#\S (dur-second))
                      (t
-                      (ill-formed))))
+                        (ill-formed))))
 
                  (dur-week ()
                    (prog1 (make-duration :days (* (scan) 7))
@@ -1052,16 +1099,6 @@
     :monthly
     :yearly))
 
-(deftype weekday ()
-  '(member
-    :sunday
-    :monday
-    :tuesday
-    :wednesday
-    :thursday
-    :friday
-    :saturday))
-
 (defun check-valid-recur (recur)
   (with-slots (freq until count interval
                     bysecond byminute byhour
@@ -1088,8 +1125,8 @@
       (check-type-list byweekno   (non-zero-integer   -7   7))
       (check-type-list bymonth    (integer 0 12))
       (check-type-list bysetpos   (non-zero-integer -366 366))
-
-      (and wkst (check-type wkst weekday )))))
+      (if wkst
+          (check-type wkst (integer 0 6))))))
 
 
 ;;; Parsing
@@ -1109,159 +1146,192 @@
 
 (defmethod parse-value (string (type (eql 'recur)) &rest params &key &allow-other-keys)
   (declare (ignore params))
-  (let ((rules (parse-rules string)))
-    ;; Check errores
+  (let ((rules (parse-rules string))
+        (recur (make-instance 'recur)))
     (when (duplicatep rules :key #'car :test #'string=)
       (error "Duplicate key in recurrence."))
-    (let ((recur (make-instance 'recur)))
-      (macrolet (;; Iterate on the substrings in a multiple-value.
-                 (do-list-values ((var value) &body body)
-                   (with-gensyms (list)
-                     `(let ((,list (split-string ,value "," nil)))
-                        (assert (not (null ,list)))
-                        (mapcar (lambda (,var) ,@body)
-                                ,list)))))
-        ;; FIXME: Check if any of rules is unknown
-        (flet ((%freq (value)
-                 (setf (slot-value recur 'freq)
-                       (cond
-                         ((string= value "SECONDLY") :secondly)
-                         ((string= value "MINUTELY") :minutely)
-                         ((string= value "HOURLY")   :hourly)
-                         ((string= value "DAILY")    :daily)
-                         ((string= value "WEEKLY")   :weekly)
-                         ((string= value "MONTHLY")  :monthly)
-                         ((string= value "YEARLY")   :yearly)
-                         (t
-                          (error "'~a' is not a valid value for the FREQ rule." value)))))
+    (flet ((parse-integer-list (x)
+             (mapcar #'parse-integer (split-string x ",")))
+           (parse-unsigned-integer-list (x)
+             (mapcar #'parse-unsigned-integer (split-string x ","))))
+      
+      (dolist (rule rules)
+        (destructuring-bind (key . value)
+            rule
+          (cond
+            ((string= key "FREQ")
+             (setf (slot-value recur 'freq)
+                   (cond
+                     ((string= value "SECONDLY") :secondly)
+                     ((string= value "MINUTELY") :minutely)
+                     ((string= value "HOURLY")   :hourly)
+                     ((string= value "DAILY")    :daily)
+                     ((string= value "WEEKLY")   :weekly)
+                     ((string= value "MONTHLY")  :monthly)
+                     ((string= value "YEARLY")   :yearly)
+                     (t
+                      (error "'~a' is not a valid value for the FREQ rule." value)))))
+            
+            ((string= key "UNTIL")
+             ;; TODO: Implement this
+             )
+            
+            ((string= key "COUNT")
+             (setf (slot-value recur 'count)
+                   (parse-unsigned-integer value)))
+            
+            ((string= key "INTERVAL")
+             (setf (slot-value recur 'interval)
+                   (parse-unsigned-integer value)))
+            
+            ((string= key "BYSECOND")
+             (setf (slot-value recur 'bysecond)
+                   (parse-unsigned-integer-list value)))
+            
+            ((string= key "BYMINUTE")
+             (setf (slot-value recur 'byminute)
+                   (parse-unsigned-integer-list value)))
+            
+            ((string= key "BYHOUR")
+             (setf (slot-value recur 'byhour)
+                   (parse-unsigned-integer-list value)))
+            
+            ((string= key "BYDAY")
+             (setf (slot-value recur 'byday)
+                   (parse-unsigned-integer-list value)))
 
-               (%until (value)
-                 (setf (slot-value recur 'until)
-                       (case (length value)
-                         (8 (parse-value value 'date))
-                         (t (parse-value value 'datetime)))))
+            ((string= key "BYMONTH")
+             (setf (slot-value recur 'bymonth)
+                   (parse-integer-list value)))
+            
+            ((string= key "BYMONTHDAY")
+             (setf (slot-value recur 'bymonthday)
+                   (parse-integer-list value)))
+            
+            ((string= key "BYYEARDAY")
+             (setf (slot-value recur 'byyearday)
+                   (parse-integer-list value)))
+            
+            ((string= key "BYWEEKNO")
+             (setf (slot-value recur 'byyearday)
+                   (parse-integer-list value)))
+            
+            ((string= key "BYSETPOS")
+             (setf (slot-value recur 'bysetpos)
+                   (parse-unsigned-integer value )))
+            
+            ((string= key "WKST")
+             (setf (slot-value recur 'wkst)
+                   (cond
+                     ((string= value "SECONDLY") :secondly)
+                     ((string= value "MINUTELY") :minutely)
+                     ((string= value "HOURLY")   :hourly)
+                     ((string= value "DAILY")    :daily)
+                     ((string= value "WEEKLY")   :weekly)
+                     ((string= value "MONTHLY")  :monthly)
+                     ((string= value "YEARLY")   :yearly))))
+            
+            (t
+             (error "Unknown recurrence component ~a" key)))))
 
-               (%count (value)
-                 (setf (slot-value recur 'count)
-                       (parse-unsigned-integer value)))
+      ;; Return the recur instance
+      (check-valid-recur recur)
+      recur)))
 
-               (%interval (value)
-                 (setf (slot-value recur 'interval)
-                       (parse-unsigned-integer value)))
+(defmethod format-value ((recur recur) &rest params &key &allow-other-keys)
+  (declare (ignore params))
+  (with-output-to-string (s)
+    (format s "FREQ=~a"
+            (case (recur-freq recur)
+              (:secondly "SECONDLY")
+              (:minutely "MINUTELY")
+              (:hourly "HOURLY")
+              (:daily "DAILY")
+              (:monthly "MONTHLY")
+              (:yearly "YEARLY")))
+    ;; Print optional recur slots.
+    (format s "~@[;COUNT=~a~]"              (recur-count recur))
+    (format s "~@[;UNTIL=~a~]"              (recur-until recur))
+    (format s "~@[;BYSECOND=~{~A~^, ~}~]"   (recur-bysecond recur))
+    (format s "~@[;BYMINUTE=~{~A~^, ~}~]"   (recur-byminute recur))
+    (format s "~@[;BYHOUR=~{~A~^, ~}~]"     (recur-byhour recur))
+    (format s "~@[;BYDAY=~{~A~^, ~}~]"      (recur-byday recur))
+    (format s "~@[;BYMONTH=~{~A~^, ~}~]"    (recur-bymonth recur))
+    (format s "~@[;BYMONTHDAY=~{~A~^, ~}~]" (recur-bymonthday recur))
+    (format s "~@[;BYYEARDAY=~{~A~^, ~}~]"  (recur-byyearday recur))
+    (format s "~@[;BYWEEKNO=~{~A~^, ~}~]"   (recur-byweekno recur))
+    (format s "~@[;BYSETPOS=~{~A~^, ~}~]"   (recur-bysetpos recur))))
 
-               (%bysecond (value)
-                 (setf (slot-value recur 'bysecond)
-                       (do-list-values (sn value)
-                         (parse-unsigned-integer sn))))
+;; TODO: Implementation pending
+(defun recur-instances nil t)
+(defun %unbound-recur-next-instance nil t)
+(defun %unbound-recur-initial-instance nil t)
 
-               (%byminute (value)
-                 (setf (slot-value recur 'byminute)
-                       (do-list-values (sn value)
-                         (parse-unsigned-integer sn))))
+;; Check if DATETIME is a valid ocurrence in RECUR beginning at
+;; DTSTART datetime.
+(defun %unbound-recur-instance-p (start recur datetime)
+  (macrolet ((implyp (condition implication)
+               `(aif ,condition ,implication t)))
+    (let ((time-unit (case (recur-freq recur)
+                       (:secondly :seconds)
+                       (:minutely :minutes)
+                       (:hourly :hours)
+                       (:daily :days)
+                       (:weekly :weeks)
+                       (:monthly :months)
+                       (:yearly :years))))
+      (if (recur-count recur)
+          ;; TODO: Implementation pending
+          (error "Implementation pending"))
+      (and
+       (aif (recur-bysecond recur)
+            (find (time-second datetime) it)
+            (implyp (neq :secondly (recur-freq recur))
+                    (= (time-second datetime) (time-second start))))
+           
+       (aif (recur-byminute recur)
+            (find (time-minute datetime) it)
+            (implyp (neq :minutely (recur-freq recur))
+                    (= (time-minute datetime) (time-minute start))))
+           
+       (aif (recur-byhour recur)
+            (find (time-hour datetime) it)
+            (implyp (neq :hourly (recur-freq recur))
+                    (= (time-hour datetime) (time-hour start))))
+           
+       (aif (recur-byday recur)
+            (find  (date-day-of-week datetime) it)
+            (implyp (neq :daily (recur-freq recur))
+                    (= (date-day datetime) (date-day start))))
+           
+       (aif (recur-bymonth recur)
+            (or (find (date-month datetime) it)
+                (find (- 11 (date-month datetime)) it))
+            (implyp (neq :montly (recur-freq recur))
+                    (= (date-month datetime) (date-month start))))
+           
+       (aif (recur-bymonthday recur)
+            (let* ((month-days (if (leap-year-p (date-year datetime))
+                                   *days-in-month-leap-year*
+                                   *days-in-month*))
+                   (negative-dom (- (elt month-days (date-day datetime))
+                                    (date-day datetime)
+                                    1)))
+              (or (find (date-day datetime) it)
+                  (find negative-dom it))))
+           
+       (implyp (recur-byyearday recur)
+               (let ((negative-doy (- (if (leap-year-p (date-year datetime))
+                                          366
+                                          365)
+                                      (date-day-of-year datetime)
+                                      1)))
+                 (or (find (date-day-of-year datetime) it)
+                     (find negative-doy it))))
+           
+       (implyp (recur-byweekno recur)
+               ;; TODO: Implement suport for negative weeks
+               (find (date-week datetime) it))))))
 
-               (%byhour (value)
-                 (setf (slot-value recur 'byhour)
-                       (do-list-values (sn value)
-                         (parse-unsigned-integer sn))))
-
-               (%byday (value)
-                 (setf (slot-value recur 'byday)
-                       (do-list-values (str value)
-                         (multiple-value-bind (n endn)
-                             (parse-integer str :junk-allowed t)
-                           (list n (subseq str endn))))))
-
-               (%bymonthday (value)
-                 (setf (slot-value recur 'bymonthday)
-                       (do-list-values (sn value)
-                         (parse-unsigned-integer sn))))
-
-               (%byyearday (value)
-                 (setf (slot-value recur 'byyearday)
-                       (do-list-values (sn value)
-                         (parse-integer sn))))
-
-               (%byweekno (value)
-                 (setf (slot-value recur 'byyearday)
-                       (do-list-values (sn value)
-                         (parse-integer sn))))
-
-               (%bymonth (value)
-                 (setf (slot-value recur 'bymonth)
-                       (do-list-values (sn value)
-                         (parse-unsigned-integer sn))))
-
-               (%bysetpos (value)
-                 (setf (slot-value recur 'byyearday)
-                       (do-list-values (sn value)
-                         (parse-integer sn))))
-
-               (%wkst (value)
-                 (setf (slot-value recur 'wkst)
-                       (cond
-                         ((string= value "SU") :sunday)
-                         ((string= value "MO") :monday)
-                         ((string= value "TU") :tuesday)
-                         ((string= value "WE") :wednesday)
-                         ((string= value "TH") :thursday)
-                         ((string= value "FR") :friday)
-                         ((string= value "SA") :saturday)
-                         (t
-                          (error "No a weekday."))))))
-
-          ;; Scan rules
-          (dolist (rule rules)
-            (destructuring-bind (key . value)
-                rule
-              (cond
-                ((string= key "FREQ")
-                 (%freq value))
-                ((string= key "UNTIL")
-                 (%until value))
-                ((string= key "COUNT")
-                 (%count value))
-                ((string= key "INTERVAL")
-                 (%interval value))
-                ((string= key "BYSECOND")
-                 (%bysecond value))
-                ((string= key "BYMINUTE")
-                 (%byminute value))
-                ((string= key "BYHOUR")
-                 (%byhour value))
-                ((string= key "BYDAY")
-                 (%byday value))
-                ((string= key "BYMONTHDAY")
-                 (%bymonthday value))
-                ((string= key "BYYEARDAY")
-                 (%byyearday value))
-                ((string= key "BYWEEKNO")
-                 (%byweekno value))
-                ((string= key "BYMONTH")
-                 (%bymonth value))
-                ((string= key "BYSETPOS")
-                 (%bysetpos value))
-                ((string= key "WKST")
-                 (%wkst value))
-                (t
-                 (error "Unknown recurrence component ~a" key))))))
-
-        ;; Return the recur instance
-        (check-valid-recur recur)
-        recur))))
-
-
-
-;;; Check if DATETIME is a valid ocurrence in RECUR beginning at
-;;; DTSTART datetime.
-(defun recur-instance-p (dtstart recur datetime)
-  (duration-of (make-period datetime dtstart))
-  (case (recur-freq recur)
-    (:secondly)
-    (:minutely)
-    (:hourly)
-    (:daily)
-    (:weekly)
-    (:monthly)
-    (:yearly)))
-
+
 ;;; types.lisp ends here
