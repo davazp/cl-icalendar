@@ -33,7 +33,7 @@
     ))
 
 
-;;; This file contains code which implement the values that iCalendar
+;;; This file contains code which implements the values that iCalendar
 ;;; properties can take. We provide a data type specifier,
 ;;; constructor, accessors, and utilities functions for each one of
 ;;; them. Indeed, we provide 3 common functions in order to turn these
