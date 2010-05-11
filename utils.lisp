@@ -213,9 +213,9 @@
 (definline neq (x y)
   (not (eq x y)))
 
-;;; Mark a function as deprecated. When FUNCTION will be called, it
-;;; warns it is deprecated. If REPLACEMENT is given, it will recommend
-;;; to use REPLACEMENT indeed.
+;;; Mark a function as deprecated. When FUNCTION is called, it signals
+;;; a simple warning. If REPLACEMENT is given, it will recommend to
+;;; use REPLACEMENT indeed.
 ;;; 
 ;;; FUNCTION and REPLACEMENT are symbols.
 (defmacro deprecate-function (function &body ignore &key replacement)
