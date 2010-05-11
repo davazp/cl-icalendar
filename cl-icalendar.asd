@@ -30,6 +30,7 @@
    (:file "package")
    (:file "utils")
    (:file "types")
+   (:file "types-recur")
    (:file "folding")
    (:file "cl-icalendar")))
 
