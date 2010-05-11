@@ -20,16 +20,20 @@
 
 (in-package :cl-icalendar)
 
+;;; Anaphoric IF.
 (defmacro aif (condition then &optional else)
   `(let ((it ,condition))
      (if it ,then ,else)))
 
+;;; Set PLACE to zero.
 (defmacro zerof (place)
   `(setf ,place 0))
 
+;;; Set PLACE to nil.
 (defmacro nilf (place)
   `(setf ,place nil))
 
+;;; Execute CONDITION and CODE in order while CONDITION.
 (defmacro while (condition &body code)
   `(do ()
        ((not ,condition))
@@ -67,6 +71,9 @@
              for x = (elt sequence i)
              do (funcall function x)))))
 
+;;; Iterate for the elements of a sequence for side efects, from the
+;;; START position element until the END position element. If END is
+;;; omitted, then it iterates for all elements of sequence.
 (defmacro do-sequence ((var sequence &key (start 0) end) &body body)
   (declare (symbol var))
   `(%do-sequence (lambda (,var) ,@body)
@@ -74,23 +81,30 @@
                  :start ,start
                  :end ,end))
 
+;;; Define a variable-arity transitive predicate from a body which
+;;; define a transtivie relation of arity 2. The body is contained in
+;;; an implicit block.
 (defmacro define-transitive-relation (name (arg1 arg2) &body body)
   (with-gensyms (argsvar)
     `(defun ,name (&rest ,argsvar)
-       ;; SBCL fails here if we use (block nil ...) indeed of progn.
        (loop for (,arg1 ,arg2) on ,argsvar
              while ,arg2
              always
              (block nil
-               ((lambda ()
-                  ,@body)))))))
+               ((lambda () ,@body)))))))
 
+;;; Return a fresh copy subsequence of SEQ bound from 0 until the
+;;; first element what verifies the FUNC predicate.
 (defun strip-if (func seq &rest rest &key &allow-other-keys)
   (subseq seq 0 (apply #'position-if func seq rest)))
 
+;;; Return a fresh copy subsequence of SEQ bound from 0 until the
+;;; position of X in sequence.
 (defun strip (x seq &rest rest &key &allow-other-keys)
   (subseq seq 0 (apply #'position x seq rest)))
 
+;;; Make sure that ITEM is an element of LIST, otherwise this function
+;;; signals an simple-error condtion.
 (defmacro check-member (item list &key (test #'eql))
   `(if (not (position ,item ',list :test ,test))
        (error "Not a member of the specified list")))
@@ -102,6 +116,9 @@
       (return-from some* t)))
   nil)
 
+;;; Read characters from STREAM until it finds a char of CHAR-BAG. If
+;;; it finds a NON-EXPECT character, it signals an error. If an end of
+;;; file condition is signaled and EOF-ERROR-P is nil, return nil.
 (defun read-until (stream char-bag &optional (not-expect "") (eof-error-p t))
   (flet (;; Check if CH is a terminal char
          (terminal-char-p (ch)
