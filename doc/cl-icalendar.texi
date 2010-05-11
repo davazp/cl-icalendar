@@ -383,9 +383,9 @@ positive.
 432109876
 @end example
 @item Notes
-@cite{cl-icalendar} do not define any limit for integer values, however,
-the iCalendar specification sets the valid range is -2147483648 to
-2147483647.
+@cite{cl-icalendar} does not define any limit for integer values,
+however, the iCalendar specification sets the valid range is -2147483648
+to 2147483647.
 @end table
 @end deftp
 

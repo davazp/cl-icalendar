@@ -176,6 +176,64 @@
     (* sign (+ x y))))
 
 
+;;;; Binary
+
+(defclass binary ()
+  ((content
+    :initarg :content
+    :accessor binary-content)))
+
+(define-predicate-type binary)
+
+(defmethod print-object ((object binary) stream)
+    (print-unreadable-object (object stream :type t :identity t)
+      (format stream ":SIZE ~a BYTES" (length (binary-content object)))))
+
+(defun read-binary-from-stream (stream)
+  (let ((buffer (make-array 1024 :element-type '(unsigned-byte 8)))
+        (content (make-array 1024 :element-type '(unsigned-byte 8) :adjustable t)))
+    ;; Read from STREAM sequences into buffer and fill buffer. When
+    ;; buffer is exhausted, we will adjust it.
+    (loop for index = 0 then (+ index nbytes)
+          for nbytes = (read-sequence buffer stream)
+          until (zerop nbytes)
+          when (< (- (array-dimension content 0) index) nbytes)
+            do (adjust-array content (* 2 (array-dimension content 0)))
+          do (replace content buffer :start1 index :end1 (+ index nbytes))
+          finally (adjust-array content index))
+    ;; Finally return a binary instance.
+    (make-instance 'binary :content content)))
+
+(defun read-binary-from-file (pathname)
+  (with-open-file (in pathname :element-type '(unsigned-byte 8))
+    (read-binary-from-stream in)))
+
+(defun write-binary-to-stream (binary stream)
+  (write-sequence (binary-content binary) stream)
+  (values))
+
+(defun write-binary-to-file (binary pathname &key if-exists)
+  (with-open-file (out pathname
+                       :direction :output
+                       :element-type '(unsigned-byte 8)
+                       :if-exists if-exists)
+    (write-binary-to-stream binary out)))
+
+(progn
+  ;; The binary data value must be written as a base64-encoded
+  ;; sequence. Therefore, the ENCODING=BAS64 parameter should be
+  ;; present. We don't check this here; indeed, we trust in the caller
+  ;; (property code basically) will do the right thing.
+  (defmethod format-value ((x binary) &rest params &key encoding &allow-other-keys)
+    (declare (ignore params encoding))
+    (let ((bytes (binary-content x)))
+      (base64:usb8-array-to-base64-string bytes)))
+
+  (defmethod parse-value (string (type (eql 'binary)) &rest params &key encoding &allow-other-keys)
+    (declare (ignore params encoding))
+    (make-instance 'binary :content (base64:base64-string-to-usb8-array string))))
+
+
 ;;;; Text
 
 (defclass text* ()
