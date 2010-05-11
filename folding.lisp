@@ -1,4 +1,4 @@
-;; cl-icalendar.lisp
+;; folding.lisp
 ;;
 ;; Copyrigth (C) 2009, 2010 Mario Castelán Castro <marioxcc>
 ;; Copyrigth (C) 2009, 2010 David Vázquez
