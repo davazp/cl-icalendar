@@ -1,4 +1,6 @@
 # Makefile for icalendar documentation
+#
+# This file is public domain.
 
 .PHONY: all clean html info pdf clean
 
