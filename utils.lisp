@@ -68,7 +68,7 @@
              do (funcall function x)))))
 
 (defmacro do-sequence ((var sequence &key (start 0) end) &body body)
-  (check-type var symbol)
+  (declare (symbol var))
   `(%do-sequence (lambda (,var) ,@body)
                  ,sequence
                  :start ,start
@@ -196,7 +196,7 @@
 ;;; Define a predicate named NAME in order to check if an object is a
 ;;; object TYPE. If NAME is omitted, NAMEP is used.
 (defmacro define-predicate-type (type &optional name)
-  (check-type name (or nil symbol))
+  (declare (type (or symbol null) name))
   (let ((fname (or name (intern (format nil "~aP" type)))))
     `(defun ,fname (x)
        (typep x ',type))))
