@@ -244,4 +244,11 @@
            ',function ',replacement)
      form))
 
+;;; Read from a stream and write the content to other one.
+(defun copy-stream (from to &key (element-type t))
+  (let ((buffer (make-array 1024 :element-type element-type)))
+    (loop for nbytes = (read-sequence buffer from)
+          until (zerop nbytes)
+          do (write-sequence buffer to :end nbytes))))
+
 ;;; utils.lisp ends here

@@ -25,7 +25,7 @@
 
 (deftype ical-value ()
   '(or
-    boolean integer float text          ; binary
+    boolean integer float text binary
     uri cal-address utc-offset date time date-time
     duration period recur
     ;; x-type??
@@ -224,6 +224,9 @@
                        :element-type '(unsigned-byte 8)
                        :if-exists if-exists)
     (write-binary-to-stream binary out)))
+
+(defun binary-length (binary)
+  (length (binary-content binary)))
 
 (progn
   ;; The binary data value must be written as a base64-encoded

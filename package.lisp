@@ -83,6 +83,13 @@
            #:duration-backward-p
            ;; Period
            #:period
-           #:periodp))
+           #:periodp
+           ;; Binary
+           #:binary
+           #:read-binary-from-stream
+           #:read-binary-from-file
+           #:write-binary-to-stream
+           #:write-binary-to-file
+           #:binary-length))
 
 ;;; package.lisp ends here
