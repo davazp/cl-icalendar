@@ -172,15 +172,15 @@
                    (= (date-month datetime) (date-month start)))))
      
      (/debug
-      (aif (recur-bymonthday recur)
-           (let* ((month-days (if (leap-year-p (date-year datetime))
-                                  *days-in-month-leap-year*
-                                  *days-in-month*))
-                  (negative-dom (- (elt month-days (date-day datetime))
-                                   (date-day datetime)
-                                   1)))
-             (or (find (date-day datetime) it)
-                 (find negative-dom it)))))
+      (implyp (recur-bymonthday recur)
+              (let* ((month-days (if (leap-year-p (date-year datetime))
+                                     *days-in-month-leap-year*
+                                     *days-in-month*))
+                     (negative-dom (- (elt month-days (date-day datetime))
+                                      (date-day datetime)
+                                      1)))
+                (or (find (date-day datetime) it)
+                    (find negative-dom it)))))
      
      (/debug
       (implyp (recur-byyearday recur)
