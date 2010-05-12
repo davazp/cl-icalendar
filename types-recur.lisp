@@ -94,7 +94,7 @@
 (deftype non-zero-integer (a b)
   `(and (integer ,a ,b) (not (integer 0 0))))
 
-(deftype recur-frequency ()
+(deftype recur-frequence ()
   '(member :secondly :minutely :hourly :daily :weekly :monthly :yearly))
 
 (defun check-recur-consistency (recur)
@@ -108,7 +108,7 @@
                  ;; Check every element of LIST is of type TYPE.
                  `(dolist (i ,list)
                     (check-type i ,type))))
-      (check-type freq recur-frequency)
+      (check-type freq recur-frequence)
       (assert (or (not until) (not count)))
       ;; Check optional slots
       (and until    (check-type until    (or date datetime)))
@@ -132,6 +132,12 @@
 (defun %unbound-recur-initial-instance nil t)
 
 
+(defun freq< (x y)
+  (declare (recur-frequence x y))
+  (let ((freqs #(:secondly :minutely :hourly :daily :weekly :monthly :yearly)))
+    (< (position x freqs)
+       (position y freqs))))
+
 ;; Check if DATETIME is a valid ocurrence in the RECUR unbound
 ;; recurrence rule beginning at START datetime.
 (defun %unbound-recur-instance-p (start recur datetime)
@@ -140,37 +146,60 @@
     (and
      ;; DATETIME is a instance of RECUR if and only if all the
      ;; following conditions are satisfied.
+     (case (recur-freq recur)
+       (:secondly
+          (/debug
+           (divisiblep (- (seconds-from-1900 datetime) (seconds-from-1900 start))
+                       (recur-interval recur))))
+       (:minutely
+          (/debug
+           (divisiblep (idiv (- (seconds-from-1900 datetime) (seconds-from-1900 start)) 60)
+                       (recur-interval recur))))
+       (:hourly
+          (/debug
+           (divisiblep (idiv (- (seconds-from-1900 datetime) (seconds-from-1900 start)) 3600)
+                       (recur-interval recur))))
+       (:daily
+          (/debug
+           (divisiblep (- (days-from-1900 datetime) (days-from-1900 start))
+                       (recur-interval recur))))
+       (:weekly
+          (/debug
+           (divisiblep (idiv (- (days-from-1900 datetime) (days-from-1900 start)) 7)
+                       (recur-interval recur))))
+       (:monthly
+          )
+       (:yearly
+          (/debug
+           (divisiblep (- (date-year datetime) (date-year start))
+                       (recur-interval recur)))))
 
      (/debug
       (aif (recur-bysecond recur)
            (find (time-second datetime) it)
-           (implyp (neq :secondly (recur-freq recur))
+           (implyp (freq< :secondly (recur-freq recur))
                    (= (time-second datetime) (time-second start)))))
-     
      (/debug
       (aif (recur-byminute recur)
            (find (time-minute datetime) it)
-           (implyp (neq :minutely (recur-freq recur))
+           (implyp (freq< :minutely (recur-freq recur))
                    (= (time-minute datetime) (time-minute start)))))
-     
      (/debug
       (aif (recur-byhour recur)
            (find (time-hour datetime) it)
-           (implyp (neq :hourly (recur-freq recur))
+           (implyp (freq< :hourly (recur-freq recur))
                    (= (time-hour datetime) (time-hour start)))))
-     
      (/debug
       (aif (recur-byday recur)
            (find (date-day-of-week datetime) it)
-           (implyp (neq :daily (recur-freq recur))
+           (implyp (freq< :weekly (recur-freq recur))
                    (= (date-day datetime) (date-day start)))))
-     
      (/debug
       (aif (recur-bymonth recur)
            (find (date-month datetime) it)
-           (implyp (neq :montly (recur-freq recur))
+           (implyp (freq< :monthly (recur-freq recur))
                    (= (date-month datetime) (date-month start)))))
-     
+
      (/debug
       (implyp (recur-bymonthday recur)
               (let* ((month-days (if (leap-year-p (date-year datetime))
@@ -181,7 +210,6 @@
                                       1)))
                 (or (find (date-day datetime) it)
                     (find negative-dom it)))))
-     
      (/debug
       (implyp (recur-byyearday recur)
               (let ((negative-doy (- (if (leap-year-p (date-year datetime))
@@ -191,7 +219,6 @@
                                      1)))
                 (or (find (date-day-of-year datetime) it)
                     (find negative-doy it)))))
-     
      (/debug
       (implyp (recur-byweekno recur)
               ;; TODO: Implement suport for negative weeks
@@ -200,7 +227,8 @@
 
 (defun recur-instance-p (start recur datetime)
   ;; TODO: COUNT and UNTIL support here.
-  (%unbound-recur-instance-p start recur datetime))
+  (and (datetime<= start datetime)
+       (%unbound-recur-instance-p start recur datetime)))
 
 
 
