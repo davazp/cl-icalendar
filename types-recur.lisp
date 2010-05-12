@@ -166,8 +166,7 @@
      
      (/debug
       (aif (recur-bymonth recur)
-           (or (find (date-month datetime) it)
-               (find (- 11 (date-month datetime)) it))
+           (find (date-month datetime) it)
            (implyp (neq :montly (recur-freq recur))
                    (= (date-month datetime) (date-month start)))))
      
