@@ -183,13 +183,13 @@
            (optimize speed))
   (values (truncate a b)))
 
-;;; Check if M divides to N.
+;;; Check if N divides to M.
 (definline divisiblep (m n)
   (declare (integer m n))
   (zerop (mod m n)))
 
 ;;; Check if there is duplicated elements in LIST. KEY functions are
-;;; applied to elements previosly. The elements are comparaed by TEST
+;;; applied to elements previosly. The elements are compared by TEST
 ;;; function.
 (defun duplicatep (list &key (test #'eql) (key #'identity))
   (and (loop for x on list
@@ -198,7 +198,7 @@
              thereis (find a b :key key :test test))
        t))
 
-;;; Like `char=' but is it case-insensitive.
+;;; Like `char=' but it is case-insensitive.
 (defun char-ci= (char1 char2)
   (declare (character char1 char2))
   (char= (char-upcase char1)
@@ -210,8 +210,8 @@
   (and (= (length str1) (length str2))
        (every #'char-ci= str1 str2)))
 
-;;; Define a predicate named NAME in order to check if an object is a
-;;; object TYPE. If NAME is omitted, NAMEP is used.
+;;; Define a predicate named NAME in order to check if the type of an
+;;; object is TYPE. If NAME is omitted, NAMEP is used.
 (defmacro define-predicate-type (type &optional name)
   (declare (type (or symbol null) name))
   (let ((fname (or name (intern (format nil "~aP" type)))))
