@@ -22,6 +22,13 @@
 
 (in-package :cl-icalendar)
 
+;;; The recur data type value is documented in the section 3.3.10,
+;;; named `Recurrence Rule' of RFC5545. Note a recur object has an
+;;; associated unbound recur object, i.e, a recur without count and
+;;; until slots. If count or until rule is specified, then the
+;;; outcoming bound recur data type is a strict subset of the unbound
+;;; recur.
+
 (defclass recur ()
   ((freq
     :initarg :freq
@@ -80,21 +87,15 @@
     :initform nil
     :reader recur-wkst)))
 
+;;; The predicate function in order to check if an arbitrary object is
+;;; a recurrence value.
 (define-predicate-type recur)
 
 (deftype non-zero-integer (a b)
-  `(and (integer ,a ,b)
-        (not (integer 0 0))))
+  `(and (integer ,a ,b) (not (integer 0 0))))
 
-(deftype frequency ()
-  '(member
-    :secondly
-    :minutely
-    :hourly
-    :daily
-    :weekly
-    :monthly
-    :yearly))
+(deftype recur-frequency ()
+  '(member :secondly :minutely :hourly :daily :weekly :monthly :yearly))
 
 (defun check-recur-consistency (recur)
   (with-slots (freq until count interval
@@ -104,9 +105,10 @@
                     wkst)
       recur
     (macrolet ((check-type-list (list type)
+                 ;; Check every element of LIST is of type TYPE.
                  `(dolist (i ,list)
                     (check-type i ,type))))
-      (check-type freq frequency)
+      (check-type freq recur-frequency)
       (assert (or (not until) (not count)))
       ;; Check optional slots
       (and until    (check-type until    (or date datetime)))
@@ -124,7 +126,81 @@
       (check-type-list bysetpos   (non-zero-integer -366 366)))))
 
 
-;;; Parsing
+;; TODO: Implementation pending
+(defun recur-instances nil t)
+(defun %unbound-recur-next-instance nil t)
+(defun %unbound-recur-initial-instance nil t)
+
+;; Check if DATETIME is a valid ocurrence in the RECUR unbound
+;; recurrence rule beginning at START datetime.
+(defun %unbound-recur-instance-p (start recur datetime)
+  (macrolet ((implyp (condition implication)
+               `(aif ,condition ,implication t)))
+    (and
+     ;; DATETIME is a instance of RECUR if and only if all the
+     ;; following conditions are satisfied.
+
+     (/debug
+      (aif (recur-bysecond recur)
+           (find (time-second datetime) it)
+           (implyp (neq :secondly (recur-freq recur))
+                   (= (time-second datetime) (time-second start)))))
+     
+     (/debug
+      (aif (recur-byminute recur)
+           (find (time-minute datetime) it)
+           (implyp (neq :minutely (recur-freq recur))
+                   (= (time-minute datetime) (time-minute start)))))
+     
+     (/debug
+      (aif (recur-byhour recur)
+           (find (time-hour datetime) it)
+           (implyp (neq :hourly (recur-freq recur))
+                   (= (time-hour datetime) (time-hour start)))))
+     
+     (/debug
+      (aif (recur-byday recur)
+           (find (date-day-of-week datetime) it)
+           (implyp (neq :daily (recur-freq recur))
+                   (= (date-day datetime) (date-day start)))))
+     
+     (/debug
+      (aif (recur-bymonth recur)
+           (or (find (date-month datetime) it)
+               (find (- 11 (date-month datetime)) it))
+           (implyp (neq :montly (recur-freq recur))
+                   (= (date-month datetime) (date-month start)))))
+     
+     (/debug
+      (aif (recur-bymonthday recur)
+           (let* ((month-days (if (leap-year-p (date-year datetime))
+                                  *days-in-month-leap-year*
+                                  *days-in-month*))
+                  (negative-dom (- (elt month-days (date-day datetime))
+                                   (date-day datetime)
+                                   1)))
+             (or (find (date-day datetime) it)
+                 (find negative-dom it)))))
+     
+     (/debug
+      (implyp (recur-byyearday recur)
+              (let ((negative-doy (- (if (leap-year-p (date-year datetime))
+                                         366
+                                         365)
+                                     (date-day-of-year datetime)
+                                     1)))
+                (or (find (date-day-of-year datetime) it)
+                    (find negative-doy it)))))
+     
+     (/debug
+      (implyp (recur-byweekno recur)
+              ;; TODO: Implement suport for negative weeks
+              (find (date-week datetime) it))))))
+
+
+
+
+;;; Parsing and formating
 
 (defun parse-rule-part (string)
   (let ((eqpos (position #\= string)))
@@ -256,69 +332,6 @@
     (format s "~@[;BYYEARDAY=~{~A~^, ~}~]"  (recur-byyearday recur))
     (format s "~@[;BYWEEKNO=~{~A~^, ~}~]"   (recur-byweekno recur))
     (format s "~@[;BYSETPOS=~{~A~^, ~}~]"   (recur-bysetpos recur))))
-
-;; TODO: Implementation pending
-(defun recur-instances nil t)
-(defun %unbound-recur-next-instance nil t)
-(defun %unbound-recur-initial-instance nil t)
-
-;; Check if DATETIME is a valid ocurrence in RECUR beginning at
-;; DTSTART datetime.
-(defun %unbound-recur-instance-p (start recur datetime)
-  (macrolet ((implyp (condition implication)
-               `(aif ,condition ,implication t)))
-    (if (recur-count recur)
-        ;; TODO: Implementation pending
-        (error "Implementation pending"))
-    (and
-     (aif (recur-bysecond recur)
-          (find (time-second datetime) it)
-          (implyp (neq :secondly (recur-freq recur))
-                  (= (time-second datetime) (time-second start))))
-           
-     (aif (recur-byminute recur)
-          (find (time-minute datetime) it)
-          (implyp (neq :minutely (recur-freq recur))
-                  (= (time-minute datetime) (time-minute start))))
-           
-     (aif (recur-byhour recur)
-          (find (time-hour datetime) it)
-          (implyp (neq :hourly (recur-freq recur))
-                  (= (time-hour datetime) (time-hour start))))
-           
-     (aif (recur-byday recur)
-          (find  (date-day-of-week datetime) it)
-          (implyp (neq :daily (recur-freq recur))
-                  (= (date-day datetime) (date-day start))))
-           
-     (aif (recur-bymonth recur)
-          (or (find (date-month datetime) it)
-              (find (- 11 (date-month datetime)) it))
-          (implyp (neq :montly (recur-freq recur))
-                  (= (date-month datetime) (date-month start))))
-           
-     (aif (recur-bymonthday recur)
-          (let* ((month-days (if (leap-year-p (date-year datetime))
-                                 *days-in-month-leap-year*
-                                 *days-in-month*))
-                 (negative-dom (- (elt month-days (date-day datetime))
-                                  (date-day datetime)
-                                  1)))
-            (or (find (date-day datetime) it)
-                (find negative-dom it))))
-           
-     (implyp (recur-byyearday recur)
-             (let ((negative-doy (- (if (leap-year-p (date-year datetime))
-                                        366
-                                        365)
-                                    (date-day-of-year datetime)
-                                    1)))
-               (or (find (date-day-of-year datetime) it)
-                   (find negative-doy it))))
-           
-     (implyp (recur-byweekno recur)
-             ;; TODO: Implement suport for negative weeks
-             (find (date-week datetime) it)))))
 
 
 ;;; types-recur.lisp ends here

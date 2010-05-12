@@ -251,4 +251,20 @@
           until (zerop nbytes)
           do (write-sequence buffer to :end nbytes))))
 
+;;; Like `(format t ...)', useful for debugging.
+(defmacro /debug (form)
+  #+cl-icalendar-debug
+  (with-gensyms (value)
+    `(progn
+       (let ((,value ,form))
+         (format *error-output* "~%; DEBUG~@[ (~a)~]"
+                 (load-time-value (aif *load-pathname* (enough-namestring it))))
+         (pprint ',form *error-output*)
+         (write-string " ===> " *error-output*)
+         (princ ,value *error-output*)
+         (terpri *error-output*)
+         ,value)))
+  #-cl-icalendar-debug
+  form)
+
 ;;; utils.lisp ends here
