@@ -83,8 +83,8 @@
 (define-predicate-type recur)
 
 (deftype non-zero-integer (a b)
-  `(or (integer ,(- b) ,(- a))
-       (integer  ,a  ,b)))
+  `(and (integer ,a ,b)
+        (not (integer 0 0))))
 
 (deftype frequency ()
   '(member
@@ -96,7 +96,7 @@
     :monthly
     :yearly))
 
-(defun check-valid-recur (recur)
+(defun check-recur-consistency (recur)
   (with-slots (freq until count interval
                     bysecond byminute byhour
                     byday bymonthday byyearday
@@ -106,24 +106,22 @@
     (macrolet ((check-type-list (list type)
                  `(dolist (i ,list)
                     (check-type i ,type))))
-
       (check-type freq frequency)
       (assert (or (not until) (not count)))
-
-      (and until    (check-type until (or date datetime)))
-      (and count    (check-type count (integer 0 *)))
+      ;; Check optional slots
+      (and until    (check-type until    (or date datetime)))
+      (and count    (check-type count    (integer 0 *)))
       (and interval (check-type interval (integer 0 *)))
-
-      (check-type-list bysecond (integer 0 60))
-      (check-type-list byminute (integer 0 59))
-      (check-type-list byhour   (integer 0 23))
+      (and wkst     (check-type wkst     (integer 0 6)))
+      ;; Check list slots
+      (check-type-list bysecond   (integer 0 60))
+      (check-type-list byminute   (integer 0 59))
+      (check-type-list byhour     (integer 0 23))
       (check-type-list bymonthday (non-zero-integer  -31  31))
       (check-type-list byyearday  (non-zero-integer -366 366))
       (check-type-list byweekno   (non-zero-integer   -7   7))
       (check-type-list bymonth    (integer 0 12))
-      (check-type-list bysetpos   (non-zero-integer -366 366))
-      (if wkst
-          (check-type wkst (integer 0 6))))))
+      (check-type-list bysetpos   (non-zero-integer -366 366)))))
 
 
 ;;; Parsing
@@ -232,7 +230,7 @@
              (error "Unknown recurrence component ~a" key)))))
 
       ;; Return the recur instance
-      (check-valid-recur recur)
+      (check-recur-consistency recur)
       recur)))
 
 (defmethod format-value ((recur recur) &rest params &key &allow-other-keys)
