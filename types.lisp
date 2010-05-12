@@ -602,7 +602,9 @@
 (defclass datetime ()
   ((datetimestamp
     :initarg :datetimestamp
-    :accessor datetimestamp)))
+    :accessor datetimestamp
+    :reader datetimestamp
+    :reader seconds-from-1900)))
 
 (define-predicate-type datetime)
 
@@ -644,6 +646,8 @@
 (defmethod time-second ((x datetime))
   (nth-value 0 (decode-universal-time (datetimestamp x))))
 
+(defmethod days-from-1900 ((x datetime))
+  (days-from-1900 (make-date (date-day x) (date-month x) (date-year x))))
 
 ;;; Relational functions
 
