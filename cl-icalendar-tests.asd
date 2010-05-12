@@ -30,6 +30,7 @@
             :components
             ((:file "package")
              (:file "tsuite")
+             (:static-file "test-types.001")
              (:file "test-types")))))
 
 ;; cl-icalendar.asd ends here
