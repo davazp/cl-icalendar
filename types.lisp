@@ -179,12 +179,12 @@
 ;;;; Binary
 
 (defclass binary ()
-  ;; FIXME: It would be nice to use a stream indeed of a usb8 vector
+  ;; FIXME: It would be nice to use a stream indeed of an usb8 vector
   ;; here, so we could treat with binary objects on demand, without to
   ;; load whole file in memory. However, cl-base64 does not seem
-  ;; support encode from streams. Indeed, we should load whole base64
-  ;; string before decode anyway, and we does not hope big files in an
-  ;; iCalendar file.
+  ;; support encoding from streams. Indeed, we should load whole
+  ;; base64 string before decoding anyway, and we does not hope big
+  ;; files in an iCalendar file.
   ((content
     :initarg :content
     :accessor binary-content)))
