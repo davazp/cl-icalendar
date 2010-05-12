@@ -197,8 +197,8 @@
 (defun read-binary-from-stream (stream)
   (let ((buffer (make-array 1024 :element-type '(unsigned-byte 8)))
         (content (make-array 1024 :element-type '(unsigned-byte 8) :adjustable t)))
-    ;; Read from STREAM sequences into buffer and fill buffer. When
-    ;; buffer is exhausted, we will adjust it.
+    ;; Read from STREAM sequences into buffer and fill content. When
+    ;; content is exhausted, we will adjust it.
     (loop for index = 0 then (+ index nbytes)
           for nbytes = (read-sequence buffer stream)
           until (zerop nbytes)
