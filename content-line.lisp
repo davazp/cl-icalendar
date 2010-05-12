@@ -20,6 +20,8 @@
 
 ;;; TODO: Support for write content lines.
 
+(in-package :cl-icalendar)
+
 (defstruct content-line
   name
   params
