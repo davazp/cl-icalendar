@@ -90,6 +90,9 @@
            #:read-binary-from-file
            #:write-binary-to-stream
            #:write-binary-to-file
-           #:binary-length))
+           #:binary-length
+           ;;  Recur
+           #:recur
+           #:recur-instance-p))
 
 ;;; package.lisp ends here

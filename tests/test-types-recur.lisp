@@ -1,7 +1,6 @@
-;;                                                               -*- Lisp -*-
-;; cl-icalendar.asd --
+;; test-types-recur.lisp
 ;;
-;; Copyright (C) 2010 David Vazquez
+;; Copyrigth (C) 2010 David Vázquez
 ;;
 ;; This file is part of cl-icalendar.
 ;;
@@ -17,21 +16,17 @@
 ;;
 ;; You should have received a copy of the GNU General Public License
 ;; along with cl-icalendar.  If not, see <http://www.gnu.org/licenses/>.
-;;
 
-(defsystem :cl-icalendar-tests
-  :name "iCalendar library tests"
-  :license "GPLv3+"
-  :depends-on (:cl-icalendar :fiveam)
-  :serial t
-  :components
-  ((:module "tests"
-            :serial t
-            :components
-            ((:file "package")
-             (:file "tsuite")
-             (:static-file "test-types.001")
-             (:file "test-types")
-             (:file "test-types-recur")))))
+(in-package :cl-icalendar-tests)
 
-;; cl-icalendar.asd ends here
+(in-suite icalendar-types)
+
+;;; Recur data type tests
+
+(test recur-instance-p-bymonth
+  "Check BYMONTH rule."
+  (is (recur-instance-p (make-datetime 1 1 2000 00 00 00)
+                        (parse-value "FREQ=DAILY;BYMONTH=1" 'recur)
+                        (make-datetime 01 01 2000 00 00 00))))
+
+;;; test-types-recur.lisp ends here

@@ -198,6 +198,11 @@
               (find (date-week-of-year datetime (recur-wkst recur)) it))))))
 
 
+(defun recur-instance-p (start recur datetime)
+  ;; TODO: COUNT and UNTIL support here.
+  (%unbound-recur-instance-p start recur datetime))
+
+
 
 
 ;;; Parsing and formating
