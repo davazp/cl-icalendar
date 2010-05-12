@@ -22,56 +22,6 @@
 
 ;;; Parsing
 
-;;; Parseamos las lineas de contenido como es descrito en el RFC.
-
-(defstruct content-line
-  name
-  params
-  value)
-
-(defun read-params-value (stream)
-  (if (char= (peek-char nil stream) #\")
-      (prog2 (read-char stream)
-          (read-until stream "#\"" +return-character+)
-        (read-char stream))
-      (read-until stream ",;:" #\Newline)))
-
-(defun read-params-values (stream)
-  (cons (read-params-value stream)
-        (with-collecting
-          (while (char= (peek-char nil stream) #\,)
-            (read-char stream)
-            (collect (read-params-value stream))))))
-
-(defun read-params (stream)
-  (with-collecting
-    (while (char= (read-char stream) #\;)
-      (let ((name (read-until stream "=" #(#\Newline #\: #\;))))
-        (read-char stream)
-        (collect (cons name (read-params-values stream)))))))
-
-(defun read-content-line (stream)
-  (make-content-line
-   :name (read-until stream ";:" #\Newline)
-   :params (read-params stream)
-   :value (read-line stream)))
-
-;; (defun parse-date (string &optional (date (make-date)) &key (offset 0))
-;;   (flet ((~ (x) (+ offset x)))
-;;     (setf
-;;      (date-year date) (parse-integer string :start (~ 0) :end (~ 4))
-;;      (date-month date) (parse-integer string :start (~ 4) :end (~ 6))
-;;      (date-day date) (parse-integer (subseq string 6 8))))
-;;   date)
-
-;; (defun parse-time (string &optional (date (make-date)) &key (offset 0))
-;;   (flet ((~ (x) (+ offset x)))
-;;     (setf
-;;      (date-hour date) (parse-integer string :start (~ 0) :end (~ 2))
-;;      (date-minute date) (parse-integer string :start (~ 2) :end (~ 4))
-;;      (date-second date) (parse-integer string :start (~ 4) :end (~ 8))))
-;;   date)
-
 ;; Generación del árbol sintáctico
 
 (defstruct icalendar-block

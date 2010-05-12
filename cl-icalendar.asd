@@ -32,6 +32,7 @@
    (:file "types")
    (:file "types-recur")
    (:file "folding")
+   (:file "content-line")
    (:file "cl-icalendar")))
 
 ;; cl-icalendar.asd ends here
