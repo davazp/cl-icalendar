@@ -32,7 +32,6 @@
     ;; A (satisfies x-typep) be placed here soon.
     ))
 
-
 ;;; This file contains code which implements the values that iCalendar
 ;;; properties can take. We provide a data type specifier,
 ;;; constructor, accessors, and utilities functions for each one of
@@ -84,7 +83,7 @@
   (apply #'parse-values string (lookup-type typestring) params))
 
 (defmethod parse-values (string (type symbol) &rest params &key &allow-other-keys)
-  (labels ( ;; Find the position of the separator character (,) from
+  (labels (;; Find the position of the separator character (,) from
            ;; the character at START position.
            (position-separator (start)
              (let ((position (position #\, string :start start)))
@@ -334,9 +333,9 @@
 
 (defclass date ()
   ((;; Number of days before of the beginning of 1900.
-    datestamp
-    :initarg :datestamp
-    :reader datestamp)))
+    days-from-1900
+    :initarg :days-from-1900
+    :reader days-from-1900)))
 
 (define-predicate-type date)
 
@@ -393,41 +392,27 @@
 
 (defun make-date (day month year)
   (declare (day day) (month month) (year year))
-  (let ((days-from-1900
+  (let ((stamp
          (+ (* 365 (- year 1900))
             (if (> month 2)
                 (leap-years-before (1+ year))
                 (leap-years-before year))
             (elt *days-before-month* month)
             (1- day))))
-    (make-instance 'date :datestamp days-from-1900)))
+    (make-instance 'date :days-from-1900 stamp)))
 
 (defun make-date-offset-year (year day)
   (declare (year year))
-  (make-instance 'date :datestamp (+ (* 365 (- year 1900))
+  (make-instance 'date :days-from-1900 (+ (* 365 (- year 1900))
                                      (leap-years-before year)
                                      day)))
 
-;; Compute the first day of the first week in the given year.  Return
-;; it as a offset in days since january 1th.
-
-;; TODO: Implement wkst /= 0
-;; TODO: Write tests
-
-(defun year-first-week (year)
-  ;; DOW=day of week
-  (let ((first-day-dow (mod (+ (- year 1900)
-                               (leap-years-before year))
-                            7)))
-    (if (> first-day-dow 3)
-        (- 7 first-day-dow 7)
-        (- 7 first-day-dow))))
 
 ;;; Accessors
 
 (defgeneric date-year (x)
   (:method ((x date))
-    (let ((stamp (datestamp x)))
+    (let ((stamp (days-from-1900 x)))
       (loop for t1 from (truncate stamp 365) downto 0
             for t2 = (+ (* 365 t1) (leap-years-before (+ 1900 t1)))
             for t3 = (- stamp t2)
@@ -450,15 +435,6 @@
               while (< t2 0)
               finally (return (values i t2)))))))
 
-;; Start from 0
-(defun %date-week (x)
-  (floor (- (date-day-of-year x) (year-first-week (date-year x)))
-         7))
-
-(defgeneric date-week (x)
-  (:method ((x date))
-    (1+ (%date-week x))))
-
 (defgeneric date-day (x)
   (:method ((x date))
     (multiple-value-bind (ign rem)
@@ -469,28 +445,38 @@
 ;; Begins in 0 for Monday
 (defgeneric date-day-of-week (x)
   (:method ((x date))
-    (mod (datestamp x) 7)))
+    (mod (days-from-1900 x) 7)))
 
 ;;; Begins in 0
 (defgeneric date-day-of-year (x)
   (:method ((x date))
-    (- (datestamp x)
-       (datestamp (make-date 1 1 (date-year x))))))
+    (- (days-from-1900 x)
+       (days-from-1900 (make-date 1 1 (date-year x))))))
+
+;;; Return the number of week in year.
+;;; FIXME: Use symbols for dayweek indeed of 0-6 integers.
+;;; (= wkst 0) => :monday
+(defgeneric date-week-of-year (dt &optional wkst)
+  (:method (dt &optional (wkst 0))
+    (declare (type (integer 0 6) wkst))
+    (let ((1th (make-date 1 1 (date-year dt))))
+      (- (idiv (- (days-from-1900  dt) wkst) 7)
+         (idiv (- (days-from-1900 1th) wkst) 7)))))
 
 (define-transitive-relation date= (x y)
-  (= (datestamp x) (datestamp y)))
+  (= (days-from-1900 x) (days-from-1900 y)))
 
 (define-transitive-relation date< (x y)
-  (< (datestamp x) (datestamp y)))
+  (< (days-from-1900 x) (days-from-1900 y)))
 
 (define-transitive-relation date<= (x y)
-  (<= (datestamp x) (datestamp y)))
+  (<= (days-from-1900 x) (days-from-1900 y)))
 
 (define-transitive-relation date> (x y)
-  (> (datestamp x) (datestamp y)))
+  (> (days-from-1900 x) (days-from-1900 y)))
 
 (define-transitive-relation date>= (x y)
-  (>= (datestamp x) (datestamp y)))
+  (>= (days-from-1900 x) (days-from-1900 y)))
 
 (defun date+ (date durspec)
   (let* ((dur (duration durspec))
@@ -498,7 +484,7 @@
          (secs (%duration-seconds dur)))
     (unless (zerop secs)
       (error "The duration ~a is not multiple of days" dur))
-    (make-instance 'date :datestamp (+ (datestamp date) days))))
+    (make-instance 'date :days-from-1900 (+ (days-from-1900 date) days))))
 
 (defun date- (date durspec)
   (let* ((dur (duration durspec))
@@ -506,7 +492,7 @@
          (secs (%duration-seconds dur)))
     (unless (zerop secs)
       (error "The duration ~a is not multiple of days" dur))
-    (make-instance 'date :datestamp (- (datestamp date) days))))
+    (make-instance 'date :days-from-1900 (- (days-from-1900 date) days))))
 
 (defmethod format-value ((date date) &rest params &key &allow-other-keys)
   (declare (ignore params))
@@ -703,22 +689,6 @@
 
 (defun datetime- (datetime durspec)
   (datetime+ datetime (duration-inverse durspec)))
-
-;; TODO:  Implement this for rest orders
-(defun duration-in (to from order)
-  (ecase order
-    (:seconds (- (datetimestamp to) (datetimestamp from)))
-    (:days
-       (- (datestamp (make-date (date-day to)
-                                (date-month to)
-                                (date-year to)))
-          (datestamp (make-date (date-day from)
-                                (date-month from)
-                                (date-year from)))))
-    (:month
-       (+ (* 12 (duration-in to from :years))
-          (- (date-month to) (date-month from))))
-    (:years (- (date-year to) (date-year from)))))
 
 ;;; Parser
 
@@ -1039,6 +1009,7 @@
 
 (defgeneric duration-of (x)
   (:method ((x period))
+    ;; FIXME: Use days component of duration if possible.
     (make-duration
      :seconds (- (datetimestamp (period-start x))
                  (datetimestamp (period-end x))))))
@@ -1065,5 +1036,4 @@
                        (parse-value end 'datetime))))))
 
 
-
 ;;; types.lisp ends here
