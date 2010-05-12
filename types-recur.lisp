@@ -84,7 +84,7 @@
     :reader recur-bysetpos)
    (wkst
     :initarg :wkst
-    :initform nil
+    :initform 0
     :reader recur-wkst)))
 
 ;;; The predicate function in order to check if an arbitrary object is
@@ -130,6 +130,7 @@
 (defun recur-instances nil t)
 (defun %unbound-recur-next-instance nil t)
 (defun %unbound-recur-initial-instance nil t)
+
 
 ;; Check if DATETIME is a valid ocurrence in the RECUR unbound
 ;; recurrence rule beginning at START datetime.
@@ -194,7 +195,7 @@
      (/debug
       (implyp (recur-byweekno recur)
               ;; TODO: Implement suport for negative weeks
-              (find (date-week datetime) it))))))
+              (find (date-week-of-year datetime (recur-wkst recur)) it))))))
 
 
 
@@ -292,15 +293,9 @@
             
             ((string= key "WKST")
              (setf (slot-value recur 'wkst)
-                   (cond
-                     ((string= value "SECONDLY") :secondly)
-                     ((string= value "MINUTELY") :minutely)
-                     ((string= value "HOURLY")   :hourly)
-                     ((string= value "DAILY")    :daily)
-                     ((string= value "WEEKLY")   :weekly)
-                     ((string= value "MONTHLY")  :monthly)
-                     ((string= value "YEARLY")   :yearly))))
-            
+                   (or (position value #("MO" "TU" "WE" "TH" "FR" "SA" "SU") :test #'string=)
+                       ;; check-recur-consistency will signal error
+                       value)))
             (t
              (error "Unknown recurrence component ~a" key)))))
 
