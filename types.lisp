@@ -332,8 +332,7 @@
 (deftype year  () '(integer 1900))
 
 (defclass date ()
-  ((;; Number of days before of the beginning of 1900.
-    days-from-1900
+  ((days-from-1900
     :initarg :days-from-1900
     :reader days-from-1900)))
 
