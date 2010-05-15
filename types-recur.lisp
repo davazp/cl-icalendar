@@ -176,31 +176,23 @@
                        (recur-interval recur)))))
 
      (/debug
-      (aif (recur-bysecond recur)
-           (find (time-second datetime) it)
-           (implyp (freq< :secondly (recur-freq recur))
-                   (= (time-second datetime) (time-second start)))))
-     (/debug
-      (aif (recur-byminute recur)
-           (find (time-minute datetime) it)
-           (implyp (freq< :minutely (recur-freq recur))
-                   (= (time-minute datetime) (time-minute start)))))
-     (/debug
-      (aif (recur-byhour recur)
-           (find (time-hour datetime) it)
-           (implyp (freq< :hourly (recur-freq recur))
-                   (= (time-hour datetime) (time-hour start)))))
-     (/debug
-      (aif (recur-byday recur)
-           (find (date-day-of-week datetime) it)
-           (implyp (freq< :weekly (recur-freq recur))
-                   (= (date-day datetime) (date-day start)))))
-     (/debug
       (aif (recur-bymonth recur)
            (find (date-month datetime) it)
            (implyp (freq< :monthly (recur-freq recur))
                    (= (date-month datetime) (date-month start)))))
-
+     (/debug
+      (implyp (recur-byweekno recur)
+              ;; TODO: Implement suport for negative weeks
+              (find (date-week-of-year datetime (recur-wkst recur)) it)))
+     (/debug
+      (implyp (recur-byyearday recur)
+              (let ((negative-doy (- (if (leap-year-p (date-year datetime))
+                                         366
+                                         365)
+                                     (date-day-of-year datetime)
+                                     1)))
+                (or (find (date-day-of-year datetime) it)
+                    (find negative-doy it)))))
      (/debug
       (implyp (recur-bymonthday recur)
               (let* ((month-days (if (leap-year-p (date-year datetime))
@@ -212,18 +204,32 @@
                 (or (find (date-day datetime) it)
                     (find negative-dom it)))))
      (/debug
-      (implyp (recur-byyearday recur)
-              (let ((negative-doy (- (if (leap-year-p (date-year datetime))
-                                         366
-                                         365)
-                                     (date-day-of-year datetime)
-                                     1)))
-                (or (find (date-day-of-year datetime) it)
-                    (find negative-doy it)))))
+      (aif (recur-byday recur)
+           (find (date-day-of-week datetime) it)
+           (implyp (freq< :weekly (recur-freq recur))
+                   (= (date-day datetime) (date-day start)))))
      (/debug
-      (implyp (recur-byweekno recur)
-              ;; TODO: Implement suport for negative weeks
-              (find (date-week-of-year datetime (recur-wkst recur)) it))))))
+      (aif (recur-byhour recur)
+           (find (time-hour datetime) it)
+           (implyp (freq< :hourly (recur-freq recur))
+                   (= (time-hour datetime) (time-hour start)))))
+     
+     (/debug
+      (aif (recur-byminute recur)
+           (find (time-minute datetime) it)
+           (implyp (freq< :minutely (recur-freq recur))
+                   (= (time-minute datetime) (time-minute start)))))
+     (/debug
+      (aif (recur-bysecond recur)
+           (find (time-second datetime) it)
+           (implyp (freq< :secondly (recur-freq recur))
+                   (= (time-second datetime) (time-second start)))))
+
+     (/debug
+      ;; TODO: Do it!
+      (aif (recur-bysetpos recur)
+           t
+           t)))))
 
 
 (defun recur-instance-p (start recur datetime)
