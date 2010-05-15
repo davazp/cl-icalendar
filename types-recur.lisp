@@ -165,8 +165,9 @@
                        (recur-interval recur))))
        (:weekly
           (/debug
-           (divisiblep (idiv (- (days-from-1900 datetime) (days-from-1900 start)) 7)
-                       (recur-interval recur))))
+           (and (divisiblep (- (days-from-1900 datetime) (days-from-1900 start)) 7)
+                (divisiblep (idiv (- (days-from-1900 datetime) (days-from-1900 start)) 7)
+                            (recur-interval recur)))))
        (:monthly
           )
        (:yearly
