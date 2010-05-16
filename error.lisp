@@ -1,7 +1,6 @@
-;;                                                               -*- Lisp -*-
-;; cl-icalendar.asd --
+;; error.lisp --- Error handling machinery
 ;;
-;; Copyright (C) 2010 David Vazquez
+;; Copyrigth (C) 2010 David Vázquez
 ;;
 ;; This file is part of cl-icalendar.
 ;;
@@ -17,23 +16,18 @@
 ;;
 ;; You should have received a copy of the GNU General Public License
 ;; along with cl-icalendar.  If not, see <http://www.gnu.org/licenses/>.
-;;
 
-(defsystem :cl-icalendar
-  :name "iCalendar library"
-  :license "GPLv3+"
-  :depends-on (:trivial-gray-streams :cl-base64)
-  :serial t
-  :components
-  ((:static-file "COPYING")
-   (:static-file "README")
-   (:file "package")
-   (:file "utils")
-   (:file "error")
-   (:file "types")
-   (:file "types-recur")
-   (:file "folding")
-   (:file "content-line")
-   (:file "cl-icalendar")))
+(in-package :cl-icalendar)
 
-;; cl-icalendar.asd ends here
+;;; It is signaled when if an error ocurred while parsing iCalendar
+;;; values, properties or components.
+(define-condition icalendar-parse-error (simple-error)
+  nil)
+
+;;; Signal an icalendar-parse-error condition.
+(defun parse-error (format &rest args)
+  (error 'icalendar-parse-error
+         :format-control format
+         :format-arguments args))
+
+;;; error.lisp ends here
