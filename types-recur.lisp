@@ -248,14 +248,14 @@
 (defun parse-rule-part (string)
   (let ((eqpos (position #\= string)))
     (when (null eqpos)
-      (error "Bad rule part ~a" string))
+      (parse-error "Bad rule part ~a" string))
     (cons (subseq string 0 eqpos)
           (subseq string (1+ eqpos)))))
 
 (defun parse-rules (string)
   (let ((parts (split-string string ";" nil)))
     (when (some #'null parts)
-      (error "Empty rule part in the recurrence '~a'." string))
+      (parse-error "Empty rule part in the recurrence '~a'." string))
     (mapcar #'parse-rule-part parts)))
 
 (defmethod parse-value (string (type (eql 'recur)) &rest params &key &allow-other-keys)
@@ -263,7 +263,7 @@
   (let ((rules (parse-rules string))
         (recur (make-instance 'recur)))
     (when (duplicatep rules :key #'car :test #'string=)
-      (error "Duplicate key in recurrence."))
+      (parse-error "Duplicate key in recurrence."))
     (flet ((parse-integer-list (x)
              (mapcar #'parse-integer (split-string x ",")))
            (parse-unsigned-integer-list (x)
@@ -284,7 +284,7 @@
                      ((string= value "MONTHLY")  :monthly)
                      ((string= value "YEARLY")   :yearly)
                      (t
-                      (error "'~a' is not a valid value for the FREQ rule." value)))))
+                      (parse-error "'~a' is not a valid value for the FREQ rule." value)))))
             
             ((string= key "UNTIL")
              ;; TODO: Implement this
@@ -340,7 +340,7 @@
                        ;; check-recur-consistency will signal error
                        value)))
             (t
-             (error "Unknown recurrence component ~a" key)))))
+             (parse-error "Unknown recurrence component ~a" key)))))
 
       ;; Return the recur instance
       (check-recur-consistency recur)
