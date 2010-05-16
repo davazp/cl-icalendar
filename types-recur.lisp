@@ -165,8 +165,14 @@
                        (recur-interval recur))))
        (:weekly
           (/debug
-           (divisiblep (idiv (- (days-from-1900 datetime) (days-from-1900 start)) 7)
-                       (recur-interval recur))))
+           (and
+            ;; FIXME: This first condition should not be checked
+            ;; here. When BYDAY rule is implemented, it will be check
+            ;; the condition if no byday is specified and the freq
+            ;; slot is weekly.
+            (divisiblep (- (days-from-1900 datetime) (days-from-1900 start)) 7)
+            (divisiblep (idiv (- (days-from-1900 datetime) (days-from-1900 start)) 7)
+                        (recur-interval recur)))))
        (:monthly
           )
        (:yearly
