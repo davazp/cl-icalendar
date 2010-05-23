@@ -126,7 +126,7 @@
              (character (char= ch char-bag))
              (sequence  (find ch char-bag :test #'char=))
              (function  (funcall char-bag ch))))
-         ;; Check if CH is not a expected char
+         ;; Check if CH is not an expected char
          (not-expect-char-p (ch)
            (etypecase not-expect
              (character (char= ch not-expect))
