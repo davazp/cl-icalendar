@@ -1,13 +1,13 @@
 
-cl-icalendar [DRAFT]
-============
+Common Lisp iCalendar Library [DRAFT]
+=============================
 
 cl-icalendar is a Common Lisp implementation of iCalendar according to
 the RFC5545 specification written in Common Lisp.
 
 cl-icalendar should work in any modern Common Lisp implementation
-which supports the Gray Streams extension. This library has been
-tested on:
+which supports the Gray Streams extension. Nevertheless, this library
+has been tested on:
 
   o SBCL [version]
   o Clisp [version]
@@ -19,5 +19,8 @@ The following libraries are required in order to use cl-icalendar:
 
   o cl-base64
     http://www.cliki.net/cl-base64
+
+  o uuid
+    http://www.cliki.net/uuid
 
 You can get all them using asdf-install.

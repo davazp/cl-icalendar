@@ -22,7 +22,7 @@
 (defsystem :cl-icalendar
   :name "iCalendar library"
   :license "GPLv3+"
-  :depends-on (:trivial-gray-streams :cl-base64)
+  :depends-on (:trivial-gray-streams :cl-base64 :uuid)
   :serial t
   :components
   ((:static-file "COPYING")
