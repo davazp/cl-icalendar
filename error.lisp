@@ -25,7 +25,7 @@
   nil)
 
 ;;; Signal an icalendar-parse-error condition.
-(defun parse-error (format &rest args)
+(defun %parse-error (format &rest args)
   (error 'icalendar-parse-error
          :format-control format
          :format-arguments args))

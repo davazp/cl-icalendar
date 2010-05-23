@@ -124,7 +124,7 @@
     ((string-ci= string "TRUE")  t)
     ((string-ci= string "FALSE") nil)
     (t
-     (parse-error "~a is not a boolean data type." string))))
+     (%parse-error "~a is not a boolean data type." string))))
 
 
 ;;;; Integer
@@ -166,7 +166,7 @@
       (let ((dot (read-char in nil)))
         (unless (null dot)
           (unless (char= dot #\.)
-            (parse-error "Bad formed float."))
+            (%parse-error "Bad formed float."))
 
           (let ((fstring (read-until in (complement #'digit-char-p) nil nil)))
             (setf y (/ (float (parse-integer fstring))
@@ -482,7 +482,7 @@
          (days (%duration-days dur))
          (secs (%duration-seconds dur)))
     (unless (zerop secs)
-      (parse-error "The duration ~a is not multiple of days" dur))
+      (%parse-error "The duration ~a is not multiple of days" dur))
     (make-instance 'date :days-from-1900 (+ (days-from-1900 date) days))))
 
 (defun date- (date durspec)
@@ -490,7 +490,7 @@
          (days (%duration-days dur))
          (secs (%duration-seconds dur)))
     (unless (zerop secs)
-      (parse-error "The duration ~a is not multiple of days" dur))
+      (%parse-error "The duration ~a is not multiple of days" dur))
     (make-instance 'date :days-from-1900 (- (days-from-1900 date) days))))
 
 (defmethod format-value ((date date) &rest params &key &allow-other-keys)
@@ -503,7 +503,7 @@
 (defmethod parse-value (string (type (eql 'date)) &rest params &key &allow-other-keys)
   (declare (ignore params))
   (unless (= (length string) 8)
-    (parse-error "parse error."))
+    (%parse-error "parse error."))
   (make-date (parse-unsigned-integer string :start 6 :end 8)
              (parse-unsigned-integer string :start 4 :end 6)
              (parse-unsigned-integer string :start 0 :end 4)))
@@ -561,7 +561,7 @@
          (sec (%duration-seconds dur)))
     (let ((tstamp (+ (timestamp time) sec)))
       (unless (zerop day)
-        (parse-error "The duration cannot specify a number of days"))
+        (%parse-error "The duration cannot specify a number of days"))
       (values (make-instance 'time :timestamp (mod tstamp 86400))
               (- (truncate tstamp 86400)
                  (if (< tstamp 0) 1 0))))))
@@ -572,7 +572,7 @@
          (sec (%duration-seconds dur)))
     (let ((tstamp (- (timestamp time) sec)))
       (unless (zerop day)
-        (parse-error "The duration cannot specify a number of days"))
+        (%parse-error "The duration cannot specify a number of days"))
       (values (make-instance 'time :timestamp (mod tstamp 86400))
               (- (truncate tstamp 86400)
                  (if (< tstamp 0) 1 0))))))
@@ -588,7 +588,7 @@
   (declare (ignore params))
   (unless (or (= (length string) 6)
               (= (length string) 7))
-    (parse-error "parse error."))
+    (%parse-error "parse error."))
   (make-time (parse-unsigned-integer string :start 0 :end 2)
              (parse-unsigned-integer string :start 2 :end 4)
              (parse-unsigned-integer string :start 4 :end 6)))
@@ -712,7 +712,7 @@
   (let ((string-date (subseq string 0  8))
         (string-time (subseq string 9 15)))
     (flet ((ill-formed ()
-             (parse-error "Bad datetime format.")))
+             (%parse-error "Bad datetime format.")))
       (unless (char= (elt string 8) #\T)
         (ill-formed))
       (let ((date (parse-value string-date 'date))
@@ -897,7 +897,7 @@
 
                  ;; Signal a ill-formed error
                  (ill-formed ()
-                   (parse-error "bad formed duration."))
+                   (%parse-error "bad formed duration."))
 
                  ;; Add a duration to other. It is consistent if both
                  ;; D1 and D2 are not backward durations.
