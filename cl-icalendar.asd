@@ -31,6 +31,7 @@
    (:file "utils")
    (:file "error")
    (:file "types")
+   (:file "types-duration")
    (:file "types-recur")
    (:file "folding")
    (:file "content-line")
