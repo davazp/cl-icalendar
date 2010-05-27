@@ -20,23 +20,8 @@
 
 (in-package :cl-icalendar)
 
-
-;;;; setf-based
+;;;; Misc macros
 
-(defmacro zerof (place)
-  `(setf ,place 0))
-
-;;; Set PLACE to nil.
-(defmacro nilf (place)
-  `(setf ,place nil))
-
-;;; (modf place N) set place to (mod place N)
-(define-modify-macro modf (n) mod)
-
-
-;;;; Loops
-
-;;; Execute CONDITION and CODE in order while CONDITION.
 (defmacro while (condition &body code)
   `(do ()
        ((not ,condition))
@@ -58,31 +43,6 @@
                 (setf ,tail (cdr ,tail))))
          ,@code)
        (cdr ,collected))))
-
-;; TODO: Enhanche this with a optional finally section, mantaning
-;; backward compatibility is not need
-(defun %do-sequence (function sequence &key (start 0) end)
-  (etypecase sequence
-    (list
-       (if (not end)
-           (loop for x in (nthcdr start sequence) do (funcall function x))
-           (loop for x in (nthcdr start sequence)
-                 for i from start below end
-                 do (funcall function x))))
-    (sequence
-       (loop for i from start below (or end (length sequence))
-             for x = (elt sequence i)
-             do (funcall function x)))))
-
-;;; Iterate for the elements of a sequence for side efects, from the
-;;; START position element until the END position element. If END is
-;;; omitted, then it iterates for all elements of sequence.
-(defmacro do-sequence ((var sequence &key (start 0) end) &body body)
-  (declare (symbol var))
-  `(%do-sequence (lambda (,var) ,@body)
-                 ,sequence
-                 :start ,start
-                 :end ,end))
 
 
 ;;;; Declarations and definitions facilities
@@ -129,6 +89,31 @@
 
 
 ;;;; Sequences
+
+;; TODO: Enhanche this with a optional finally section, mantaning
+;; backward compatibility is not need
+(defun %do-sequence (function sequence &key (start 0) end)
+  (etypecase sequence
+    (list
+       (if (not end)
+           (loop for x in (nthcdr start sequence) do (funcall function x))
+           (loop for x in (nthcdr start sequence)
+                 for i from start below end
+                 do (funcall function x))))
+    (sequence
+       (loop for i from start below (or end (length sequence))
+             for x = (elt sequence i)
+             do (funcall function x)))))
+
+;;; Iterate for the elements of a sequence for side efects, from the
+;;; START position element until the END position element. If END is
+;;; omitted, then it iterates for all elements of sequence.
+(defmacro do-sequence ((var sequence &key (start 0) end) &body body)
+  (declare (symbol var))
+  `(%do-sequence (lambda (,var) ,@body)
+                 ,sequence
+                 :start ,start
+                 :end ,end))
 
 ;;; Return a fresh copy subsequence of SEQ bound from 0 until the
 ;;; first element what verifies the FUNC predicate.
@@ -237,6 +222,20 @@
      (if it ,then ,else)))
 
 
+;;;; setf-based
+
+;;; Set PLACE to 0
+(defmacro zerof (place)
+  `(setf ,place 0))
+
+;;; Set PLACE to nil.
+(defmacro nilf (place)
+  `(setf ,place nil))
+
+;;; (modf place N) set place to (mod place N)
+(define-modify-macro modf (n) mod)
+
+
 ;;;; Others
 
 ;;; Like `parse-integer' but it is not allowed to have a sign (+\-).
@@ -279,5 +278,5 @@
   #-cl-icalendar-debug
   form)
 
-
+
 ;;; utils.lisp ends here
