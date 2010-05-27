@@ -239,9 +239,8 @@
 ;;;; Others
 
 ;;; Like `parse-integer' but it is not allowed to have a sign (+\-).
-(defun parse-unsigned-integer (string &rest keyargs &key &allow-other-keys)
-  (unless (or (zerop (length string))
-              (digit-char-p (elt string 0)))
+(defun parse-unsigned-integer (string &rest keyargs &key (start 0) end &allow-other-keys)
+  (unless (or (eql start end) (digit-char-p (elt string start)))
     (error "~w is not an unsigned integer." string))
   (apply #'parse-integer string keyargs))
 
