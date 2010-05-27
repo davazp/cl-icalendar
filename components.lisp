@@ -87,157 +87,103 @@
 
 
 (define-component vtodo ()
-  ((dtstamp
-    :required t
-    :type datetime)
-   (uid
-    :required t
-    :type text)
-   (class
-    :type text)
-   (completed
-    :type datetime)
-   (created
-    :type datetime)
-   (description
-    :type text)
-   (dtstart
-    :default-type datetime
-    :type (or datetime date))
-   (geo
-    :count 2
-    :type float)
-   (last-modified
-    :type datetime)
-   (location
-    :type text)
-   (organizer
-    :type cal-address)
-   (percent-complete
-    :type (integer 0 100))
-   (priority
-    :type (integer 0 9))
-   (recurrence-id
-    :default-type datetime
-    :type (or datetime date))
-   (sequence
-    :type (integer 0 *))
-   (status
-    :type text)
-   (summary
-    :type text)
-   (url
-    :type uri)
-   (rrule
-    :type recur)
-   (due
-    :default-type datetime
-    :type (or datetime date))
-   (duration
-    :type duration)
-   (attach
-    :default-type uri
-    :type binary)
-   (attendee
-    :type cal-address)
-   (categories
-    :type text)
-   (comment
-    :type text)
-   (contact
-    :type text)
-   (exdate
-    :default-type datetime
-    :type (or datetime date))
-   (request-status
-    :type text)
-   (related-to
-    :type text)
-   (resources
-    :type text
-    :count nil)
-   (rdate
-    :default-type datetime
-    :type (or datetime date period)))
+  ((dtstamp :required t :type datetime)
+   (uid     :required t :type text)
+   (class               :type text)
+   (completed           :type datetime)
+   (created             :type datetime)
+   (description         :type text)
+   (dtstart             :type (or datetime date) :default-type datetime )
+   (geo                 :type float :count 2 )
+   (last-modified       :type datetime)
+   (location            :type text)
+   (organizer           :type cal-address)
+   (percent-complete    :type (integer 0 100))
+   (priority            :type (integer 0 9))
+   (recurrence-id       :type (or datetime date) :default-type datetime)
+   (sequence            :type (integer 0 *))
+   (status              :type text)
+   (summary             :type text)
+   (url                 :type uri)
+   (rrule               :type recur)
+   (due                 :type (or datetime date) :default-type datetime)
+   (duration            :type duration)
+   (attach              :type binary :default-type uri)
+   (attendee            :type cal-address)
+   (categories          :type text)
+   (comment             :type text)
+   (contact             :type text)
+   (exdate              :type (or datetime date) :default-type datetime)
+   (request-status      :type text)
+   (related-to          :type text)
+   (resources           :type text :count nil)
+   (rdate               :type (or datetime date period) :default-type datetime))
   ;; Options
   (:subcomponents valarm))
 
 
 (define-component vevent ()
-  ((dtstamp
-    :required t
-    :type datetime)
-   (uid
-    :required t
-    :type text)
-   (class
-    :type text)
-   (completed
-    :type datetime)
-   (created
-    :type datetime)
-   (description
-    :type text)
-   (dtstart
-    :default-type datetime
-    :type (or datetime date))
-   (geo
-    :count 2
-    :type float)
-   (last-modified
-    :type datetime)
-   (location
-    :type text)
-   (organizer
-    :type cal-address)
-   (percent-complete
-    :type (integer 0 100))
-   (priority
-    :type (integer 0 9))
-   (recurrence-id
-    :default-type datetime
-    :type (or datetime date))
-   (sequence
-    :type (integer 0 *))
-   (status
-    :type text)
-   (summary
-    :type text)
-   (url
-    :type uri)
-   (rrule
-    :type recur)
-   (due
-    :default-type datetime
-    :type (or datetime date))
-   (duration
-    :type duration)
-   (attach
-    :default-type uri
-    :type binary)
-   (attendee
-    :type cal-address)
-   (categories
-    :type text)
-   (comment
-    :type text)
-   (contact
-    :type text)
-   (exdate
-    :default-type datetime
-    :type (or datetime date))
-   (request-status
-    :type text)
-   (related-to
-    :type text)
-   (resources
-    :type text
-    :count nil)
-   (rdate
-    :default-type datetime
-    :type (or datetime date period)))
+  ((dtstamp :required t :type datetime)
+   (uid     :required t :type text)
+   ;; FIXME: This property is required if iCalendar METHOD one is not
+   ;; specified.
+   (dtstart :required t :type datetime)
+   (class               :type text)
+   (created             :type datetime)
+   (description         :type text)
+   (geo                 :type float :count 2 )
+   (last-modified       :type datetime)
+   (location            :type text)
+   (organizer           :type cal-address)
+   (priority            :type (integer 0 9))
+   (sequence            :type (integer 0 *))
+   (status              :type text)
+   (summary             :type text)
+   (transp              :type (member "OPAQUE" "TRANSPARENT") :default "OPAQUE")
+   (url                 :type uri)
+   (recurrence-id       :type (or datetime date) :default-type datetime)
+   (rrule               :type recur)
+   (dtend               :type (or datetime date) :default-type datetime)
+   (duration            :type duration)
+   (attach              :type binary :default-type uri)
+   (attendee            :type cal-address)
+   (categories          :type text)
+   (comment             :type text)
+   (contact             :type text)
+   (exdate              :type (or datetime date) :default-type datetime)
+   (request-status      :type text)
+   (related-to          :type text)
+   (resources           :type text :count nil)
+   (rdate               :type (or datetime date period) :default-type datetime))
   ;; Options
   (:subcomponents valarm))
+
+
+;;;; Timezone component
+
+(define-component standard ()
+  ((dtstart      :required t :type datetime)
+   (tzoffsetto   :required t :type utc-offset)
+   (tzoffsetfrom :required t :type utc-offset)
+   (rrule   :type recur)
+   (comment :type string)
+   (rdate   :type (or datetime date period) :default-type datetime)
+   (tzname  :type string)))
+
+(define-component daylight ()
+  ((dtstart      :required t :type datetime)
+   (tzoffsetto   :required t :type utc-offset)
+   (tzoffsetfrom :required t :type utc-offset)
+   (rrule   :type recur)
+   (comment :type string)
+   (rdate   :type (or datetime date period) :default-type datetime)
+   (tzname  :type string)))
+
+(define-component vtimezone ()
+  ((tzid :required t :type text)
+   (last-modified :type datetime)
+   (tzurl :type uri))
+  (:subcomponents standard daylight))
 
 
 ;;; components.ends here
