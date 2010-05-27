@@ -32,6 +32,13 @@
     ;; A (satisfies x-typep) be placed here soon.
     ))
 
+;;; Like `check-type' but it signals an error with %parse-error.
+(defmacro check-ical-type (place type)
+  (with-gensyms (vplace)
+    `(let ((,vplace ,place))
+       (unless (typep ,vplace ',type)
+         (%parse-error "The ~a is not a ~a type." ',place ',type)))))
+
 ;;; This file contains code which implements the values that iCalendar
 ;;; properties can take. We provide a data type specifier,
 ;;; constructor, accessors, and utilities functions for each one of
@@ -767,6 +774,68 @@
                    (if (char= (char end 0) #\P)
                        (datetime+ dstart (parse-value end 'duration))
                        (parse-value end 'datetime))))))
+
+
+
+;;;; UTC-Offset
+
+(defclass utc-offset ()
+  ((offset
+    :initform (required-arg)
+    :initarg :offset
+    :reader %utc-offset)))
+
+(define-predicate-type utc-offset utc-offset-p)
+
+(defgeneric utc-offset-hour (utc-offset)
+  (:method ((x utc-offset))
+    (abs (idiv (%utc-offset x) 3600))))
+
+(defgeneric utc-offset-minute (utc-offset)
+  (:method ((x utc-offset))
+    (mod (idiv (%utc-offset x) 60) 60)))
+
+(defgeneric utc-offset-second (utc-offset)
+  (:method ((x utc-offset))
+    (mod (%utc-offset x) 60)))
+
+(defgeneric utc-offset-negative-p (utc-offset)
+  (:method ((x utc-offset))
+    (< (%utc-offset x) 0)))
+
+(defmethod print-object ((x utc-offset) stream)
+  (print-unreadable-object (x stream :type t)
+    (write-string (format-value x) stream)))
+
+(defmethod format-value ((x utc-offset) &rest params &key &allow-other-keys)
+  (declare (ignore params))
+  (format nil "~:[+~;-~]~2,'0d~2,'0d~@[~2,'0d~]"
+          (utc-offset-negative-p x)
+          (utc-offset-hour x)
+          (utc-offset-minute x)
+          (let ((seconds (utc-offset-second x)))
+            (if (zerop seconds) nil seconds))))
+
+(defmethod parse-value (string (type (eql 'utc-offset)) &rest params &key &allow-other-keys)
+  (declare (ignore params))
+  (let* ((sign (elt string 0))
+         (hour (parse-unsigned-integer string :start 1 :end 3))
+         (minute (parse-unsigned-integer string :start 3 :end 5))
+         (second))
+    (ecase (length string)
+      (5 (setf second 0))
+      (7 (setf second (parse-unsigned-integer string :start 5 :end 7))))
+    (cond
+      ((string= sign "+")
+       (check-ical-type hour (integer 0 59))
+       (make-instance 'utc-offset :offset (+ (* 3600 hour) (* 60 minute) second)))
+      ((string= sign "-")
+       (let ((value (- (+ (* 3600 hour) (* 60 minute) second))))
+         (if (zerop value)
+             (%parse-error "-0000 or -000000 are not valid utc-offset data type.")
+             (make-instance 'utc-offset :offset value))))
+      (t
+       (%parse-error "Bad sign.")))))
 
 
 ;;; types.lisp ends here
