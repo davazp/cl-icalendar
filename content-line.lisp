@@ -18,14 +18,16 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with cl-icalendar.  If not, see <http://www.gnu.org/licenses/>.
 
-;;; TODO: Support for write content lines.
-
 (in-package :cl-icalendar)
 
 (defstruct content-line
   name
   params
   value)
+
+(defmethod print-object ((object content-line) stream)
+  (print-unreadable-object (object stream :type t)
+    (write-string (write-content-line-to-string object) stream)))
 
 (defun read-params-value (stream)
   (if (char= (peek-char nil stream) #\")
@@ -57,5 +59,20 @@
 (defun read-content-line-from-string (string)
   (with-input-from-string (in string)
     (read-content-line in)))
+
+(defun write-content-line (content-line stream)
+  (declare (content-line content-line) (stream stream))
+  (format stream "~a~{;~a=~{~a~}~}:~a~%" 
+          (content-line-name content-line)
+          (with-collecting
+            (dolist (entry (content-line-params content-line))
+              (collect (car entry))
+              (collect (cdr entry))))
+          (content-line-value content-line)))
+
+(defun write-content-line-to-string (content-line)
+  (string-right-trim (list #\newline)
+                     (with-output-to-string (out)
+                       (write-content-line content-line out))))
 
 ;; content-line.lisp ends here
