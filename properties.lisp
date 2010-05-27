@@ -33,7 +33,7 @@
     :initform nil
     :reader property-definition-x-property-p)
    (type
-    :initform t
+    :initform (required-arg)
     :initarg :type
     :reader property-definition-type)
    (default-type
