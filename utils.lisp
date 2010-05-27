@@ -20,20 +20,8 @@
 
 (in-package :cl-icalendar)
 
-;;; Anaphoric IF.
-(defmacro aif (condition then &optional else)
-  `(let ((it ,condition))
-     (if it ,then ,else)))
+;;;; Misc macros
 
-;;; Set PLACE to zero.
-(defmacro zerof (place)
-  `(setf ,place 0))
-
-;;; Set PLACE to nil.
-(defmacro nilf (place)
-  `(setf ,place nil))
-
-;;; Execute CONDITION and CODE in order while CONDITION.
 (defmacro while (condition &body code)
   `(do ()
        ((not ,condition))
@@ -55,6 +43,52 @@
                 (setf ,tail (cdr ,tail))))
          ,@code)
        (cdr ,collected))))
+
+
+;;;; Declarations and definitions facilities
+
+;;; Like `defun' but declare the function as inline.
+(defmacro definline (name args &body body)
+  `(progn
+     (declaim (inline ,name))
+     (defun ,name ,args ,@body)))
+
+;;; Define a variable-arity transitive predicate from a body which
+;;; define a transtivie relation of arity 2. The body is contained in
+;;; an implicit block.
+(defmacro define-transitive-relation (name (arg1 arg2) &body body)
+  (with-gensyms (argsvar)
+    `(defun ,name (&rest ,argsvar)
+       (loop for (,arg1 ,arg2) on ,argsvar
+             while ,arg2
+             always
+             (block nil
+               ((lambda () ,@body)))))))
+
+;;; Define a predicate named NAME in order to check if the type of an
+;;; object is TYPE. If NAME is omitted, NAMEP is used.
+(defmacro define-predicate-type (type &optional name)
+  (declare (type (or symbol null) name))
+  (let ((fname (or name (intern (format nil "~aP" type)))))
+    `(defun ,fname (x)
+       (typep x ',type))))
+
+;;; Mark a function as deprecated. When FUNCTION is called, it signals
+;;; a simple warning. If REPLACEMENT is given, it will recommend to
+;;; use REPLACEMENT indeed.
+;;; 
+;;; FUNCTION and REPLACEMENT are symbols.
+(defmacro deprecate-function (function &body ignore &key replacement)
+  (declare (ignore ignore))
+  (declare (symbol function replacement))
+  `(define-compiler-macro ,function (&whole form &rest args)
+     (declare (ignore args))
+     (warn "Function ~a is deprecated. ~@[Use ~a indeed.~]"
+           ',function ',replacement)
+     form))
+
+
+;;;; Sequences
 
 ;; TODO: Enhanche this with a optional finally section, mantaning
 ;; backward compatibility is not need
@@ -81,18 +115,6 @@
                  :start ,start
                  :end ,end))
 
-;;; Define a variable-arity transitive predicate from a body which
-;;; define a transtivie relation of arity 2. The body is contained in
-;;; an implicit block.
-(defmacro define-transitive-relation (name (arg1 arg2) &body body)
-  (with-gensyms (argsvar)
-    `(defun ,name (&rest ,argsvar)
-       (loop for (,arg1 ,arg2) on ,argsvar
-             while ,arg2
-             always
-             (block nil
-               ((lambda () ,@body)))))))
-
 ;;; Return a fresh copy subsequence of SEQ bound from 0 until the
 ;;; first element what verifies the FUNC predicate.
 (defun strip-if (func seq &rest rest &key &allow-other-keys)
@@ -116,6 +138,40 @@
       (return-from some* t)))
   nil)
 
+(defun split-string (string &optional (separators " ") (omit-nulls t))
+  (declare (type string string))
+  (flet ((separator-p (char)
+           (etypecase separators
+             (character (char= char separators))
+             (sequence  (find char separators))
+             (function  (funcall separators char)))))
+    (loop for start = 0 then (1+ end)
+          for end = (position-if #'separator-p string :start start)
+          as seq = (subseq string start end)
+          unless (and omit-nulls (string= seq ""))
+            collect seq
+          while end)))
+
+;;; Concatenate the list of STRINGS.
+(defun join-strings (strings &optional (separator #\space))
+  (if (null strings)
+      (make-string 0)
+      (reduce (lambda (s1 s2)
+                (concatenate 'string s1 (string separator) s2))
+              strings)))
+
+;;; Check if there is duplicated elements in LIST. KEY functions are
+;;; applied to elements previosly. The elements are compared by TEST
+;;; function.
+(defun duplicatep (list &key (test #'eql) (key #'identity))
+  (and (loop for x on list
+             for a = (funcall key (car x))
+             for b = (cdr x)
+             thereis (find a b :key key :test test))
+       t))
+
+
+;;;; Streams
 ;;; Read characters from STREAM until it finds a char of CHAR-BAG. If
 ;;; it finds a NON-EXPECT character, it signals an error. If an end of
 ;;; file condition is signaled and EOF-ERROR-P is nil, return nil.
@@ -141,62 +197,8 @@
               do (error "Character ~w is not expected." ch)
             do (write-char (read-char stream) out)))))
 
-;;; Like `defun' but declare the function as inline.
-(defmacro definline (name args &body body)
-  `(progn
-     (declaim (inline ,name))
-     (defun ,name ,args ,@body)))
-
-(defun split-string (string &optional (separators " ") (omit-nulls t))
-  (declare (type string string))
-  (flet ((separator-p (char)
-           (etypecase separators
-             (character (char= char separators))
-             (sequence  (find char separators))
-             (function  (funcall separators char)))))
-    (loop for start = 0 then (1+ end)
-          for end = (position-if #'separator-p string :start start)
-          as seq = (subseq string start end)
-          unless (and omit-nulls (string= seq ""))
-            collect seq
-          while end)))
-
-;;; Concatenate the list of STRINGS.
-(defun join-strings (strings &optional (separator #\space))
-  (if (null strings)
-      (make-string 0)
-      (reduce (lambda (s1 s2)
-                (concatenate 'string s1 (string separator) s2))
-              strings)))
-
-;;; Like `parse-integer' but it is not allowed to have a sign (+\-).
-(defun parse-unsigned-integer (string &rest keyargs &key &allow-other-keys)
-  (unless (or (zerop (length string))
-              (digit-char-p (elt string 0)))
-    (error "~w is not an unsigned integer." string))
-  (apply #'parse-integer string keyargs))
-
-
-;;; Integer division
-(definline idiv (a b)
-  (declare (integer a b)
-           (optimize speed))
-  (values (truncate a b)))
-
-;;; Check if N divides to M.
-(definline divisiblep (m n)
-  (declare (integer m n))
-  (zerop (mod m n)))
-
-;;; Check if there is duplicated elements in LIST. KEY functions are
-;;; applied to elements previosly. The elements are compared by TEST
-;;; function.
-(defun duplicatep (list &key (test #'eql) (key #'identity))
-  (and (loop for x on list
-             for a = (funcall key (car x))
-             for b = (cdr x)
-             thereis (find a b :key key :test test))
-       t))
+
+;;;; Comparators
 
 ;;; Like `char=' but it is case-insensitive.
 (defun char-ci= (char1 char2)
@@ -210,46 +212,55 @@
   (and (= (length str1) (length str2))
        (every #'char-ci= str1 str2)))
 
-;;; Define a predicate named NAME in order to check if the type of an
-;;; object is TYPE. If NAME is omitted, NAMEP is used.
-(defmacro define-predicate-type (type &optional name)
-  (declare (type (or symbol null) name))
-  (let ((fname (or name (intern (format nil "~aP" type)))))
-    `(defun ,fname (x)
-       (typep x ',type))))
-
-;;; (modf place N) set place to (mod place N)
-(define-modify-macro modf (n) mod)
-
-;;; This function is thought to use this function as default-value in
-;;; optional or keyword arguments.
-(defun required-arg ()
-  (error "A required &KEY or &OPTIONAL argument was not supplied."))
-
 ;;; Check if X and Y are not eq.
 (definline neq (x y)
   (not (eq x y)))
 
-;;; Mark a function as deprecated. When FUNCTION is called, it signals
-;;; a simple warning. If REPLACEMENT is given, it will recommend to
-;;; use REPLACEMENT indeed.
-;;; 
-;;; FUNCTION and REPLACEMENT are symbols.
-(defmacro deprecate-function (function &body ignore &key replacement)
-  (declare (ignore ignore))
-  (declare (symbol function replacement))
-  `(define-compiler-macro ,function (&whole form &rest args)
-     (declare (ignore args))
-     (warn "Function ~a is deprecated. ~@[Use ~a indeed.~]"
-           ',function ',replacement)
-     form))
+;;; Anaphoric IF.
+(defmacro aif (condition then &optional else)
+  `(let ((it ,condition))
+     (if it ,then ,else)))
 
-;;; Read from a stream and write the content to other one.
-(defun copy-stream (from to &key (element-type t))
-  (let ((buffer (make-array 1024 :element-type element-type)))
-    (loop for nbytes = (read-sequence buffer from)
-          until (zerop nbytes)
-          do (write-sequence buffer to :end nbytes))))
+
+;;;; setf-based
+
+;;; Set PLACE to 0
+(defmacro zerof (place)
+  `(setf ,place 0))
+
+;;; Set PLACE to nil.
+(defmacro nilf (place)
+  `(setf ,place nil))
+
+;;; (modf place N) set place to (mod place N)
+(define-modify-macro modf (n) mod)
+
+
+;;;; Others
+
+;;; Like `parse-integer' but it is not allowed to have a sign (+\-).
+(defun parse-unsigned-integer (string &rest keyargs &key &allow-other-keys)
+  (unless (or (zerop (length string))
+              (digit-char-p (elt string 0)))
+    (error "~w is not an unsigned integer." string))
+  (apply #'parse-integer string keyargs))
+
+;;; Integer division
+(definline idiv (a b)
+  (declare (integer a b)
+           (optimize speed))
+  (values (truncate a b)))
+
+;;; Check if N divides to M.
+(definline divisiblep (m n)
+  (declare (integer m n))
+  (zerop (mod m n)))
+
+;;; Set PLACE to zero.
+;;; This function is thought to use this function as default-value in
+;;; optional or keyword arguments.
+(defun required-arg ()
+  (error "A required &KEY or &OPTIONAL argument was not supplied."))
 
 ;;; Like `(format t ...)', useful for debugging.
 (defmacro /debug (form)
@@ -266,5 +277,6 @@
          ,value)))
   #-cl-icalendar-debug
   form)
+
 
 ;;; utils.lisp ends here
