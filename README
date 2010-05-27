@@ -23,7 +23,4 @@ The following libraries are required in order to use cl-icalendar:
   o uuid
     http://www.cliki.net/uuid
 
-  o closer-mop
-    http://www.cliki.net/closer-mop
-
 You can get all them using asdf-install.
