@@ -287,8 +287,11 @@
                       (%parse-error "'~a' is not a valid value for the FREQ rule." value)))))
             
             ((string= key "UNTIL")
-             ;; TODO: Implement this
-             )
+             (setf (slot-value recur 'until)
+                   (handler-case
+                       (parse-value value 'datetime)
+                     (icalendar-parse-error ()
+                       (parse-value value 'date)))))
             
             ((string= key "COUNT")
              (setf (slot-value recur 'count)
