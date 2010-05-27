@@ -717,10 +717,12 @@
   (declare (ignore params))
   ;; TODO: Handling timezones
   (flet ((ill-formed () (%parse-error "Bad datetime format.")))
-    (when (/= (length string) 15)
+    ;; We want to signal an iCalendar error indeed of delegate to
+    ;; subseq, which will emit an arbitrary error.
+    (when (< (length string) 9)
       (ill-formed))
     (let ((string-date (subseq string 0  8))
-          (string-time (subseq string 9 15)))
+          (string-time (subseq string 9)))
       (unless (char= (elt string 8) #\T)
         (ill-formed))
       (let ((date (parse-value string-date 'date))
