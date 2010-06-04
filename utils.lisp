@@ -44,6 +44,33 @@
          ,@code)
        (cdr ,collected))))
 
+;;; Iteration form is based in Scheme named-let. It bounds NAME to a
+;;; local function which ARG arguments and body CODE. ARGS is like an
+;;; ordinary lambda form, but the required arguments are specified as
+;;; a two-list, where the first element is the variable name and the
+;;; second is the initial value.
+(defmacro iteration (name args &body code)
+  (let* ((required-args-count
+          ;; Number of required arguments
+          (loop for keyword in lambda-list-keywords
+                for pos = (position keyword args)
+                when pos
+                minimizing pos into aux
+                finally (return (if (null pos) (length args) aux))))
+         ;; List of required arguments
+         (required-args (subseq args 0 required-args-count))
+         ;; List of optional arguments
+         (non-required  (nthcdr required-args-count args)))
+    ;; Check extended lambda form is well formed.
+    (dolist (arg required-args)
+      (unless (= (length arg) 2)
+        (error "Iterate form ill-formed.")))
+    (let* ((required-args-names (mapcar #'first required-args))
+           (initial-arg-values (mapcar #'second required-args))
+           (function-lambda (append required-args-names non-required)))
+      `(labels ((,name ,function-lambda
+                  (block nil ,@code)))
+         (,name ,@initial-arg-values)))))
 
 ;;;; Declarations and definitions facilities
 
@@ -170,6 +197,21 @@
              thereis (find a b :key key :test test))
        t))
 
+;;; Return the list of elements which appear in preorder in a tree. If
+;;; LIMIT is non-nil, it is a non-negative integer which specify the
+;;; deepest level in the tree. Otherwise, it falls until atom
+;;; elements.
+(defun flatten (tree &optional limit)
+  (declare (list tree) (type (or unsigned-byte null) limit))
+  (iteration looping ((x tree) (k limit))
+    (cond
+      ((null x) '())
+      ((atom x) (list x))
+      ((consp x)
+       (if (and limit (zerop k))
+           x
+           (append (looping (car x) (and limit (1- k)))
+                   (looping (cdr x) k)))))))
 
 ;;;; Streams
 ;;; Read characters from STREAM until it finds a char of CHAR-BAG. If

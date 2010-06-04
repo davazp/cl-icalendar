@@ -258,6 +258,15 @@
       (%parse-error "Empty rule part in the recurrence '~a'." string))
     (mapcar #'parse-rule-part parts)))
 
+(defvar *weekday-table*
+  '(("MO" . :monday)
+    ("TU" . :tuesday)
+    ("WE" . :wednesday)
+    ("TH" . :thursday)
+    ("FR" . :friday)
+    ("SA" . :saturday)
+    ("SU" . :sunday)))
+
 (defmethod parse-value (string (type (eql 'recur)) &rest params &key &allow-other-keys)
   (declare (ignore params))
   (let ((rules (parse-rules string))
@@ -315,7 +324,15 @@
             
             ((string= key "BYDAY")
              (setf (slot-value recur 'byday)
-                   (parse-unsigned-integer-list value)))
+                   (with-collecting 
+                     (dolist (value (split-string value ","))
+                       (multiple-value-bind (n end)
+                           (parse-integer value :junk-allowed t)
+                         (let* ((n (or n 1))
+                                (str (subseq value end)))
+                           (aif (assoc str *weekday-table* :test #'string=)
+                                (collect (list n (cdr it)))
+                                (%parse-error "~a is not a weekday." str))))))))
 
             ((string= key "BYMONTH")
              (setf (slot-value recur 'bymonth)
@@ -366,7 +383,12 @@
     (format s "~@[;BYSECOND=~{~A~^, ~}~]"   (recur-bysecond recur))
     (format s "~@[;BYMINUTE=~{~A~^, ~}~]"   (recur-byminute recur))
     (format s "~@[;BYHOUR=~{~A~^, ~}~]"     (recur-byhour recur))
-    (format s "~@[;BYDAY=~{~A~^, ~}~]"      (recur-byday recur))
+    (format s "~@[;BYDAY=~{~[~;~:;~:*~d~]~a~}~]"
+            (with-collecting
+              (dolist (day (recur-byday recur))
+                (destructuring-bind (n wday) day
+                  (collect n)
+                  (collect (car (rassoc wday *weekday-table*)))))))
     (format s "~@[;BYMONTH=~{~A~^, ~}~]"    (recur-bymonth recur))
     (format s "~@[;BYMONTHDAY=~{~A~^, ~}~]" (recur-bymonthday recur))
     (format s "~@[;BYYEARDAY=~{~A~^, ~}~]"  (recur-byyearday recur))
