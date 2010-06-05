@@ -70,6 +70,16 @@
     :initarg :allow-x-parameter-p
     :reader property-definition-allow-x-parameters-p)))
 
+(defmethod initialize-instance :after
+    ((prop property-definition) &rest initargs &key &allow-other-keys)
+  (declare (ignore initargs))
+  ;; Signal an error if the value of the :type property option is not
+  ;; a subtype of ical-value.
+  (unless (subtypep (property-definition-type prop) 'ical-value)
+    (error "The type of the property ~a is not a subtype of ~a."
+           (property-definition-name prop)
+           'ical-value)))
+
 (defmethod print-object ((object property-definition) stream)
   (print-unreadable-object (object stream :type t)
     (princ (property-definition-name object) stream)))
