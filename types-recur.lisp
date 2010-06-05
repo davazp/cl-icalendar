@@ -29,73 +29,94 @@
 ;;; outcoming bound recur data type is a strict subset of the unbound
 ;;; recur.
 
+(deftype non-zero-integer (a b)
+  `(and (integer ,a ,b) (not (integer 0 0))))
+
+(deftype recur-frequence ()
+  '(member :secondly :minutely :hourly :daily :weekly :monthly :yearly))
+
+(deftype recur-weekday ()
+  '(member :monday :tuesday :wednesday :thursday :friday :saturday :sunday))
+
 (defclass recur ()
   ((freq
     :initarg :freq
+    :type recur-frequence
     :initform nil
     :reader recur-freq)
    (until
     :initarg :until
+    :type (or null datetime date)
     :initform nil
     :reader recur-until)
    (count
     :initarg :count
+    :type (or null unsigned-byte)
     :initform nil
     :reader recur-count)
    (interval
     :initarg :interval
+    :type (integer 1 *)
     :initform 1
     :reader recur-interval)
    (bysecond
     :initarg :bysecond
+    :type list
     :initform nil
     :reader recur-bysecond)
    (byminute
     :initarg :byminute
+    :type list
     :initform nil
     :reader recur-byminute)
    (byhour
     :initarg :byhour
+    :type list
     :initform nil
     :reader recur-byhour)
    (byday
     :initarg :byday
+    :type list
     :initform nil
     :reader recur-byday)
    (bymonthday
     :initarg :bymonthday
+    :type list
     :initform nil
     :reader recur-bymonthday)
    (byyearday
     :initarg :byyearday
+    :type list
     :initform nil
     :reader recur-byyearday)
    (byweekno
     :initarg :byweekno
+    :type list
     :initform nil
     :reader recur-byweekno)
    (bymonth
     :initarg :bymonth
+    :type list
     :initform nil
     :reader recur-bymonth)
    (bysetpos
     :initarg :bysetpos
+    :type list
     :initform nil
     :reader recur-bysetpos)
    (wkst
     :initarg :wkst
-    :initform 0
+    :type recur-weekday
+    :initform :monday
     :reader recur-wkst)))
 
 ;;; The predicate function in order to check if an arbitrary object is
 ;;; a recurrence value.
 (define-predicate-type recur)
 
-(deftype non-zero-integer (a b)
-  `(and (integer ,a ,b) (not (integer 0 0))))
-
-(deftype recur-frequence ()
-  '(member :secondly :minutely :hourly :daily :weekly :monthly :yearly))
+(defmethod print-object (obj stream)
+  (print-unreadable-object (obj stream :type t)
+    (write-string (format-value obj) stream)))
 
 (defun check-recur-consistency (recur)
   (with-slots (freq until count interval
@@ -114,7 +135,7 @@
       (and until    (check-type until    (or date datetime)))
       (and count    (check-type count    (integer 0 *)))
       (and interval (check-type interval (integer 0 *)))
-      (and wkst     (check-type wkst     (integer 0 6)))
+      (check-type wkst recur-weekday)
       ;; Check list slots
       (check-type-list bysecond   (integer 0 60))
       (check-type-list byminute   (integer 0 59))
@@ -130,7 +151,6 @@
 (defun recur-instances nil t)
 (defun %unbound-recur-next-instance nil t)
 (defun %unbound-recur-initial-instance nil t)
-
 
 (defun freq< (x y)
   (declare (recur-frequence x y))
@@ -234,13 +254,10 @@
            t
            t)))))
 
-
 (defun recur-instance-p (start recur datetime)
   ;; TODO: COUNT and UNTIL support here.
   (and (datetime<= start datetime)
        (%unbound-recur-instance-p start recur datetime)))
-
-
 
 
 ;;; Parsing and formating
@@ -267,33 +284,34 @@
     ("SA" . :saturday)
     ("SU" . :sunday)))
 
+(defvar *frequency-table*
+  '(("SECONDLY" . :secondly)
+    ("MINUTELY" . :minutely)
+    ("HOURLY"   . :hourly)
+    ("DAILY"    . :daily)
+    ("WEEKLY"   . :weekly)
+    ("MONTHLY"  . :monthly)
+    ("YEARLY"   . :yearly)))
+
 (defmethod parse-value (string (type (eql 'recur)) &rest params &key &allow-other-keys)
   (declare (ignore params))
   (let ((rules (parse-rules string))
-        (recur (make-instance 'recur)))
+        (recur (make-instance 'recur :freq :daily)))
     (when (duplicatep rules :key #'car :test #'string=)
       (%parse-error "Duplicate key in recurrence."))
     (flet ((parse-integer-list (x)
              (mapcar #'parse-integer (split-string x ",")))
            (parse-unsigned-integer-list (x)
              (mapcar #'parse-unsigned-integer (split-string x ","))))
-      
+
       (dolist (rule rules)
         (destructuring-bind (key . value)
             rule
           (cond
             ((string= key "FREQ")
              (setf (slot-value recur 'freq)
-                   (cond
-                     ((string= value "SECONDLY") :secondly)
-                     ((string= value "MINUTELY") :minutely)
-                     ((string= value "HOURLY")   :hourly)
-                     ((string= value "DAILY")    :daily)
-                     ((string= value "WEEKLY")   :weekly)
-                     ((string= value "MONTHLY")  :monthly)
-                     ((string= value "YEARLY")   :yearly)
-                     (t
-                      (%parse-error "'~a' is not a valid value for the FREQ rule." value)))))
+                   (or (cdr (assoc value *frequency-table* :test #'string=))
+                       (%parse-error "'~a' is not a valid value for the FREQ rule." value))))
             
             ((string= key "UNTIL")
              (setf (slot-value recur 'until)
@@ -356,9 +374,7 @@
             
             ((string= key "WKST")
              (setf (slot-value recur 'wkst)
-                   (or (position value #("MO" "TU" "WE" "TH" "FR" "SA" "SU") :test #'string=)
-                       ;; check-recur-consistency will signal error
-                       value)))
+                   (cdr (assoc value *weekday-table* :test #'string=))))
             (t
              (%parse-error "Unknown recurrence component ~a" key)))))
 
@@ -366,18 +382,13 @@
       (check-recur-consistency recur)
       recur)))
 
+
 (defmethod format-value ((recur recur) &rest params &key &allow-other-keys)
   (declare (ignore params))
   (with-output-to-string (s)
-    (format s "FREQ=~a"
-            (case (recur-freq recur)
-              (:secondly "SECONDLY")
-              (:minutely "MINUTELY")
-              (:hourly "HOURLY")
-              (:daily "DAILY")
-              (:monthly "MONTHLY")
-              (:yearly "YEARLY")))
+    (format s "FREQ=~a" (car (rassoc (recur-freq recur) *frequency-table*)))
     ;; Print optional recur slots.
+    (format s "~[~;~;~:;;INTERVAL=~:*~d~]"  (recur-interval recur))
     (format s "~@[;COUNT=~a~]"              (recur-count recur))
     (format s "~@[;UNTIL=~a~]"              (recur-until recur))
     (format s "~@[;BYSECOND=~{~A~^, ~}~]"   (recur-bysecond recur))
@@ -393,7 +404,9 @@
     (format s "~@[;BYMONTHDAY=~{~A~^, ~}~]" (recur-bymonthday recur))
     (format s "~@[;BYYEARDAY=~{~A~^, ~}~]"  (recur-byyearday recur))
     (format s "~@[;BYWEEKNO=~{~A~^, ~}~]"   (recur-byweekno recur))
-    (format s "~@[;BYSETPOS=~{~A~^, ~}~]"   (recur-bysetpos recur))))
+    (format s "~@[;BYSETPOS=~{~A~^, ~}~]"   (recur-bysetpos recur))
+    (format s "~[~:;~:*;WKST=~a~]"
+            (car (rassoc (recur-wkst recur) *weekday-table*)))))
 
 
 ;;; types-recur.lisp ends here
