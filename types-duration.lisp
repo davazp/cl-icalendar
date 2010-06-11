@@ -66,7 +66,8 @@
 
 (defgeneric duration-backward-p (duration)
   (:method ((x duration))
-    (< (%duration-seconds x) 0)))
+    (or (< (%duration-seconds x) 0)
+        (< (%duration-days    x) 0))))
 
 (defmethod duration-days ((x string))
   (duration-days (duration x)))
