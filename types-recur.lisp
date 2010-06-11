@@ -22,27 +22,33 @@
 
 (in-package :cl-icalendar)
 
-;;; The recur data type value is documented in the section 3.3.10,
-;;; named `Recurrence Rule' of RFC5545. Note a recur object has an
-;;; associated unbound recur object, i.e, a recur without count and
-;;; until slots. If count or until rule is specified, then the
-;;; outcoming bound recur data type is a strict subset of the unbound
-;;; recur.
-
 (deftype non-zero-integer (a b)
   `(and (integer ,a ,b) (not (integer 0 0))))
 
 (deftype recur-frequence ()
   '(member :secondly :minutely :hourly :daily :weekly :monthly :yearly))
 
-(deftype recur-weekday ()
-  '(member :monday :tuesday :wednesday :thursday :friday :saturday :sunday))
+;;; Alist of frequency strings and values.
+(defvar *frequency-table*
+  '(("SECONDLY" . :secondly)
+    ("MINUTELY" . :minutely)
+    ("HOURLY"   . :hourly)
+    ("DAILY"    . :daily)
+    ("WEEKLY"   . :weekly)
+    ("MONTHLY"  . :monthly)
+    ("YEARLY"   . :yearly)))
 
+;;; The recur data type value is documented in the section 3.3.10,
+;;; named `Recurrence Rule' of RFC5545. Note a recur object has an
+;;; associated unbound recur object, i.e, a recur without count and
+;;; until slots. If count or until rule is specified, then the
+;;; outcoming bound recur data type is a strict subset of the unbound
+;;; recur.
 (defclass recur ()
   ((freq
     :initarg :freq
     :type recur-frequence
-    :initform nil
+    :initform (required-arg)
     :reader recur-freq)
    (until
     :initarg :until
@@ -74,6 +80,9 @@
     :type list
     :initform nil
     :reader recur-byhour)
+   ;; Earch element of byday list is a pair (wday . n), where wday is
+   ;; an integer 0-6 (0 is monday), and n is the optional prefix in
+   ;; the byday rule.
    (byday
     :initarg :byday
     :type list
@@ -106,7 +115,7 @@
     :reader recur-bysetpos)
    (wkst
     :initarg :wkst
-    :type recur-weekday
+    :type weekday
     :initform :monday
     :reader recur-wkst)))
 
@@ -114,10 +123,16 @@
 ;;; a recurrence value.
 (define-predicate-type recur)
 
-(defmethod print-object (obj stream)
+;; ;;; Useful for debugging
+(defmethod print-object ((obj recur) stream)
   (print-unreadable-object (obj stream :type t)
     (write-string (format-value obj) stream)))
 
+;;; Check the consistency of RECUR. This funcions makes sure the type
+;;; of slots in the recur instance are valid. This is not redundand
+;;; with :type slots options. The slot types are checked when a recur
+;;; is instantiated, while check-recur-consistency is called after
+;;; parsing. Indeed, check-recur-consistency is more intensive.
 (defun check-recur-consistency (recur)
   (with-slots (freq until count interval
                     bysecond byminute byhour
@@ -130,139 +145,192 @@
                  `(dolist (i ,list)
                     (check-type i ,type))))
       (check-type freq recur-frequence)
-      (assert (or (not until) (not count)))
+      (unless (or (not until) (not count))
+        (%parse-error "You cannot specify both UNTIL and COUNT recur rules."))
       ;; Check optional slots
       (and until    (check-type until    (or date datetime)))
       (and count    (check-type count    (integer 0 *)))
       (and interval (check-type interval (integer 0 *)))
-      (check-type wkst recur-weekday)
+      (check-type wkst weekday)
       ;; Check list slots
+      (unless (or (eq freq :monthly)
+                  (eq freq :yearly))
+        (dolist (bydayrule byday)
+          (when (cdr bydayrule)
+            (%parse-error "prefix weekday specified in a no weekly or monthly recur."))))
       (check-type-list bysecond   (integer 0 60))
       (check-type-list byminute   (integer 0 59))
       (check-type-list byhour     (integer 0 23))
       (check-type-list bymonthday (non-zero-integer  -31  31))
       (check-type-list byyearday  (non-zero-integer -366 366))
-      (check-type-list byweekno   (non-zero-integer   -7   7))
+      (check-type-list byweekno   (non-zero-integer  -53  53))
       (check-type-list bymonth    (integer 0 12))
       (check-type-list bysetpos   (non-zero-integer -366 366)))))
 
 
-;; TODO: Implementation pending
-(defun recur-instances nil t)
-(defun %unbound-recur-next-instance nil t)
-(defun %unbound-recur-initial-instance nil t)
-
+;;; Check if the frequence X is lesser than the Y one.
 (defun freq< (x y)
   (declare (recur-frequence x y))
   (let ((freqs #(:secondly :minutely :hourly :daily :weekly :monthly :yearly)))
     (< (position x freqs)
        (position y freqs))))
 
+(defun seconds-between (dt1 dt2)
+  (- (seconds-from-1900 dt2)
+     (seconds-from-1900 dt1)))
+
+(defun minutes-between (dt1 dt2)
+  (idiv (seconds-between dt1 dt2) 60))
+
+(defun hours-between (dt1 dt2)
+  (idiv (seconds-between dt1 dt2) 3600))
+
+(defun days-between (dt1 dt2)
+  (- (day-from-1900 dt2)
+     (day-from-1900 dt1)))
+
+(defun weeks-between (dt1 dt2)
+  (idiv (days-between dt1 dt2) 7))
+
+(defun months-between (dt1 dt2)
+  (let ((years (- (date-year dt2) (date-year dt1))))
+    (+ (* 12 years)
+       (- (date-month dt2) (date-month dt1)))))
+
+(defun years-between (dt1 dt2)
+  (- (date-year dt2) (date-year dt1)))
+
 ;; Check if DATETIME is a valid ocurrence in the RECUR unbound
 ;; recurrence rule beginning at START datetime.
 (defun %unbound-recur-instance-p (start recur datetime)
-  (macrolet ((implyp (condition implication)
-               `(aif ,condition ,implication t)))
-    (and
-     ;; DATETIME is a instance of RECUR if and only if all the
-     ;; following conditions are satisfied.
-     (case (recur-freq recur)
-       (:secondly
-          (/debug
-           (divisiblep (- (seconds-from-1900 datetime) (seconds-from-1900 start))
-                       (recur-interval recur))))
-       (:minutely
-          (/debug
-           (divisiblep (idiv (- (seconds-from-1900 datetime) (seconds-from-1900 start)) 60)
-                       (recur-interval recur))))
-       (:hourly
-          (/debug
-           (divisiblep (idiv (- (seconds-from-1900 datetime) (seconds-from-1900 start)) 3600)
-                       (recur-interval recur))))
-       (:daily
-          (/debug
-           (divisiblep (- (days-from-1900 datetime) (days-from-1900 start))
-                       (recur-interval recur))))
-       (:weekly
-          (/debug
-           (and
-            ;; FIXME: This first condition should not be checked
-            ;; here. When BYDAY rule is implemented, it will be check
-            ;; the condition if no byday is specified and the freq
-            ;; slot is weekly.
-            (divisiblep (- (days-from-1900 datetime) (days-from-1900 start)) 7)
-            (divisiblep (idiv (- (days-from-1900 datetime) (days-from-1900 start)) 7)
-                        (recur-interval recur)))))
-       (:monthly
-          )
-       (:yearly
-          (/debug
-           (divisiblep (- (date-year datetime) (date-year start))
-                       (recur-interval recur)))))
+  (with-slots (freq until count interval bysecond byminute byhour
+                    byday bymonthday byyearday byweekno bymonth
+                    bysetposwkst wkst bysetpos)
+      recur
+    (macrolet ((implyp (condition implication)
+                 `(aif ,condition ,implication t)))
+      (and
+       ;; DATETIME is an instance of RECUR if and only if all the
+       ;; following conditions are satisfied.
+       (ecase freq
+         (:secondly (divisiblep (seconds-between start datetime) interval))
+         (:minutely (divisiblep (minutes-between start datetime) interval))
+         (:hourly   (divisiblep (hours-between   start datetime) interval))
+         (:daily    (divisiblep (days-between    start datetime) interval))
+         (:weekly   (divisiblep (weeks-between   start datetime) interval))
+         (:monthly  (divisiblep (months-between  start datetime) interval))
+         (:yearly   (divisiblep (years-between   start datetime) interval)))
 
-     (/debug
-      (aif (recur-bymonth recur)
-           (find (date-month datetime) it)
-           (implyp (freq< :monthly (recur-freq recur))
-                   (= (date-month datetime) (date-month start)))))
-     (/debug
-      (implyp (recur-byweekno recur)
-              ;; TODO: Implement suport for negative weeks
-              (find (date-week-of-year datetime (recur-wkst recur)) it)))
-     (/debug
-      (implyp (recur-byyearday recur)
-              (let ((negative-doy (- (if (leap-year-p (date-year datetime))
-                                         366
-                                         365)
-                                     (date-day-of-year datetime)
-                                     1)))
-                (or (find (date-day-of-year datetime) it)
-                    (find negative-doy it)))))
-     (/debug
-      (implyp (recur-bymonthday recur)
-              (let* ((month-days (if (leap-year-p (date-year datetime))
-                                     *days-in-month-leap-year*
-                                     *days-in-month*))
-                     (negative-dom (- (elt month-days (date-day datetime))
-                                      (date-day datetime)
-                                      1)))
-                (or (find (date-day datetime) it)
-                    (find negative-dom it)))))
-     (/debug
-      ;; Implement (recur-byday)
-      t)
-     (/debug
-      (aif (recur-byhour recur)
-           (find (time-hour datetime) it)
-           (implyp (freq< :hourly (recur-freq recur))
-                   (= (time-hour datetime) (time-hour start)))))
-     
-     (/debug
-      (aif (recur-byminute recur)
-           (find (time-minute datetime) it)
-           (implyp (freq< :minutely (recur-freq recur))
-                   (= (time-minute datetime) (time-minute start)))))
-     (/debug
-      (aif (recur-bysecond recur)
-           (find (time-second datetime) it)
-           (implyp (freq< :secondly (recur-freq recur))
-                   (= (time-second datetime) (time-second start)))))
+       (/debug
+        (aif bymonth
+             (find (date-month datetime) it)
+             (implyp (freq< :monthly freq)
+                     (= (date-month datetime) (date-month start)))))
+       (/debug
+        (implyp byweekno
+                ;; TODO: Implement suport for negative weeks
+                (find (date-week-of-year datetime wkst) it)))
+       (/debug
+        (implyp byyearday
+                (find (date-day-of-year datetime) it
+                      :key (lambda (n)
+                             (if (leap-year-p (date-year datetime))
+                                 (mod n 366)
+                                 (mod n 365))))))
+       (/debug
+        (cond
+          ((null bymonthday)
+           (implyp (and (not byday) (freq< :weekly freq))
+                   (= (date-day start) (date-day datetime))))
+          (t
+           (find (date-day datetime) bymonthday
+                 :key (lambda (n)
+                        (let ((month-days
+                               (if (leap-year-p (date-year datetime))
+                                   #(0 31 29 31 30 31 30 31 31 30 31 30 31)
+                                   #(0 31 28 31 30 31 30 31 31 30 31 30 31))))
+                          (mod n (elt month-days (date-month datetime)))))))))
+       (cond
+         ((null byday)
+          (implyp (eq freq :weekly)
+                  (= (nth-value 1 (date-day-of-week datetime))
+                     (nth-value 1 (date-day-of-week start)))))
+         (t
+          (let ((byday-1
+                 ;; Elements of the byday list which match with
+                 ;; the day of the week of the recur.
+                 (remove (date-day-of-week datetime)
+                         byday
+                         :test (complement #'eql)
+                         :key #'car)))
+            (cond
+              ((null byday-1) nil)
+              ((some #'null (mapcar #'cdr byday-1)))
+              (t
+               (assert (member freq '(:monthly :yearly)))
+               (let* ((first-day
+                       ;; The first day of month or the year, according
+                       ;; to which the offset is considered. See
+                       ;; RFC5545 for futher information.
+                       (if (or (eq freq :monthly)
+                               (null byweekno))
+                           (make-date 1 (date-month datetime) (date-year datetime))
+                           (make-date 1 1 (date-year datetime))))
+                      ;; Number of weeks from first-day.
+                      (weeks (weeks-between first-day datetime)))
+                 (find (1+ weeks) byday-1 :key #'cdr)))))))
 
-     (/debug
-      ;; TODO: Do it!
-      (aif (recur-bysetpos recur)
-           t
-           t)))))
+       (/debug
+        (aif byhour
+             (find (time-hour datetime) it)
+             (implyp (freq< :hourly freq)
+                     (= (time-hour datetime) (time-hour start)))))
+       (/debug
+        (aif byminute
+             (find (time-minute datetime) it)
+             (implyp (freq< :minutely freq)
+                     (= (time-minute datetime) (time-minute start)))))
+       (/debug
+        (aif bysecond
+             (find (time-second datetime) it)
+             (implyp (freq< :secondly freq)
+                     (= (time-second datetime) (time-second start)))))
+
+       (/debug
+        ;; TODO: Do it!
+        (aif bysetpos
+             t
+             t))
+
+       ;; If above all conditions satisfied, then return t
+       t))))
 
 (defun recur-instance-p (start recur datetime)
-  ;; TODO: COUNT and UNTIL support here.
-  (and (datetime<= start datetime)
-       (%unbound-recur-instance-p start recur datetime)))
+  (cond
+    ((recur-count recur)
+     ;; TODO: COUNT support here.
+     )
+    ((recur-until recur)
+     (and (datetime<= start datetime)
+          (datetime<= datetime (recur-until recur))))
+    (t
+     (%unbound-recur-instance-p start recur datetime))))
 
 
 ;;; Parsing and formating
 
+(defun parse-byday-value (string)
+  (multiple-value-bind (n end)
+      (parse-integer string :junk-allowed t)
+    (if (and (null n) (< 0 end))
+        (%parse-error "~a is not a weekday." string)
+        (let* ((str (subseq string end)))
+          (aif (position str #("MO" "TU" "WE" "TH" "FR" "SA" "SU") :test #'string=)
+               (cons (1+ it) n)
+               (%parse-error "~a is not a weekday." str))))))
+
 (defun parse-rule-part (string)
+  (declare (string string))
   (let ((eqpos (position #\= string)))
     (when (null eqpos)
       (%parse-error "Bad rule part ~a" string))
@@ -270,30 +338,14 @@
           (subseq string (1+ eqpos)))))
 
 (defun parse-rules (string)
+  (declare (string string))
   (let ((parts (split-string string ";" nil)))
     (when (some #'null parts)
       (%parse-error "Empty rule part in the recurrence '~a'." string))
     (mapcar #'parse-rule-part parts)))
 
-(defvar *weekday-table*
-  '(("MO" . :monday)
-    ("TU" . :tuesday)
-    ("WE" . :wednesday)
-    ("TH" . :thursday)
-    ("FR" . :friday)
-    ("SA" . :saturday)
-    ("SU" . :sunday)))
-
-(defvar *frequency-table*
-  '(("SECONDLY" . :secondly)
-    ("MINUTELY" . :minutely)
-    ("HOURLY"   . :hourly)
-    ("DAILY"    . :daily)
-    ("WEEKLY"   . :weekly)
-    ("MONTHLY"  . :monthly)
-    ("YEARLY"   . :yearly)))
-
 (defmethod parse-value (string (type (eql 'recur)) &rest params &key &allow-other-keys)
+  (declare (string string))
   (declare (ignore params))
   (let ((rules (parse-rules string))
         (recur (make-instance 'recur :freq :daily)))
@@ -342,15 +394,7 @@
             
             ((string= key "BYDAY")
              (setf (slot-value recur 'byday)
-                   (with-collecting 
-                     (dolist (value (split-string value ","))
-                       (multiple-value-bind (n end)
-                           (parse-integer value :junk-allowed t)
-                         (let* ((n (or n 1))
-                                (str (subseq value end)))
-                           (aif (assoc str *weekday-table* :test #'string=)
-                                (collect (list n (cdr it)))
-                                (%parse-error "~a is not a weekday." str))))))))
+                   (mapcar #'parse-byday-value (split-string value ","))))
 
             ((string= key "BYMONTH")
              (setf (slot-value recur 'bymonth)
@@ -365,7 +409,7 @@
                    (parse-integer-list value)))
             
             ((string= key "BYWEEKNO")
-             (setf (slot-value recur 'byyearday)
+             (setf (slot-value recur 'byweekno)
                    (parse-integer-list value)))
             
             ((string= key "BYSETPOS")
@@ -374,7 +418,10 @@
             
             ((string= key "WKST")
              (setf (slot-value recur 'wkst)
-                   (cdr (assoc value *weekday-table* :test #'string=))))
+                   (let ((nday (position value *weekday-names* :test #'string-ci=)))
+                     (when (null nday)
+                       (%parse-error "~a is not a weekday." value))
+                     (elt *weekday* nday))))
             (t
              (%parse-error "Unknown recurrence component ~a" key)))))
 
@@ -394,19 +441,19 @@
     (format s "~@[;BYSECOND=~{~A~^, ~}~]"   (recur-bysecond recur))
     (format s "~@[;BYMINUTE=~{~A~^, ~}~]"   (recur-byminute recur))
     (format s "~@[;BYHOUR=~{~A~^, ~}~]"     (recur-byhour recur))
-    (format s "~@[;BYDAY=~{~[~;~:;~:*~d~]~a~}~]"
+    (format s "~@[;BYDAY=~{~@[~d~]~a~}~]"
             (with-collecting
               (dolist (day (recur-byday recur))
-                (destructuring-bind (n wday) day
+                (destructuring-bind (wday . n) day
                   (collect n)
-                  (collect (car (rassoc wday *weekday-table*)))))))
+                  (collect (elt *weekday-names* (1- wday)))))))
     (format s "~@[;BYMONTH=~{~A~^, ~}~]"    (recur-bymonth recur))
     (format s "~@[;BYMONTHDAY=~{~A~^, ~}~]" (recur-bymonthday recur))
     (format s "~@[;BYYEARDAY=~{~A~^, ~}~]"  (recur-byyearday recur))
     (format s "~@[;BYWEEKNO=~{~A~^, ~}~]"   (recur-byweekno recur))
     (format s "~@[;BYSETPOS=~{~A~^, ~}~]"   (recur-bysetpos recur))
-    (format s "~[~:;~:*;WKST=~a~]"
-            (car (rassoc (recur-wkst recur) *weekday-table*)))))
+    (unless (eq (recur-wkst recur) :monday)
+      (let ((nwkst (position (recur-wkst recur) *weekday*)))
+        (format s ";WKST=~a" (elt *weekday-names* nwkst))))))
 
-
 ;;; types-recur.lisp ends here
