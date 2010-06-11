@@ -23,6 +23,12 @@
 
 (in-package :cl-icalendar)
 
+;;; This file contains code which implements the values that iCalendar
+;;; properties can take. We provide a data type specifier,
+;;; constructor, accessors, and utilities functions for each one of
+;;; them. Indeed, we provide 3 common functions in order to turn these
+;;; objects to strings and vice versa.
+
 (deftype ical-value ()
   '(or
     boolean integer float text binary
@@ -39,12 +45,7 @@
        (unless (typep ,vplace ',type)
          (%parse-error "The ~a is not a ~a type." ',place ',type)))))
 
-;;; This file contains code which implements the values that iCalendar
-;;; properties can take. We provide a data type specifier,
-;;; constructor, accessors, and utilities functions for each one of
-;;; them. Indeed, we provide 3 common functions in order to turn these
-;;; objects to strings and vice versa.
-
+;;; Generic functions
 (defgeneric format-value (value &rest params &key &allow-other-keys))
 (defgeneric format-values (values &rest params &key &allow-other-keys))
 (defgeneric parse-value (string type &rest params &key &allow-other-keys))
@@ -72,16 +73,16 @@
   (declare (ignore string params))
   (ecase encoding
     (:base64
-       (base64:string-to-base64-string (call-next-method)))
+     (base64:string-to-base64-string (call-next-method)))
     (:8bit
-       (call-next-method))))
+     (call-next-method))))
 
 (defmethod parse-value :around (string type &rest params &key (encoding :8bit) &allow-other-keys)
   (ecase encoding
     (:base64
-       (apply #'call-next-method (base64:base64-string-to-string string) type params))
+     (apply #'call-next-method (base64:base64-string-to-string string) type params))
     (:8bit
-       (call-next-method))))
+     (call-next-method))))
 
 
 ;;; Multiple-value versions
@@ -107,10 +108,9 @@
           while end)))
 
 (defmethod format-values (objects &rest params &key &allow-other-keys)
-  (join-strings (mapcar (lambda (x)
-                          (apply #'format-value x params))
-                        objects)
-                #\,))
+  (flet ((format-value* (x)
+           (apply #'format-value x params)))
+    (join-strings (mapcar #'format-value* objects) #\,)))
 
 
 ;;;; Boolean
@@ -160,10 +160,10 @@
       ;; Read sign
       (case (peek-char nil in)
         (#\+
-           (read-char in))
+         (read-char in))
         (#\-
-           (setf sign -1)
-           (read-char in)))
+         (setf sign -1)
+         (read-char in)))
 
       ;; Read integer part
       (let ((istring (read-until in (complement #'digit-char-p) nil nil)))
@@ -329,411 +329,6 @@
                              (#\n #\newline)))
                  out))))))
 
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; Time data types ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-;;; Date
-
-(deftype day   () '(integer 1 31))
-(deftype month () '(integer 1 12))
-(deftype year  () '(integer 1900))
-
-(defclass date ()
-  ((days-from-1900
-    :initarg :days-from-1900
-    :reader days-from-1900)))
-
-(define-predicate-type date)
-
-(defmethod print-object ((x date) stream)
-  (print-unreadable-object (x stream :type t)
-    (format stream "~2,'0d-~2,'0d-~4,'0d"
-            (date-day x)
-            (date-month x)
-            (date-year x))))
-
-;;; Part of the following code is based in the file time.lisp of the
-;;; SBCL system.
-(defvar *days-in-month*
-  '(0 31 28 31 30 31 30 31 31 30 31 30 31))
-
-(defvar *days-in-month-leap-year*
-  '(0 31 29 31 30 31 30 31 31 30 31 30 31))
-
-(defvar *days-before-month*
-  #.(let ((reversed-result nil)
-          (sum 0))
-      (push 0 reversed-result)
-      (dolist (days-in-month '(31 28 31 30 31 30 31 31 30 31 30 31))
-        (push sum reversed-result)
-        (incf sum days-in-month))
-      (coerce (nreverse reversed-result) 'simple-vector)))
-
-(defvar *days-before-month-leap-year*
-  #.(let ((reversed-result nil)
-          (sum 0))
-      (push 0 reversed-result)
-      (dolist (days-in-month '(31 29 31 30 31 30 31 31 30 31 30 31))
-        (push sum reversed-result)
-        (incf sum days-in-month))
-      (coerce (nreverse reversed-result) 'simple-vector)))
-
-
-(defun leap-years-before (year)
-  (declare (year year))
-  (let ((years (- year 1901)))
-    (+ (- (truncate years 4)
-          (truncate years 100))
-       (truncate (+ years 300) 400))))
-
-(defun leap-years-between (start end)
-  (- (leap-years-before end)
-     (leap-years-before start)))
-
-(defun leap-year-p (year)
-  (declare (year year))
-  (and (divisiblep year 4)
-       (or (not (divisiblep year 100))
-           (divisiblep year 400))))
-
-(defun make-date (day month year)
-  (declare (day day) (month month) (year year))
-  (let ((stamp
-         (+ (* 365 (- year 1900))
-            (if (> month 2)
-                (leap-years-before (1+ year))
-                (leap-years-before year))
-            (elt *days-before-month* month)
-            (1- day))))
-    (make-instance 'date :days-from-1900 stamp)))
-
-(defun make-date-offset-year (year day)
-  (declare (year year))
-  (make-instance 'date :days-from-1900 (+ (* 365 (- year 1900))
-                                     (leap-years-before year)
-                                     day)))
-
-
-;;; Accessors
-
-(defgeneric date-year (x)
-  (:method ((x date))
-    (let ((stamp (days-from-1900 x)))
-      (loop for t1 from (truncate stamp 365) downto 0
-            for t2 = (+ (* 365 t1) (leap-years-before (+ 1900 t1)))
-            for t3 = (- stamp t2)
-            while (< t3 0)
-            finally (return (values (+ 1900 t1) t3))))))
-
-(defgeneric date-month (x)
-  (:method ((x date))
-    (multiple-value-bind (year rem)
-        (date-year x)
-      (let* ((accumulative-days
-              (if (leap-year-p year)
-                  *days-before-month-leap-year*
-                  *days-before-month*)))
-        ;; Find the last month whose accumulative days is smaller than
-        ;; the remaining of the year.
-        (loop for i from (1- (length accumulative-days)) downto 0
-              as t1 = (elt accumulative-days i)
-              as t2 = (- rem t1)
-              while (< t2 0)
-              finally (return (values i t2)))))))
-
-(defgeneric date-day (x)
-  (:method ((x date))
-    (multiple-value-bind (ign rem)
-        (date-month x)
-      (declare (ignore ign))
-      (1+ rem))))
-
-;; Begins in 0 for Monday
-(defgeneric date-day-of-week (x)
-  (:method ((x date))
-    (mod (days-from-1900 x) 7)))
-
-;;; Begins in 0
-(defgeneric date-day-of-year (x)
-  (:method ((x date))
-    (- (days-from-1900 x)
-       (days-from-1900 (make-date 1 1 (date-year x))))))
-
-;;; Return the number of week in year.
-;;; FIXME: Use symbols for dayweek indeed of 0-6 integers.
-;;; (= wkst 0) => :monday
-(defgeneric date-week-of-year (dt &optional wkst)
-  (:method (dt &optional (wkst 0))
-    (declare (type (integer 0 6) wkst))
-    (let ((1th (make-date 1 1 (date-year dt))))
-      (- (idiv (- (days-from-1900  dt) wkst) 7)
-         (idiv (- (days-from-1900 1th) wkst) 7)))))
-
-(define-transitive-relation date= (x y)
-  (= (days-from-1900 x) (days-from-1900 y)))
-
-(define-transitive-relation date< (x y)
-  (< (days-from-1900 x) (days-from-1900 y)))
-
-(define-transitive-relation date<= (x y)
-  (<= (days-from-1900 x) (days-from-1900 y)))
-
-(define-transitive-relation date> (x y)
-  (> (days-from-1900 x) (days-from-1900 y)))
-
-(define-transitive-relation date>= (x y)
-  (>= (days-from-1900 x) (days-from-1900 y)))
-
-(defun date+ (date durspec)
-  (let* ((dur (duration durspec))
-         (days (%duration-days dur))
-         (secs (%duration-seconds dur)))
-    (unless (zerop secs)
-      (%parse-error "The duration ~a is not multiple of days" dur))
-    (make-instance 'date :days-from-1900 (+ (days-from-1900 date) days))))
-
-(defun date- (date durspec)
-  (let* ((dur (duration durspec))
-         (days (%duration-days dur))
-         (secs (%duration-seconds dur)))
-    (unless (zerop secs)
-      (%parse-error "The duration ~a is not multiple of days" dur))
-    (make-instance 'date :days-from-1900 (- (days-from-1900 date) days))))
-
-(defmethod format-value ((date date) &rest params &key &allow-other-keys)
-  (declare (ignore params))
-  (format nil "~4,'0d~2,'0d~2,'0d"
-          (date-year date)
-          (date-month date)
-          (date-day date)))
-
-(defmethod parse-value (string (type (eql 'date)) &rest params &key &allow-other-keys)
-  (declare (ignore params))
-  (unless (= (length string) 8)
-    (%parse-error "parse error."))
-  (make-date (parse-unsigned-integer string :start 6 :end 8)
-             (parse-unsigned-integer string :start 4 :end 6)
-             (parse-unsigned-integer string :start 0 :end 4)))
-
-
-;;; Time
-
-(defclass time ()
-  ((timestamp
-    :initarg :timestamp
-    :reader timestamp)))
-
-(defun make-time (hour minute second)
-  (make-instance 'time :timestamp (+ (* hour 3600) (* minute 60) second)))
-
-(define-predicate-type time)
-
-(defmethod print-object ((x time) stream)
-  (print-unreadable-object (x stream :type t)
-    (format stream "~2,'0d:~2,'0d:~2,'0d"
-            (time-hour   x)
-            (time-minute x)
-            (time-second x))))
-
-(defgeneric time-hour (x)
-  (:method ((x time))
-    (truncate (timestamp x) 3600)))
-
-(defgeneric time-minute (x)
-  (:method ((x time))
-    (mod (truncate (timestamp x) 60) 60)))
-
-(defgeneric time-second (x)
-  (:method ((x time))
-    (mod (timestamp x) 60)))
-
-(define-transitive-relation time= (x y)
-  (= (timestamp x) (timestamp y)))
-
-(define-transitive-relation time< (x y)
-  (< (timestamp x) (timestamp y)))
-
-(define-transitive-relation time<= (x y)
-  (<= (timestamp x) (timestamp y)))
-
-(define-transitive-relation time> (x y)
-  (> (timestamp x) (timestamp y)))
-
-(define-transitive-relation time>= (x y)
-  (>= (timestamp x) (timestamp y)))
-
-(defun time+ (time durspec)
-  (let* ((dur (duration durspec))
-         (day (%duration-days dur))
-         (sec (%duration-seconds dur)))
-    (let ((tstamp (+ (timestamp time) sec)))
-      (unless (zerop day)
-        (%parse-error "The duration cannot specify a number of days"))
-      (values (make-instance 'time :timestamp (mod tstamp 86400))
-              (- (truncate tstamp 86400)
-                 (if (< tstamp 0) 1 0))))))
-
-(defun time- (time durspec)
-  (let* ((dur (duration durspec))
-         (day (%duration-days dur))
-         (sec (%duration-seconds dur)))
-    (let ((tstamp (- (timestamp time) sec)))
-      (unless (zerop day)
-        (%parse-error "The duration cannot specify a number of days"))
-      (values (make-instance 'time :timestamp (mod tstamp 86400))
-              (- (truncate tstamp 86400)
-                 (if (< tstamp 0) 1 0))))))
-
-(defmethod format-value ((time time) &rest params &key &allow-other-keys)
-  (declare (ignore params))
-  (format nil "~2,'0d~2,'0d~2,'0d"
-          (time-hour   time)
-          (time-minute time)
-          (time-second time)))
-
-(defmethod parse-value (string (type (eql 'time)) &rest params &key &allow-other-keys)
-  (declare (ignore params))
-  (unless (or (= (length string) 6)
-              (= (length string) 7))
-    (%parse-error "parse error."))
-  (make-time (parse-unsigned-integer string :start 0 :end 2)
-             (parse-unsigned-integer string :start 2 :end 4)
-             (parse-unsigned-integer string :start 4 :end 6)))
-
-
-;;;; Datetime
-
-(deftype date-time () 'datetime)
-
-(defclass datetime ()
-  ((datetimestamp
-    :initarg :datetimestamp
-    :accessor datetimestamp
-    :reader datetimestamp
-    :reader seconds-from-1900)))
-
-(define-predicate-type datetime)
-
-;;; TODO: The TZONE argument will be implemented when the module
-;;; components is ready.
-(defun make-datetime (day month year hour minute second &optional tzone)
-  (declare (ignore tzone))
-  (make-instance 'datetime
-                 :datetimestamp (encode-universal-time second minute hour day month year)))
-
-(defmethod print-object ((x datetime) stream)
-  (print-unreadable-object (x stream :type t)
-    (format stream "~2,'0d-~2,'0d-~4,'0d ~2,'0d:~2,'0d:~2,'0d"
-            (date-day x)
-            (date-month x)
-            (date-year x)
-            (time-hour x)
-            (time-minute x)
-            (time-second x))))
-
-(defmethod date-day ((x datetime))
-  (nth-value 3 (decode-universal-time (datetimestamp x))))
-
-(defmethod date-day-of-week ((x datetime))
-  (nth-value 6 (decode-universal-time (datetimestamp x))))
-
-(defmethod date-month ((x datetime))
-  (nth-value 4 (decode-universal-time (datetimestamp x))))
-
-(defmethod date-year ((x datetime))
-  (nth-value 5 (decode-universal-time (datetimestamp x))))
-
-(defmethod time-hour ((x datetime))
-  (nth-value 2 (decode-universal-time (datetimestamp x))))
-
-(defmethod time-minute ((x datetime))
-  (nth-value 1 (decode-universal-time (datetimestamp x))))
-
-(defmethod time-second ((x datetime))
-  (nth-value 0 (decode-universal-time (datetimestamp x))))
-
-(defmethod days-from-1900 ((x datetime))
-  (days-from-1900 (make-date (date-day x) (date-month x) (date-year x))))
-
-;;; Relational functions
-
-(define-transitive-relation datetime= (x y)
-  (= (datetimestamp x) (datetimestamp y)))
-
-(define-transitive-relation datetime< (x y)
-  (< (datetimestamp x) (datetimestamp y)))
-
-(define-transitive-relation datetime<= (x y)
-  (<= (datetimestamp x) (datetimestamp y)))
-
-(define-transitive-relation datetime> (x y)
-  (> (datetimestamp x) (datetimestamp y)))
-
-(define-transitive-relation datetime>= (x y)
-  (>= (datetimestamp x) (datetimestamp y)))
-
-;; Compositional functions
-
-;; Assume hour = 60 min = 3600 s
-(defun datetime+ (datetime durspec)
-  (let* ((%year (date-year datetime))
-         (month (date-month datetime))
-         (%day-offset (+ (if (leap-year-p %year)
-                             (elt *days-before-month-leap-year* month)
-                             (elt *days-before-month* month))
-                         (1- (date-day datetime))))
-         (%second-offset (+ (* 60 (time-minute datetime))
-                            (* 3600 (time-hour datetime)))))
-    (multiple-value-bind (time overflow-days)
-        (time+ (make-instance 'time :timestamp %second-offset)
-               (make-instance 'duration :seconds (%duration-seconds durspec)))
-      (setf %second-offset (timestamp time))
-      (incf %day-offset overflow-days)
-      (let ((date (make-date-offset-year %year (+ %day-offset (%duration-days durspec)))))
-        (make-datetime (date-day date)
-                       (date-month date)
-                       (date-year date)
-                       (time-hour time)
-                       (time-minute time)
-                       (time-second time))))))
-
-(defun datetime- (datetime durspec)
-  (datetime+ datetime (duration-inverse durspec)))
-
-;;; Parser
-
-(defmethod format-value ((dt datetime) &rest params &key &allow-other-keys)
-  (declare (ignore params))
-  (format nil
-          "~4,'0d~2,'0d~2,'0dT~2,'0d~2,'0d~2,'0d"
-          (date-year dt)
-          (date-month dt)
-          (date-day dt)
-          (time-hour dt)
-          (time-minute dt)
-          (time-second dt)))
-
-(defmethod parse-value (string (type (eql 'datetime)) &rest params &key &allow-other-keys)
-  (declare (ignore params))
-  ;; TODO: Handling timezones
-  (flet ((ill-formed () (%parse-error "Bad datetime format.")))
-    ;; We want to signal an iCalendar error indeed of delegate to
-    ;; subseq, which will emit an arbitrary error.
-    (when (< (length string) 9)
-      (ill-formed))
-    (let ((string-date (subseq string 0  8))
-          (string-time (subseq string 9)))
-      (unless (char= (elt string 8) #\T)
-        (ill-formed))
-      (let ((date (parse-value string-date 'date))
-            (time (parse-value string-time 'time)))
-        (make-datetime (date-day    date)
-                       (date-month  date)
-                       (date-year   date)
-                       (time-hour   time)
-                       (time-minute time)
-                       (time-second time))))))
-
 ;;;; Period
 
 (defclass period ()
@@ -753,8 +348,8 @@
   (:method ((x period))
     ;; FIXME: Use days component of duration if possible.
     (make-duration
-     :seconds (- (datetimestamp (period-start x))
-                 (datetimestamp (period-end x))))))
+     :seconds (- (seconds-from-1900 (period-start x))
+                 (seconds-from-1900 (period-end x))))))
 
 (defmethod format-value ((p period) &rest params &key &allow-other-keys)
   (declare (ignore params))
@@ -839,5 +434,17 @@
       (t
        (%parse-error "Bad sign.")))))
 
+
+;;;; Cal-address
+
+;;; TODO: Do ir!
+(defclass cal-address ()
+  nil)
+
+;;;; URI
+
+;;; TODO: Do it!
+(defclass uri ()
+  nil)
 
 ;;; types.lisp ends here

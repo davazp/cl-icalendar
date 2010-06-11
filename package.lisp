@@ -25,7 +25,7 @@
   (:shadow #:time)
   (:export #:make-folding-stream
            #:with-folding-stream
-           ;;;; Data types
+           ;; Data types
            #:format-value
            #:parse-value
            ;; Boolean
@@ -39,12 +39,6 @@
            ;; Datetime
            #:make-datetime
            #:datetimep
-           #:date-day
-           #:date-month
-           #:date-year
-           #:time-hour
-           #:time-minute
-           #:time-second
            #:datetime=
            #:datetime<
            #:datetime<=
@@ -62,6 +56,9 @@
            #:date>=
            #:date+
            #:date-
+           #:date-day-of-week
+           #:date-day-of-year
+           #:date-week-of-year
            ;; Time
            #:make-time
            #:timep
@@ -91,7 +88,7 @@
            #:write-binary-to-stream
            #:write-binary-to-file
            #:binary-length
-           ;;  Recur
+           ;; Recur
            #:recur
            #:recur-instance-p))
 

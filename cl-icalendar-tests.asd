@@ -32,6 +32,7 @@
              (:file "tsuite")
              (:static-file "test-types.001")
              (:file "test-types")
+             (:file "test-types-date")
              (:file "test-types-recur")))))
 
 ;; cl-icalendar.asd ends here
