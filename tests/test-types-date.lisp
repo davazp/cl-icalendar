@@ -54,6 +54,9 @@
   (is (= (date-week-of-year (make-date 03 1 2010)) 0))
   (is (= (date-week-of-year (make-date 04 1 2010)) 1))
   (is (= (date-week-of-year (make-date 10 1 2010)) 1))
-  (is (= (date-week-of-year (make-date 11 1 2010)) 2)))
+  (is (= (date-week-of-year (make-date 11 1 2010)) 2))
+  (is (= (date-week-of-year (make-date 01 1 2013) :tuesday) 1))
+  (is (= (date-week-of-year (make-date 07 1 2013) :tuesday) 1))
+  (is (= (date-week-of-year (make-date 09 1 2013) :tuesday) 2)))
 
 ;;; test-types.lisp ends here
