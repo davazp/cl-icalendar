@@ -110,37 +110,6 @@
   (is (string= (format-value (read-binary-from-file "tests/test-types.001"))
                "TG9yZW0gaXBzdW0gZG9sb3Igc2l0IGFtZXQsIGNvbnNlY3RldHVyIGFkaXBpc2ljaW5nIGVsaXQsIHNlZCBkbyBlaXVzbW9kIHRlbXBvciBpbmNpZGlkdW50IHV0IGxhYm9yZSBldCBkb2xvcmUgbWFnbmEgYWxpcXVhLiBVdCBlbmltIGFkIG1pbmltIHZlbmlhbSwgcXVpcyBub3N0cnVkIGV4ZXJjaXRhdGlvbiB1bGxhbWNvIGxhYm9yaXMgbmlzaSB1dCBhbGlxdWlwIGV4IGVhIGNvbW1vZG8gY29uc2VxdWF0LiBEdWlzIGF1dGUgaXJ1cmUgZG9sb3IgaW4gcmVwcmVoZW5kZXJpdCBpbiB2b2x1cHRhdGUgdmVsaXQgZXNzZSBjaWxsdW0gZG9sb3JlIGV1IGZ1Z2lhdCBudWxsYSBwYXJpYXR1ci4gRXhjZXB0ZXVyIHNpbnQgb2NjYWVjYXQgY3VwaWRhdGF0IG5vbiBwcm9pZGVudCwgc3VudCBpbiBjdWxwYSBxdWkgb2ZmaWNpYSBkZXNlcnVudCBtb2xsaXQgYW5pbSBpZCBlc3QgbGFib3J1bS4=")))
 
-
-;;; Date data type
-
-(test datep-001
-  "Check `make-date' returns a date type."
-  (is (datep (make-date 26 07 1989)))
-  (is (datep (make-date 01 01 1970)))
-  (is (datep (make-date 01 01 1900))))
-
-(test datep-002
-  "Check others objects are not date type."
-  (is (not (datep 0)))
-  (is (not (datep 'today)))
-  (is (not (datep "yesterday")))
-  (is (not (datep '(1 . 2))))
-  (is (not (datep #(0 1 2 3 4)))))
-
-(test make-date-001
-  "Check arbitrary dates."
-  (finishes (make-date 26 07 1989))
-  (finishes (make-date 01 01 1970))
-  (finishes (make-date 01 01 1900)))
-
-(test make-date-002
-  "Check wrong dates."
-  (signals error (make-date  01  01  1001))
-  (signals error (make-date -01  01  2000))
-  (signals error (make-date  01 -01  2000))
-  (signals error (make-date  01 -01 -2000)))
-
-
 ;;; Period type
 
 (test parse-value-period-001
