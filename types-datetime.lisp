@@ -86,12 +86,25 @@
           (delta-secs (duration-seconds duration))
           (days (day-from-1900 datetime))
           (secs (seconds-from-midnight datetime)))
-      (make-instance 'datetime
-                     :day-from-1900 (+ days delta-days)
-                     :seconds-from-midnight (+ secs delta-secs)))))
+      (if (duration-backward-p duration)
+          (make-instance 'datetime
+                         :day-from-1900 (- days delta-days)
+                         :seconds-from-midnight (- secs delta-secs))
+          (make-instance 'datetime
+                         :day-from-1900 (+ days delta-days)
+                         :seconds-from-midnight (+ secs delta-secs))))))
 
 (defun datetime- (datetime durspec)
   (datetime+ datetime (duration-inverse durspec)))
+
+
+(defun now ()
+  ;; FIXME: timezone support!
+  (multiple-value-bind (second minute hour date month year day daylight timezone)
+      (get-decoded-time)
+    (declare (ignore daylight day timezone))
+    (make-datetime date month year hour minute second)))
+
 
 ;;; Parser
 
