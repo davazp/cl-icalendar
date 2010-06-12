@@ -59,7 +59,7 @@
                 :name (string ',name)
                 :property-list
                 (mapcar #'make-property-from-definition ',properties)
-                ',(with-collecting
+                ',(with-collect
                    (dolist (option options)
                      (let ((option-name (car option))
                            (option-values (cdr option)))

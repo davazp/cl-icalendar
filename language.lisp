@@ -100,7 +100,7 @@
 	     (setf region token)
 	     (pop-token))
 	   (setf variants
-		 (with-collecting
+		 (with-collect
 		   (while
 		       (cond
 			 ((and (<= 5 (length token) 8)

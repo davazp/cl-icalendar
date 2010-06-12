@@ -34,7 +34,7 @@
 			 (list `(,(first i) (gensym ,(second i))))))
      ,@code))
 
-(defmacro with-collecting (&body code)
+(defmacro with-collect (&body code)
   (with-gensyms (collected tail)
     `(let* ((,collected (list '#:collect))
             (,tail ,collected))

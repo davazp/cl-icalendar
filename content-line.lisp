@@ -38,13 +38,13 @@
 
 (defun read-params-values (stream)
   (cons (read-params-value stream)
-        (with-collecting
+        (with-collect
           (while (char= (peek-char nil stream) #\,)
             (read-char stream)
             (collect (read-params-value stream))))))
 
 (defun read-params (stream)
-  (with-collecting
+  (with-collect
     (while (char= (read-char stream) #\;)
       (let ((name (read-until stream "=" #(#\Newline #\: #\;))))
         (read-char stream)
@@ -64,7 +64,7 @@
   (declare (content-line content-line) (stream stream))
   (format stream "~a~{;~a=~{~a~}~}:~a~%" 
           (content-line-name content-line)
-          (with-collecting
+          (with-collect
             (dolist (entry (content-line-params content-line))
               (collect (car entry))
               (collect (cdr entry))))
