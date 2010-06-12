@@ -90,6 +90,12 @@
               (- (truncate tstamp 86400)
                  (if (< tstamp 0) 1 0))))))
 
+(defun adjust-time (time &key second minute hour)
+  (make-time (or hour (time-hour time))
+             (or minute (time-minute time))
+             (or second (time-second time))))
+
+
 (defmethod format-value ((time time) &rest params &key &allow-other-keys)
   (declare (ignore params))
   (format nil "~2,'0d~2,'0d~2,'0d"

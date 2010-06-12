@@ -105,6 +105,14 @@
     (declare (ignore daylight day timezone))
     (make-datetime date month year hour minute second)))
 
+(defun adjust-datetime (dt &key day month year hour minute second timezone)
+  (make-datetime (or day (date-day dt))
+                 (or month (date-month dt))
+                 (or year (date-year dt))
+                 (or hour (time-hour dt))
+                 (or minute (time-minute dt))
+                 (or second (time-second dt))
+                 (or timezone (time-timezone dt))))
 
 ;;; Parser
 

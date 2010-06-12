@@ -180,11 +180,10 @@
       (%parse-error "The duration ~a is not multiple of days" dur))
     (make-instance 'date :day-from-1900 (- (day-from-1900 date) days))))
 
-(defun today ()
-  (let ((utime (multiple-value-list (get-decoded-time))))
-    (make-date (nth 3 utime)
-               (nth 4 utime)
-               (nth 5 utime))))
+(defun adjust-date (date &key day month year)
+  (make-date (or day (date-day date))
+             (or month (date-month month))
+             (or year (date-year year))))
 
 ;;; Parse
 
