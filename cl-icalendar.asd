@@ -19,6 +19,11 @@
 ;; along with cl-icalendar.  If not, see <http://www.gnu.org/licenses/>.
 ;;
 
+(defpackage :cl-icalendar-asd
+  (:use :cl :asdf))
+
+(in-package :cl-icalendar-asd)
+
 (defsystem :cl-icalendar
   :name "iCalendar library"
   :license "GPLv3+"
@@ -31,10 +36,14 @@
    (:file "utils")
    (:file "error")
    (:file "types")
+   (:file "types-binary")
+   (:file "types-utc-offset")
+   (:file "types-text")
    (:file "types-date")
    (:file "types-time")
    (:file "types-datetime")
    (:file "types-duration")
+   (:file "types-period")
    (:file "types-recur")
    (:file "folding")
    (:file "content-line")
