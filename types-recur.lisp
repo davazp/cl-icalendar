@@ -48,7 +48,6 @@
   ((freq
     :initarg :freq
     :type recur-frequence
-    :initform (required-arg)
     :reader recur-freq)
    (until
     :initarg :until
@@ -134,6 +133,8 @@
 ;;; is instantiated, while check-recur-consistency is called after
 ;;; parsing. Indeed, check-recur-consistency is more intensive.
 (defun check-recur-consistency (recur)
+  (unless (slot-boundp recur 'freq)
+    (%parse-error "FREQ rule is required."))
   (with-slots (freq until count interval
                     bysecond byminute byhour
                     byday bymonthday byyearday
@@ -200,8 +201,44 @@
 (defun years-between (dt1 dt2)
   (- (date-year dt2) (date-year dt1)))
 
+;;; Return a recur such that omitted BYSECOND, BYMINUTE, BYHOUR,
+;;; BYMONTHDAY, BYMONTH, BYDAY, are filled which default values taken
+;;; from a dtstart.
+(defun %complete-recur (recur dtstart)
+  (with-slots (freq until count interval bysecond byminute byhour
+                    byday bymonthday byyearday byweekno bymonth
+                    bysetposwkst wkst bysetpos)
+      recur
+      (make-instance 'recur
+                     :freq freq
+                     :until until
+                     :count count
+                     :interval interval
+                     :bysetpos bysetpos
+                     :wkst wkst
+                     :byday byday
+                     :byyearday byyearday
+                     :byweekno byweekno
+                     :bysecond
+                     (or bysecond (list (time-second dtstart)))
+                     :byminute
+                     (or byminute (and (freq< :minutely freq)
+                                       (list (time-minute dtstart))))
+                     :byhour
+                     (or byhour (and (freq< :hourly freq)
+                                     (list (time-hour dtstart))))
+                     :bymonthday
+                     (or bymonthday (and (freq< :monthly freq)
+                                         (list (date-day dtstart))))
+                     :bymonth
+                     (or bymonthday (and (freq< :monthly freq)
+                                         (list (date-month dtstart)))))))
+
+
 ;; Check if DATETIME is a valid ocurrence in the RECUR unbound
-;; recurrence rule beginning at START datetime.
+;; recurrence rule beginning at START datetime. This function handles
+;; cases where COUNT or UNTIL rule is not specified. This is a special
+;; which is checked efficiently.
 (defun %unbound-recur-instance-p (start recur datetime)
   (with-slots (freq until count interval bysecond byminute byhour
                     byday bymonthday byyearday byweekno bymonth
@@ -305,19 +342,111 @@
        ;; If above all conditions satisfied, then return t
        t))))
 
+
+;;; El procesamiento general del tipo RECUR involucra el uso de
+;;; iteradores.
+
+(defstruct recur-iterator
+  recur
+  ocurrences
+  freq-start
+  freq-end)
+
+;; (defun recur-iterator-new (recur start)
+;;   (make-recur-iterator
+;;    :dtstart start
+;;    :freq-start start
+;;    :recur
+;;    ))
+
+
+(defun %list-instances-in-second ()
+  )
+
+(defun %list-instances-in-minute ()
+  )
+
+(defun %list-instances-in-hour ()
+  )
+
+(defun %list-instances-in-day ()
+  )
+
+(defun %list-instances-in-week ()
+  )
+
+(defun %list-instances-in-month ()
+  )
+
+;; (defun %list-instances-in-year ()
+;;   (dolist (month bymonth)
+;;     (dolist (hour byhour)
+;;       (dolist (minute byminute)
+;;         (dolist (second bysecond)
+;;           ;; Construimos el datetime dentro de PERIOD correspondiente
+;;           ;; a las reglas BY*.
+;;           byday ;; Special
+;;           bymonthday
+;;           byyearday
+;;           byweekno)))))
+
+;; (defun %list-instances-in-period (recur)
+;;   ;; Reglas BY*
+;;   (dolist (month bymonth)
+;;     (dolist (hour byhour)
+;;       (dolist (minute byminute)
+;;         (dolist (second bysecond)
+;;           ;; Construimos el datetime dentro de PERIOD correspondiente
+;;           ;; a las reglas BY*.
+;;           byday ;; Special
+;;           (case freq
+;;             (:secondly
+;;              bymonthday
+;;              byyearday
+;;             (:minutely
+;;              bymonthday
+;;              byyearday)
+;;             (:hourly
+;;              bymonthday
+;;              byyearday)
+;;             (:dayly
+;;              bymonthday)
+;;             (:weekly)
+;;             (:monthly
+;;              bymonthday)
+;;             (:yearly
+;;              bymonthday
+;;              byyearday
+;;              byweekno))))))))
+
+;; (defun recur-iterator-next (iterator)
+;;   ;; Controlar BYSETPOS
+;;   bysetpos)
+
+
+;; (defmacro do-recur ((recur dtstart &optional result) &body code)
+;;   )
+
 (defun recur-instance-p (start recur datetime)
   (cond
     ((recur-count recur)
      ;; TODO: COUNT support here.
      )
     ((recur-until recur)
-     (and (datetime<= start datetime)
-          (datetime<= datetime (recur-until recur))))
+     (let ((until (recur-until recur)))
+       (unless (or (and (datetimep start) (datetimep until))
+                   (and (datep start) (datep until)))
+         (%parse-error "The type of ~a and ~a values should be the same." start until))
+       (ecase until
+         (datetime
+          (datetime<= start datetime (recur-until recur)))
+         (date
+          (date<= start datetime (recur-until recur))))))
     (t
      (%unbound-recur-instance-p start recur datetime))))
 
 
-;;; Parsing and formating
+;;; Parsing and formatting
 
 (defun parse-byday-value (string)
   (multiple-value-bind (n end)
@@ -348,7 +477,7 @@
   (declare (string string))
   (declare (ignore params))
   (let ((rules (parse-rules string))
-        (recur (make-instance 'recur :freq :daily)))
+        (recur (make-instance 'recur)))
     (when (duplicatep rules :key #'car :test #'string=)
       (%parse-error "Duplicate key in recurrence."))
     (flet ((parse-integer-list (x)
@@ -442,7 +571,7 @@
     (format s "~@[;BYMINUTE=~{~A~^, ~}~]"   (recur-byminute recur))
     (format s "~@[;BYHOUR=~{~A~^, ~}~]"     (recur-byhour recur))
     (format s "~@[;BYDAY=~{~@[~d~]~a~}~]"
-            (with-collecting
+            (with-collect
               (dolist (day (recur-byday recur))
                 (destructuring-bind (wday . n) day
                   (collect n)
