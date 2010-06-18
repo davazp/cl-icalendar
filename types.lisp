@@ -182,16 +182,32 @@
     (* sign (+ x y))))
 
 
-;;;; Cal-address
-
-;;; TODO: Do ir!
-(defclass cal-address ()
-  nil)
-
 ;;;; URI
 
-;;; TODO: Do it!
 (defclass uri ()
+  ((uri
+    :type string
+    :initarg :uri
+    :reader uri)))
+
+(define-predicate-type uri)
+
+(defun make-uri (uri)
+  (declare (string uri))
+  (make-instance 'uri
+		 :uri uri))
+
+
+;;;; Cal-address
+
+(defclass cal-address (uri)
   nil)
+
+(define-predicate-type cal-address)
+
+(defun make-cal-address (uri)
+  (declare (string uri))
+  (make-instance 'cal-address
+		 :uri uri))
 
 ;;; types.lisp ends here
