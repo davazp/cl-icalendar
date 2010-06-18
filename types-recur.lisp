@@ -231,8 +231,8 @@
                      (or bymonthday (and (freq< :monthly freq)
                                          (list (date-day dtstart))))
                      :bymonth
-                     (or bymonthday (and (freq< :monthly freq)
-                                         (list (date-month dtstart)))))))
+                     (or bymonth (and (freq< :monthly freq)
+                                      (list (date-month dtstart)))))))
 
 
 ;; Check if DATETIME is a valid ocurrence in the RECUR unbound
@@ -243,7 +243,7 @@
   (with-slots (freq until count interval bysecond byminute byhour
                     byday bymonthday byyearday byweekno bymonth
                     bysetposwkst wkst bysetpos)
-      recur
+      (%complete-recur recur datetime)
     (macrolet ((implyp (condition implication)
                  `(aif ,condition ,implication t)))
       (and
@@ -259,14 +259,9 @@
          (:yearly   (divisiblep (years-between   start datetime) interval)))
 
        (/debug
-        (aif bymonth
-             (find (date-month datetime) it)
-             (implyp (freq< :monthly freq)
-                     (= (date-month datetime) (date-month start)))))
+        (implyp bymonth (find (date-month datetime) it)))
        (/debug
-        (implyp byweekno
-                ;; TODO: Implement suport for negative weeks
-                (find (date-week-of-year datetime wkst) it)))
+        (implyp byweekno (find (date-week-of-year datetime wkst) it)))
        (/debug
         (implyp byyearday
                 (find (date-day-of-year datetime) it
@@ -275,18 +270,14 @@
                                  (mod n 366)
                                  (mod n 365))))))
        (/debug
-        (cond
-          ((null bymonthday)
-           (implyp (and (not byday) (freq< :weekly freq))
-                   (= (date-day start) (date-day datetime))))
-          (t
-           (find (date-day datetime) bymonthday
-                 :key (lambda (n)
-                        (let ((month-days
-                               (if (leap-year-p (date-year datetime))
-                                   #(0 31 29 31 30 31 30 31 31 30 31 30 31)
-                                   #(0 31 28 31 30 31 30 31 31 30 31 30 31))))
-                          (mod n (elt month-days (date-month datetime)))))))))
+        (implyp bymonthday
+                (find (date-day datetime) bymonthday
+                      :key (lambda (n)
+                             (let ((month-days
+                                    (if (leap-year-p (date-year datetime))
+                                        #(0 31 29 31 30 31 30 31 31 30 31 30 31)
+                                        #(0 31 28 31 30 31 30 31 31 30 31 30 31))))
+                               (mod n (elt month-days (date-month datetime))))))))
        (cond
          ((null byday)
           (implyp (eq freq :weekly)
@@ -302,7 +293,7 @@
                          :key #'car)))
             (cond
               ((null byday-1) nil)
-              ((some #'null (mapcar #'cdr byday-1)))
+              ((some* #'null byday-1 :key #'cdr))
               (t
                (assert (member freq '(:monthly :yearly)))
                (let* ((first-day
@@ -311,34 +302,19 @@
                        ;; RFC5545 for futher information.
                        (if (or (eq freq :monthly)
                                (null byweekno))
-                           (make-date 1 (date-month datetime) (date-year datetime))
-                           (make-date 1 1 (date-year datetime))))
+                           (adjust-date datetime :day 1)
+                           (adjust-date datetime :day 1 :month 1)))
                       ;; Number of weeks from first-day.
                       (weeks (weeks-between first-day datetime)))
                  (find (1+ weeks) byday-1 :key #'cdr)))))))
 
-       (/debug
-        (aif byhour
-             (find (time-hour datetime) it)
-             (implyp (freq< :hourly freq)
-                     (= (time-hour datetime) (time-hour start)))))
-       (/debug
-        (aif byminute
-             (find (time-minute datetime) it)
-             (implyp (freq< :minutely freq)
-                     (= (time-minute datetime) (time-minute start)))))
-       (/debug
-        (aif bysecond
-             (find (time-second datetime) it)
-             (implyp (freq< :secondly freq)
-                     (= (time-second datetime) (time-second start)))))
-
-       (/debug
-        ;; TODO: Do it!
-        (aif bysetpos
-             t
-             t))
-
+       (implyp byhour   (find (time-hour   datetime) it))
+       (implyp byminute (find (time-minute datetime) it))
+       (implyp bysecond (find (time-second datetime) it))
+       ;; TODO: Do it!
+       (aif bysetpos
+            t
+            t)
        ;; If above all conditions satisfied, then return t
        t))))
 

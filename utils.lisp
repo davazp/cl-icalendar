@@ -159,9 +159,9 @@
        (error "Not a member of the specified list")))
 
 ;;; Like `some', but it works on bound sequences
-(defun some* (predicate sequence &key (start 0) end)
+(defun some* (predicate sequence &key (start 0) end (key #'identity))
   (do-sequence (item sequence :start start :end end)
-    (when (funcall predicate item)
+    (when (funcall predicate (funcall key item))
       (return-from some* t)))
   nil)
 
