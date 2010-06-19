@@ -182,8 +182,8 @@
 
 (defun adjust-date (date &key day month year)
   (make-date (or day (date-day date))
-             (or month (date-month month))
-             (or year (date-year year))))
+             (or month (date-month date))
+             (or year (date-year date))))
 
 ;;; Parse
 
