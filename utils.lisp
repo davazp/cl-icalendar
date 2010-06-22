@@ -319,5 +319,9 @@
   #-cl-icalendar-debug
   form)
 
+(definline mod7 (n)
+  (declare (optimize speed))
+  (declare (fixnum n))
+  (mod n 7))
 
 ;;; utils.lisp ends here

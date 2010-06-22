@@ -34,11 +34,6 @@
 (deftype weekday ()
   `(member ,@(coerce *weekday* 'list)))
 
-(definline mod7 (n)
-  (declare (optimize speed))
-  (declare (fixnum n))
-  (mod n 7))
-
 (defclass date ()
   ((day-from-1900
     :type fixnum
@@ -49,10 +44,9 @@
 
 (defmethod print-object ((x date) stream)
   (print-unreadable-object (x stream :type t)
-    (format stream "~2,'0d-~2,'0d-~4,'0d"
-            (date-day x)
-            (date-month x)
-            (date-year x))))
+    (multiple-value-bind (day month year)
+        (%decode-date x)
+      (format stream "~2,'0d-~2,'0d-~4,'0d" day month year))))
 
 (defun leap-years-before (year)
   (declare (year year))
@@ -95,16 +89,14 @@
       (loop for t1 from (truncate stamp 365) downto 0
             for t2 = (+ (* 365 t1) (leap-years-before (+ 1900 t1)))
             for t3 = (- stamp t2)
-            while (< t3 0)
-            finally (setf year (+ 1900 t1)
-                          rem t3))
+            while (<= t3 0)
+            finally (setf year (+ 1900 t1) rem t3))
       ;; Month
       (loop for m from 12 downto 1
             as t1 = (day-from-new-year 1 m year)
             as t2 = (- rem t1)
             while (< t2 0)
-            finally (setf month m
-                          rem t2))
+            finally (setf month m rem t2))
       ;; Day
       (setf day (1+ rem))
       ;; Return information
@@ -164,26 +156,29 @@
 (define-transitive-relation date>= (x y)
   (>= (day-from-1900 x) (day-from-1900 y)))
 
-(defun date+ (date durspec)
-  (let* ((dur (duration durspec))
-         (days (%duration-days dur))
-         (secs (%duration-seconds dur)))
-    (unless (zerop secs)
-      (%parse-error "The duration ~a is not multiple of days" dur))
-    (make-instance 'date :day-from-1900 (+ (day-from-1900 date) days))))
+(defgeneric date+ (date durspec)
+  (:method ((date date) durspec)
+           (let* ((dur (duration durspec))
+                  (days (%duration-days dur))
+                  (secs (%duration-seconds dur)))
+             (unless (zerop secs)
+               (%parse-error "The duration ~a is not multiple of days" dur))
+             (make-instance 'date :day-from-1900 (+ (day-from-1900 date) days)))))
 
-(defun date- (date durspec)
-  (let* ((dur (duration durspec))
-         (days (%duration-days dur))
-         (secs (%duration-seconds dur)))
-    (unless (zerop secs)
-      (%parse-error "The duration ~a is not multiple of days" dur))
-    (make-instance 'date :day-from-1900 (- (day-from-1900 date) days))))
+(defgeneric date- (date durspec)
+  (:method ((date date) durspec)
+    (let* ((dur (duration durspec))
+           (days (%duration-days dur))
+           (secs (%duration-seconds dur)))
+      (unless (zerop secs)
+        (%parse-error "The duration ~a is not multiple of days" dur))
+      (make-instance 'date :day-from-1900 (- (day-from-1900 date) days)))))
 
-(defun adjust-date (date &key day month year)
-  (make-date (or day (date-day date))
-             (or month (date-month date))
-             (or year (date-year date))))
+(defgeneric adjust-date (date &key day month year)
+  (:method ((date date) &key day month year)
+    (make-date (or day (date-day date))
+               (or month (date-month date))
+               (or year (date-year date)))))
 
 ;;; Parse
 

@@ -80,25 +80,92 @@
 
 ;; Compositional functions
 
-(defun datetime+ (datetime durspec)
-  (let ((duration durspec))
-    (let ((delta-days (duration-days duration))
-          (delta-secs (+ (* 3600 (duration-hours   duration))
-                         (*   60 (duration-minutes duration))
-                         (*    1 (duration-seconds duration))))
-          (days (day-from-1900 datetime))
-          (secs (seconds-from-midnight datetime)))
-      (if (duration-backward-p duration)
-          (make-instance 'datetime
-                         :day-from-1900 (- days delta-days)
-                         :seconds-from-midnight (- secs delta-secs))
-          (make-instance 'datetime
-                         :day-from-1900 (+ days delta-days)
-                         :seconds-from-midnight (+ secs delta-secs))))))
+(defgeneric  adjust-datetime (dt &key day month year hour minute second timezone)
+  (:method ((dt datetime) &key day month year hour minute second timezone)
+    (make-datetime (or day (date-day dt))
+                   (or month (date-month dt))
+                   (or year (date-year dt))
+                   (or hour (time-hour dt))
+                   (or minute (time-minute dt))
+                   (or second (time-second dt))
+                   (or timezone (time-timezone dt))))
+  (:method ((dt date) &key day month year
+            (hour (required-arg))
+            (minute (required-arg))
+            (second (required-arg)) timezone)
+    (make-datetime (or day (date-day dt))
+                   (or month (date-month dt))
+                   (or year (date-year dt))
+                   hour minute second timezone))
+  (:method ((dt time) &key
+            (day (required-arg))
+            (month (required-arg))
+            (year (required-arg))
+            hour minute second timezone)
+    (make-datetime day month year
+                   (or hour (time-hour dt))
+                   (or minute (time-minute dt))
+                   (or second (time-second dt))
+                   (or timezone (time-timezone dt)))))
 
-(defun datetime- (datetime durspec)
-  (datetime+ datetime (duration-inverse durspec)))
+(defmethod adjust-date ((dt datetime) &key day month year)
+  (declare (ignorable day month year))
+  (adjust-datetime (call-next-method)
+                   :second (time-second dt)
+                   :minute (time-minute dt)
+                   :hour (time-hour dt)))
 
+(defmethod adjust-time ((dt datetime) &key second minute hour timezone)
+  (declare (ignorable second minute hour timezone))
+  (adjust-datetime (call-next-method)
+                   :day (date-day dt)
+                   :month (date-month dt)
+                   :year (date-year dt)))
+
+(defgeneric datetime+ (datetime durspec)
+  (:method ((datetime datetime) durspec)
+    (let ((duration durspec))
+      (let ((delta-days (duration-days duration))
+            (delta-secs (+ (* 3600 (duration-hours   duration))
+                           (*   60 (duration-minutes duration))
+                           (*    1 (duration-seconds duration))))
+            (days (day-from-1900 datetime))
+            (secs (seconds-from-midnight datetime)))
+        (if (duration-backward-p duration)
+            (make-instance 'datetime
+                           :day-from-1900 (- days delta-days)
+                           :seconds-from-midnight (- secs delta-secs))
+            (make-instance 'datetime
+                           :day-from-1900 (+ days delta-days)
+                           :seconds-from-midnight (+ secs delta-secs)))))))
+
+(defgeneric datetime- (datetime durspec)
+  (:method ((datetime datetime) durspec)
+    (datetime+ datetime (duration-inverse durspec))))
+
+(defmethod date+ ((dt datetime) durspec)
+  (adjust-datetime (call-next-method)
+                   :hour (time-hour dt)
+                   :minute (time-minute dt)
+                   :second (time-second dt)))
+
+(defmethod date- ((dt datetime) durspec)
+  (adjust-datetime (call-next-method)
+                   :hour (time-hour dt)
+                   :minute (time-minute dt)
+                   :second (time-second dt)))
+
+(defmethod time+ ((dt datetime) durspec)
+  (adjust-datetime (call-next-method)
+                   :day (date-day dt)
+                   :month (date-month dt)
+                   :year (date-year dt)))
+
+(defmethod time- ((dt datetime) durspec)
+  (adjust-datetime (call-next-method)
+                   :day (date-day dt)
+                   :month (date-month dt)
+                   :year (date-year dt)))
 
 (defun now ()
   ;; FIXME: timezone support!
@@ -106,15 +173,6 @@
       (get-decoded-time)
     (declare (ignore daylight day timezone))
     (make-datetime date month year hour minute second)))
-
-(defun adjust-datetime (dt &key day month year hour minute second timezone)
-  (make-datetime (or day (date-day dt))
-                 (or month (date-month dt))
-                 (or year (date-year dt))
-                 (or hour (time-hour dt))
-                 (or minute (time-minute dt))
-                 (or second (time-second dt))
-                 (or timezone (time-timezone dt))))
 
 ;;; Parser
 
