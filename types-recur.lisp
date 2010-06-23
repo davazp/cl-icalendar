@@ -34,10 +34,19 @@
 ;;; recur. On the other hand, the limit rules are used in order to distinguish
 ;;; which periods of frequency are candidate to contain instances. See BYDAY
 ;;; for exceptions. This is implemented in the source code described here by
-;;; couples of functions which are named `%recur-list-instances-*' and
-;;; `%recur-next-*', respectively. These functions ignore COUNT and BYSETPOS
-;;; recur rules.
+;;; couples of functions which are named %recur-list-instances-* and
+;;; %recur-next-*, respectively. These functions ignore COUNT and BYSETPOS
+;;; recur rules. The %recur-list-instance-* list the instances in a period of
+;;; FREQ.  On the other hand, when we process the limit rules, some new
+;;; troubles arise. The limit rules could yield in an empty set of instances,
+;;; for example:
 ;;;
+;;;    DTSTART:20000101T000000
+;;;    RRULE:FREQ=MONTHLY;INTERVAL=12;BYMONTH=2
+;;;
+;;; As a result, we must detect this cases in order to mark the ending of a
+;;; sequence of instances.
+;;; 
 ;;; Finally, `recur-iterator-new' and `recur-iterator-next' will dispatch upon
 ;;; previous functions, in addition of add support for COUNT and BYSETPOS
 ;;; rules. A high level macro `do-recur-instances' is also provided.
@@ -223,27 +232,43 @@
 (defun years-between (dt1 dt2)
   (- (date-year dt2) (date-year dt1)))
 
-;;; Add N days to DATETIME.
-(defun forward-days (datetime n)
-  (date+ datetime (make-duration :days n)))
-
-;;; Sub N days to DATETIME.
-(defun backward-days (datetime n)
-  (date- datetime (make-duration :days n)))
-
-;;; Return the following nth WEEKDAY from DATETIME.
-(defun forward-weekday (datetime weekday)
+;;; Return the following WEEKDAY from DATETIME.
+(defun previous-weekday (datetime weekday)
   (let ((days
          (mod7 (1+ (- (position weekday *weekday*)
                       (nth-value 1 (date-day-of-week datetime)))))))
     (date+ datetime (make-duration :days (abs days)))))
 
-;;; Return the nth WEEKDAY before of DATETIME.
-(defun backward-weekday (datetime weekday)
+;;; Return the first WEEKDAY before of DATETIME.
+(defun next-weekday (datetime weekday)
   (let ((days
          (mod7 (1- (- (nth-value 1 (date-day-of-week datetime))
                       (position weekday *weekday*))))))
     (date- datetime (make-duration :days (abs days)))))
+
+;;; Add N days to DATETIME.
+(defun forward-day (datetime n)
+  (date+ datetime (make-duration :days n)))
+
+;;; Sub N days to DATETIME.
+(defun backward-day (datetime n)
+  (date- datetime (make-duration :days n)))
+
+;;; Add N months to DATETIME.
+(defun forward-month (datetime n)
+  (let ((year (date-year datetime))
+        (month (date-month datetime)))
+    (multiple-value-bind (delta-year delta-month)
+        (truncate n 12)
+      (multiple-value-bind (delta-year* month*)
+          (truncate (+ delta-month (1- month)) 12)
+        (adjust-date datetime
+                     :month (1+ month*)
+                     :year (+ year delta-year delta-year*))))))
+
+;;; Sub N months to DATETIME.
+(defun backward-month (datetime n)
+  (forward-month datetime (- n)))
 
 ;;; Return the the first day of the month of DT.
 (defun beginning-of-month (dt)
@@ -340,14 +365,13 @@
                                     (not byweekno)
                                     (list (date-month dtstart)))))))
 
-
 ;;; Given a DATETIME and a RECUR, return a couple of values which are the
 ;;; limits of the period of frequency which the datetime belongs to.
 (defun interval-limits (datetime recur)
   (ecase (recur-freq recur)
     (:weekly
-     (values (backward-weekday datetime (recur-wkst recur))
-             (forward-weekday  datetime (recur-wkst recur))))
+     (values (previous-weekday datetime (recur-wkst recur))
+             (next-weekday  datetime (recur-wkst recur))))
     (:monthly
      (values (beginning-of-month datetime)
              (end-of-month datetime)))
@@ -355,11 +379,10 @@
      (values (beginning-of-year datetime)
              (end-of-year datetime)))))
 
-
 ;;; Check if DATETIME is compatible with a byday VALUE.
 (defun byday-compatible-p (value datetime start end)
-  (let* ((first-day (forward-weekday start (date-day-of-week datetime)))
-         (last-day  (backward-weekday end (date-day-of-week datetime)))
+  (let* ((first-day (next-weekday start (date-day-of-week datetime)))
+         (last-day  (previous-weekday end (date-day-of-week datetime)))
          (total-weeks (weeks-between first-day last-day))
          (day-of-week (date-day-of-week datetime)))
     (when value
@@ -424,9 +447,9 @@
              (find (time-second datetime) bysecond)))))
 
 
-;;; En las funciones %recur-list-instances-in-* asumimos que el DT es el
-;;; primer dia de un periodo de frecuencia del RECUR que verifica las reglas
-;;; FREQ e INTERVAL.
+;;; In the following functions, we assume that the argument DT is the first
+;;; day of a period of frequency of the recur given.
+
 
 (defun %recur-list-instances-in-second (dt recur)
   (declare (ignorable recur))
@@ -469,10 +492,10 @@
                    (m (recur-byminute recur))
                    (s (recur-bysecond recur)))
       (let ((dt* (adjust-time dt :hour h :minute m :second s)))
-        (collect (forward-weekday dt* (car day)))))))
+        (collect (next-weekday dt* (car day)))))))
 
 (defun %recur-next-week (dt recur)
-  (declare (ignore dt recur)))
+  )
 
 (defun %recur-list-instances-in-month (dt recur)
   (with-recur-slots recur
@@ -507,8 +530,8 @@
                (interval-limits dt recur)
              (let* ((weekday (car d))
                     (nweekday (cdr d))
-                    (first-day (forward-weekday start weekday))
-                    (last-day (backward-weekday end weekday))
+                    (first-day (next-weekday start weekday))
+                    (last-day (previous-weekday end weekday))
                     (total-weeks (1+ (weeks-between first-day last-day)))
                     (adjusted (adjust-time first-day :hour h :minute m :second s)))
                ;; We collect the computed datetime if NWEEKDAY is
@@ -516,13 +539,27 @@
                ;; with weekday.
                (if nweekday
                    (let ((days (* 7 (1- (mod* nweekday total-weeks)))))
-                     (collect (forward-days adjusted days)))
+                     (collect (forward-day adjusted days)))
                    (dotimes (i total-weeks)
-                     (collect (forward-days adjusted (* i 7)))))))))))))
+                     (collect (forward-day adjusted (* i 7)))))))))))))
 
 (defun %recur-next-month (dt recur)
-  (declare (ignore dt recur)))
-
+  ;; DT is the first day of a period which verify the limitation rules of
+  ;; recur, i.e, the month verify BYMONTH rule and the months between DTSTART
+  ;; and DT is multiple of INTERVAL. Then, if we add the lesser common
+  ;; multiple of 12 and INTERVAL to DT, we get another instance. Then, it is a
+  ;; bound and we can iterate finitely.
+  (let ((interval (recur-interval recur))
+        (bymonth (recur-bymonth recur)))
+    (do ((delta interval (+ delta interval))
+         (datetime (forward-month dt interval)
+                   (forward-month datetime interval)))
+        ((or (null bymonth)
+             (>= delta (lcm 12 interval))
+             (find (date-month datetime) bymonth))
+         (if (<= delta (lcm 12 interval))
+             datetime
+             nil)))))
 
 (defun %recur-list-instances-in-year (datetime recur)
   (with-recur-slots recur
@@ -569,12 +606,9 @@
         ;; BYYEARDAY is present, then we can iterate across them.
         (byyearday
          (with-collect
-           (let ((first (beginning-of-year datetime))
-                 (last (end-of-year datetime)))
+           (let ((first (beginning-of-year datetime)))
              (dolist (yday byyearday)
-               (let ((dt* (if (< 0 yday)
-                              (forward-days first (1- yday))
-                              (backward-days last (1- (abs yday))))))
+               (let ((dt* (forward-day first (1- (yearday yday (date-year first))))))
                  (when (compatible-p dt*)
                    (collect dt*)))))))
         ;; We have considered the BYMONTH rule previosly, so, the offset of
@@ -587,27 +621,29 @@
                  (interval-limits datetime recur)
                (let* ((weekday (car rule))
                       (n (cdr rule))
-                      (first (forward-weekday start weekday))
-                      (last (backward-weekday end weekday)))
+                      (first (next-weekday start weekday))
+                      (last (previous-weekday end weekday)))
                  (cond
                    ((null n)
                     (dotimes (i (weeks-between first last))
-                      (let ((dt* (forward-days first (* 7 (1+ i)))))
+                      (let ((dt* (forward-day first (* 7 (1+ i)))))
                         (when (compatible-p dt*)
                           (collect dt*)))))
                    ((< n 0)
-                    (collect (backward-days last (* 7 (1+ (abs n))))))
+                    (collect (backward-day last (* 7 (1+ (abs n))))))
                    ((> n 0)
-                    (collect (forward-days first (* 7 (1- n)))))))))))
+                    (collect (forward-day first (* 7 (1- n)))))))))))
         (t
          ;; Note that some of BYDAY, BYYEARDAY or BYMONTHDAY/BYMONTH rules
-         ;; should be specified. In other case, %complete-recur should added a
+         ;; should be specified. In other case, %complete-recur should add a
          ;; BYDAY or BYMONTHDAY/BYMONTH rule.
          nil)))))
 
+(defun %recur-next-year (dt dtstart recur)
+  (declare (ignorable dtstart))
+  (let ((year (date-year dt)))
+    (adjust-date dt :year (+ year (recur-interval recur)))))
 
-(defun %recur-next-year (dt recur)
-  (declare (ignore dt recur)))
 
 
 (defun recur-test (text)
@@ -650,9 +686,7 @@
     (:monthly)
     (:yearly)))
 
-
-;; Check if DATETIME is a valid ocurrence in the RECUR unbound
-;; recurrence rule beginning at START datetime.
+;; Check if DATETIME is a valid ocurrence in RECUR.
 (defun recur-instance-p (start recur datetime)
   (let ((complete-recur (%complete-recur recur start)))
     (with-recur-slots complete-recur
@@ -732,15 +766,15 @@
             
             ((string= key "BYSECOND")
              (setf (slot-value recur 'bysecond)
-                   (parse-unsigned-integer-list value)))
+                   (sort (parse-unsigned-integer-list value) #'<)))
             
             ((string= key "BYMINUTE")
              (setf (slot-value recur 'byminute)
-                   (parse-unsigned-integer-list value)))
+                   (sort (parse-unsigned-integer-list value) #'<)))
             
             ((string= key "BYHOUR")
              (setf (slot-value recur 'byhour)
-                   (parse-unsigned-integer-list value)))
+                   (sort (parse-unsigned-integer-list value) #'<)))
             
             ((string= key "BYDAY")
              (setf (slot-value recur 'byday)
@@ -748,7 +782,7 @@
 
             ((string= key "BYMONTH")
              (setf (slot-value recur 'bymonth)
-                   (parse-integer-list value)))
+                   (sort (parse-integer-list value) #'<)))
             
             ((string= key "BYMONTHDAY")
              (setf (slot-value recur 'bymonthday)
@@ -764,7 +798,7 @@
             
             ((string= key "BYSETPOS")
              (setf (slot-value recur 'bysetpos)
-                   (parse-unsigned-integer value )))
+                   (sort (parse-unsigned-integer value) #'<)))
             
             ((string= key "WKST")
              (setf (slot-value recur 'wkst)
