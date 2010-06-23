@@ -95,9 +95,8 @@
     :type list
     :initform nil
     :reader recur-byhour)
-   ;; Earch element of byday list is a pair (wday . n), where wday is
-   ;; a `weekday' value, and n is the optional prefix in the byday
-   ;; rule.
+   ;; Each element of byday list is a pair (wday . n), where wday is a weekday
+   ;; value, and n is the optional prefix in the byday rule.
    (byday
     :initarg :byday
     :type list
@@ -134,6 +133,17 @@
     :initform :monday
     :reader recur-wkst)))
 
+;;; Bind the symbols FREQ, UNTIL, COUNT, INTERVAL, BYSECOND, BYMINUTE, BYHOUR,
+;;; BYDAY, BYMONTHDAY, BYYEARDAY, BYWEEKNO, BYMONTH, BYSETPOSWKST, WKST and
+;;; BYSETPOS to the respective slot values of RECUR. This symbols are
+;;; setf-able too.
+(defmacro with-recur-slots (recur &body code)
+  `(with-slots (freq until count interval bysecond byminute byhour
+                     byday bymonthday byyearday byweekno bymonth
+                     bysetposwkst wkst bysetpos)
+       ,recur
+     ,@code))
+
 ;;; The predicate function in order to check if an arbitrary object is a
 ;;; recurrence value.
 (define-predicate-type recur)
@@ -151,12 +161,7 @@
 (defun check-recur-consistency (recur)
   (unless (slot-boundp recur 'freq)
     (%parse-error "FREQ rule is required."))
-  (with-slots (freq until count interval
-                    bysecond byminute byhour
-                    byday bymonthday byyearday
-                    byweekno bymonth bysetpos
-                    wkst)
-      recur
+  (with-recur-slots recur
     (macrolet ((check-type-list (list type)
                  ;; Check every element of LIST is of type TYPE.
                  `(dolist (i ,list)
@@ -217,6 +222,14 @@
 
 (defun years-between (dt1 dt2)
   (- (date-year dt2) (date-year dt1)))
+
+;;; Add N days to DATETIME.
+(defun forward-days (datetime n)
+  (date+ datetime (make-duration :days n)))
+
+;;; Sub N days to DATETIME.
+(defun backward-days (datetime n)
+  (date- datetime (make-duration :days n)))
 
 ;;; Return the following nth WEEKDAY from DATETIME.
 (defun forward-weekday (datetime weekday)
@@ -292,10 +305,7 @@
 ;;; BYMONTH, BYDAY, are filled with default values taken from the DTSTART
 ;;; datetime.
 (defun %complete-recur (recur dtstart)
-  (with-slots (freq until count interval bysecond byminute byhour
-                    byday bymonthday byyearday byweekno bymonth
-                    bysetposwkst wkst bysetpos)
-      recur
+  (with-recur-slots recur
     (make-instance 'recur
                    :freq freq
                    :until until
@@ -314,8 +324,9 @@
                    (or byhour (and (freq< :hourly freq)
                                    (list (time-hour dtstart))))
                    :byday
-                   (or byday (and (eq freq :weekly)
-                                  (list (list (date-day-of-week dtstart)))))
+                   (or byday
+                       (and (or byweekno (eq freq :weekly))
+                            (list (list (date-day-of-week dtstart)))))
                    :bymonthday
                    (or bymonthday (and (freq< :weekly freq)
                                        (not byday)
@@ -345,85 +356,77 @@
              (end-of-year datetime)))))
 
 
-;;; Check if DATETIME is the nth WEEKDAY in START-END period. N could be a
-;;; signed integer, in whose case, negative values correspond to offsets from
-;;; the end of the period.
-(defun byday-compatible-p (weekday n datetime start end)
-  (when (eq (date-day-of-week datetime) weekday)
-    (or (null n)
-        (let* ((first-day (forward-weekday start (date-day-of-week datetime)))
-               (last-day  (backward-weekday end (date-day-of-week datetime)))
-               (total-weeks (weeks-between first-day last-day))
-               (weeks (weeks-between first-day datetime)))
-          ;; Check if they describe the same day.
-          (= (mod* n total-weeks) (mod* weeks total-weeks))))))
+;;; Check if DATETIME is compatible with a byday VALUE.
+(defun byday-compatible-p (value datetime start end)
+  (let* ((first-day (forward-weekday start (date-day-of-week datetime)))
+         (last-day  (backward-weekday end (date-day-of-week datetime)))
+         (total-weeks (weeks-between first-day last-day))
+         (day-of-week (date-day-of-week datetime)))
+    (when value
+      (loop for (weekday . n) in value thereis
+            (when (eq day-of-week weekday)
+              (or (null n)
+                  (let* ((weeks (weeks-between first-day datetime)))
+                    (= (mod* n total-weeks) (mod* weeks total-weeks)))))))))
 
 
 ;;; Handle some very simple cases of `recur-instance-p'. In general, every
 ;;; recur without BYSETPOS either COUNT rules are handled here, because it is
 ;;; not needed to iterate.
 (defun %simple-recur-instance-p (start recur datetime)
-  (with-slots (freq until count interval bysecond byminute byhour
-                    byday bymonthday byyearday byweekno bymonth
-                    bysetposwkst wkst bysetpos)
-      recur 
-    (macrolet ((implyp (condition implication)
-                 `(aif ,condition ,implication t)))
-      (assert (not bysetpos))
-      (assert (not count))
-      (and
-       ;; DATETIME is an instance of RECUR if and only if all the following
-       ;; conditions are satisfied.
-       (ecase freq
-         (:secondly (divisiblep (seconds-between start datetime) interval))
-         (:minutely (divisiblep (minutes-between start datetime) interval))
-         (:hourly   (divisiblep (hours-between   start datetime) interval))
-         (:daily    (divisiblep (days-between    start datetime) interval))
-         (:weekly   (divisiblep (weeks-between   start datetime) interval))
-         (:monthly  (divisiblep (months-between  start datetime) interval))
-         (:yearly   (divisiblep (years-between   start datetime) interval)))
+  (with-recur-slots recur 
+    (assert (not bysetpos))
+    (assert (not count))
+    (and
+     ;; DATETIME is an instance of RECUR if and only if all the following
+     ;; conditions are satisfied.
+     (ecase freq
+       (:secondly (divisiblep (seconds-between start datetime) interval))
+       (:minutely (divisiblep (minutes-between start datetime) interval))
+       (:hourly   (divisiblep (hours-between   start datetime) interval))
+       (:daily    (divisiblep (days-between    start datetime) interval))
+       (:weekly   (divisiblep (weeks-between   start datetime) interval))
+       (:monthly  (divisiblep (months-between  start datetime) interval))
+       (:yearly   (divisiblep (years-between   start datetime) interval)))
 
-       (typecase until
-         (null t) 
-         (datetime
-          (check-ical-type datetime datetime)
-          (datetime<= start datetime))
-         (date
-          (check-ical-type datetime date)
-          (date<= start datetime)))
+     (typecase until
+       (null t) 
+       (datetime
+        (check-ical-type datetime datetime)
+        (datetime<= start datetime))
+       (date
+        (check-ical-type datetime date)
+        (date<= start datetime)))
 
-       (implyp bymonth
-               (find (date-month datetime) it))
-       (implyp byweekno
-               (find (date-week-of-year datetime wkst) it))
-       (implyp byyearday
-               (find (date-day-of-year datetime) it
-                     :key (lambda (n)
-                            (if (leap-year-p (date-year datetime))
-                                (mod* n 366)
-                                (mod* n 365)))))
-       (implyp bymonthday
-               (find (date-day datetime) bymonthday
-                     :key (lambda (n)
-                            (monthday n (date-month datetime) (date-year datetime)))))
-       (implyp byday
-               (multiple-value-bind (start end)
-                   (interval-limits datetime recur)
-                 (loop
-                    for (weekday . n) in byday
-                    thereis (byday-compatible-p weekday n datetime start end))))
-
-       (implyp byhour
-               (find (time-hour datetime) it))
-       (implyp byminute
-               (find (time-minute datetime) it))
-       (implyp bysecond
-               (find (time-second datetime) it))
-
-       ;; If above all conditions satisfied, then return t
-       t))))
+     (implyp bymonth
+             (find (date-month datetime) bymonth))
+     (implyp byweekno
+             (find (date-week-of-year datetime wkst) byweekno))
+     (implyp byyearday
+             (find (date-day-of-year datetime) byyearday
+                   :key (lambda (n)
+                          (if (leap-year-p (date-year datetime))
+                              (mod* n 366)
+                              (mod* n 365)))))
+     (implyp bymonthday
+             (find (date-day datetime) bymonthday
+                   :key (lambda (n)
+                          (monthday n (date-month datetime) (date-year datetime)))))
+     (implyp byday
+             (multiple-value-bind (start end)
+                 (interval-limits datetime recur)
+               (byday-compatible-p byday datetime start end)))
+     (implyp byhour
+             (find (time-hour datetime) byhour))
+     (implyp byminute
+             (find (time-minute datetime) byminute))
+     (implyp bysecond
+             (find (time-second datetime) bysecond)))))
 
 
+;;; En las funciones %recur-list-instances-in-* asumimos que el DT es el
+;;; primer dia de un periodo de frecuencia del RECUR que verifica las reglas
+;;; FREQ e INTERVAL.
 
 (defun %recur-list-instances-in-second (dt recur)
   (declare (ignorable recur))
@@ -472,98 +475,140 @@
   (declare (ignore dt recur)))
 
 (defun %recur-list-instances-in-month (dt recur)
-  (cond
-    ;; If BYMONTHDAY is given, BYDAY rule limit the recur. So, we
-    ;; iterate in order to collect the datetimes compatible with the
-    ;; BYMONTHDAY, BYHOUR, BYMINUTE AND BYSECOND.
-    ((recur-bymonthday recur)
-     (with-collect
-       (do-cartesian ((d (recur-bymonthday recur))
-                      (h (recur-byhour recur))
-                      (m (recur-byminute recur))
-                      (s (recur-bysecond recur)))
-         (let* ((month (date-month dt))
-                (year (date-year dt))
-                (mday (monthday d month year))
-                (dt* (adjust-datetime dt :day mday :hour h :minute m :second s)))
+  (with-recur-slots recur
+    (cond
+      ;; If BYMONTHDAY is given, BYDAY rule limit the recur. So, we
+      ;; iterate in order to collect the datetimes compatible with the
+      ;; BYMONTHDAY, BYHOUR, BYMINUTE AND BYSECOND.
+      (bymonthday
+       (with-collect
+         (do-cartesian ((d bymonthday)
+                        (h byhour)
+                        (m byminute)
+                        (s bysecond))
+           (let* ((mday (monthday d (date-month dt) (date-year dt)))
+                  (dt* (adjust-datetime dt :day mday :hour h :minute m :second s)))
+             (if (null byday)
+                 (collect dt*)
+                 (multiple-value-bind (start end)
+                     (interval-limits dt* recur)
+                   (when (byday-compatible-p byday dt* start end)
+                     (collect dt*))))))))
+      ;; If BYMONTHDAY is not present and byday does is, we collect
+      ;; compatible datetimes without iterate.
+      (byday
+       (assert (not bymonthday))
+       (with-collect
+         (do-cartesian ((d byday)
+                        (h byhour)
+                        (m byminute)
+                        (s bysecond))
            (multiple-value-bind (start end)
-               (interval-limits dt* recur)
-             (flet ((compatible-p (byday)
-                      (byday-compatible-p (car byday) (cdr byday) dt* start end)))
-               (when (or (null (recur-byday recur))
-                         (some #'compatible-p (recur-byday recur)))
-                 (collect dt*))))))))
-
-    ;; If BYMONTHDAY is not present and byday does is, we collect
-    ;; compatible datetimes without iterate.
-    ((recur-byday recur)
-     (assert (not (recur-bymonthday recur)))
-     (with-collect
-       (do-cartesian ((d (recur-byday recur))
-                      (h (recur-byhour recur))
-                      (m (recur-byminute recur))
-                      (s (recur-bysecond recur)))
-         (multiple-value-bind (start end)
-             (interval-limits dt recur)
-           (let* ((weekday (car d))
-                  (nweekday (cdr d))
-                  (first-day (forward-weekday start weekday))
-                  (last-day (backward-weekday end weekday))
-                  (total-weeks (1+ (weeks-between first-day last-day)))
-                  (adjusted (adjust-time first-day :hour h :minute m :second s)))
-             ;; We collect the computed datetime if NWEEKDAY is
-             ;; non-nil. Otherwise, we collect datetimes which matches
-             ;; with weekday.
-             (if nweekday
-                 (let ((days (* 7 (1- (mod* nweekday total-weeks)))))
-                   (collect (date+ adjusted (make-duration :days days))))
-                 (dotimes (i total-weeks)
-                   (collect (date+ adjusted (make-duration :days (* i 7)))))))))))))
+               (interval-limits dt recur)
+             (let* ((weekday (car d))
+                    (nweekday (cdr d))
+                    (first-day (forward-weekday start weekday))
+                    (last-day (backward-weekday end weekday))
+                    (total-weeks (1+ (weeks-between first-day last-day)))
+                    (adjusted (adjust-time first-day :hour h :minute m :second s)))
+               ;; We collect the computed datetime if NWEEKDAY is
+               ;; non-nil. Otherwise, we collect datetimes which matches
+               ;; with weekday.
+               (if nweekday
+                   (let ((days (* 7 (1- (mod* nweekday total-weeks)))))
+                     (collect (forward-days adjusted days)))
+                   (dotimes (i total-weeks)
+                     (collect (forward-days adjusted (* i 7)))))))))))))
 
 (defun %recur-next-month (dt recur)
   (declare (ignore dt recur)))
 
 
 (defun %recur-list-instances-in-year (datetime recur)
-  (with-collect
-    (do-cartesian ((month (recur-bymonth recur))
-                   (day (recur-bymonthday recur))
-                   (hour (recur-byhour recur))
-                   (minute (recur-byminute recur))
-                   (second (recur-bysecond recur)))
-      (let ((dt* (make-datetime day month (date-year datetime) hour minute second)))
-        (macrolet ((implyp (condition implication)
-                     `(aif ,condition ,implication t)))
-          (and
-           (implyp (recur-byyearday recur)
-                   (find (date-day-of-year dt*)
-                         (recur-byyearday recur)
-                         :key (lambda (yday)
-                                (yearday yday (date-year dt*)))))
+  (with-recur-slots recur
+    ;; The local function compatible-p check if a datetime DT is compatible
+    ;; with some BY* rules. This does not check all BY* rules, because we can
+    ;; make sure some rules will be verified.
+    (flet ((compatible-p (dt)
+             (and
+              (implyp bymonth
+                      (find (date-month dt) bymonth))
+              (implyp byweekno
+                      (find (date-week-of-year dt (recur-wkst recur)) byweekno))
+              (implyp byyearday
+                      (find (date-day-of-year dt) byyearday
+                            :key (lambda (n)
+                                   (yearday n (date-year dt)))))
+              (implyp bymonthday
+                      (find (date-day dt) bymonthday
+                            :key (lambda (n)
+                                   (monthday n (date-month dt) (date-year dt)))))
+              (implyp byday
+                      (if bymonth
+                          (let ((start (beginning-of-month dt))
+                                (end (end-of-month dt)))
+                            (byday-compatible-p byday dt start end))
+                          (multiple-value-bind (start end)
+                              (interval-limits dt recur)
+                            (byday-compatible-p byday dt start end)))))))
+      (cond
+        ;; If one of BYMONTH or BYMONTHDAY is given, then we iterate across
+        ;; all dates which match with this description. We must check it is
+        ;; compatible with the rest of BY* rules.
+        ((or bymonth bymonthday)
+         (with-collect
+           (do-cartesian ((month (or bymonth (range 1 12)))
+                          (day (or bymonthday (range 1 (monthday -1 month (date-year datetime)))))
+                          (hour byhour)
+                          (minute byminute)
+                          (second bysecond))
+             (let ((dt* (make-datetime day month (date-year datetime) hour minute second)))
+               (when (compatible-p dt*)
+                 (collect dt*))))))
+        ;; In this point, not BYMONTH or BYMONTHDAY rule is present. If a
+        ;; BYYEARDAY is present, then we can iterate across them.
+        (byyearday
+         (with-collect
+           (let ((first (beginning-of-year datetime))
+                 (last (end-of-year datetime)))
+             (dolist (yday byyearday)
+               (let ((dt* (if (< 0 yday)
+                              (forward-days first (1- yday))
+                              (backward-days last (1- (abs yday))))))
+                 (when (compatible-p dt*)
+                   (collect dt*)))))))
+        ;; We have considered the BYMONTH rule previosly, so, the offset of
+        ;; BYDAY rule here is considered relative to the year.
+        (byday
+         (assert (not bymonth))
+         (with-collect
+           (dolist (rule byday)
+             (multiple-value-bind (start end)
+                 (interval-limits datetime recur)
+               (let* ((weekday (car rule))
+                      (n (cdr rule))
+                      (first (forward-weekday start weekday))
+                      (last (backward-weekday end weekday)))
+                 (cond
+                   ((null n)
+                    (dotimes (i (weeks-between first last))
+                      (let ((dt* (forward-days first (* 7 (1+ i)))))
+                        (when (compatible-p dt*)
+                          (collect dt*)))))
+                   ((< n 0)
+                    (collect (backward-days last (* 7 (1+ (abs n))))))
+                   ((> n 0)
+                    (collect (forward-days first (* 7 (1- n)))))))))))
+        (t
+         ;; Note that some of BYDAY, BYYEARDAY or BYMONTHDAY/BYMONTH rules
+         ;; should be specified. In other case, %complete-recur should added a
+         ;; BYDAY or BYMONTHDAY/BYMONTH rule.
+         nil)))))
 
-           (implyp (recur-byday recur)
-                   (flet ((compatible-p (byday)
-                            (if (recur-bymonth recur)
-                                (byday-compatible-p (car byday) (cdr byday) dt*
-                                                    (beginning-of-month dt*)
-                                                    (end-of-month dt*))
-                                (byday-compatible-p (car byday) (cdr byday) dt*
-                                                    (beginning-of-year dt*)
-                                                    (end-of-year dt*)))))
-                     (some #'compatible-p (recur-byday recur))))
-
-           (implyp (recur-byweekno recur)
-                   (let* ((last (end-of-year dt*))
-                          (weeks (date-week-of-year last)))
-                     (find (date-week-of-year dt*)
-                           (recur-byweekno recur)
-                           :key (lambda (wyear)
-                                  (mod* wyear weeks)))))
-           ;; 
-           (collect dt*)))))))
 
 (defun %recur-next-year (dt recur)
   (declare (ignore dt recur)))
+
 
 (defun recur-test (text)
   (let* ((dt (now))
@@ -596,15 +641,6 @@
   (make-recur-iterator :dtstart datetime :recur recur))
 
 (defun recur-iterator-next (iter)
-  ;; Devolver, una por una, las instancias que estan en la lista de
-  ;; instancias del iterador. En este paso de filtran para devolver
-  ;; unicamente las que coinciden con la regla BYSETPOS.
-  (pop (recur-iterator-instances iter))
-  ;; Incrementar el contador de instancias
-  (incf (recur-iterator-count iter))  
-  ;; Si la lista esta vacia, entonces obtenemos la lista de instancias
-  ;; del siguiente período acorde a la frecuencia del recur. El
-  ;; siguiente recur debemos obtenerlo tambien.
   (ecase (recur-freq iter)
     (:secondly)
     (:minutely)
@@ -619,10 +655,7 @@
 ;; recurrence rule beginning at START datetime.
 (defun recur-instance-p (start recur datetime)
   (let ((complete-recur (%complete-recur recur start)))
-    (with-slots (freq until count interval bysecond byminute byhour
-                      byday bymonthday byyearday byweekno bymonth
-                      bysetposwkst wkst bysetpos)
-        complete-recur
+    (with-recur-slots complete-recur
         (cond
           ((and (null count) (null bysetpos))
            (%simple-recur-instance-p start complete-recur datetime))
@@ -681,7 +714,7 @@
              (setf (slot-value recur 'freq)
                    (or (cdr (assoc value *frequency-table* :test #'string=))
                        (%parse-error "'~a' is not a valid value for the FREQ rule." value))))
-            
+
             ((string= key "UNTIL")
              (setf (slot-value recur 'until)
                    (handler-case
