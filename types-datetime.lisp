@@ -47,36 +47,28 @@
             (time-minute x)
             (time-second x))))
 
-;;; Relational functions
-
-(define-transitive-relation datetime= (x y)
-  (and (= (day-from-1900 x) (day-from-1900 y))
-       (= (seconds-from-midnight x) (seconds-from-midnight y))))
-
-(define-transitive-relation datetime< (x y)
-  (or (< (day-from-1900 x) (day-from-1900 y))
-      (and (= (day-from-1900 x) (day-from-1900 y))
-           (< (seconds-from-midnight x) (seconds-from-midnight y)))))
-
-(define-transitive-relation datetime<= (x y)
-  (or (< (day-from-1900 x) (day-from-1900 y))
-      (and (= (day-from-1900 x) (day-from-1900 y))
-           (<= (seconds-from-midnight x) (seconds-from-midnight y)))))
-
-(define-transitive-relation datetime> (x y)
-  (or (> (day-from-1900 x) (day-from-1900 y))
-      (and (= (day-from-1900 x) (day-from-1900 y))
-           (> (seconds-from-midnight x) (seconds-from-midnight y)))))
-
-(define-transitive-relation datetime>= (x y)
-  (or (> (day-from-1900 x) (day-from-1900 y))
-      (and (= (day-from-1900 x) (day-from-1900 y))
-           (>= (seconds-from-midnight x) (seconds-from-midnight y)))))
-
 (defgeneric seconds-from-1900 (dt)
   (:method ((dt datetime))
     (+ (* (day-from-1900 dt) 60 60 24)
        (seconds-from-midnight dt))))
+
+;;; Relational functions
+
+(define-transitive-relation datetime= (x y)
+  (= (seconds-from-1900 x) (seconds-from-1900 y)))
+
+(define-transitive-relation datetime< (x y)
+  (< (seconds-from-1900 x) (seconds-from-1900 y)))
+
+(define-transitive-relation datetime<= (x y)
+  (<= (seconds-from-1900 x) (seconds-from-1900 y)))
+
+(define-transitive-relation datetime> (x y)
+  (> (seconds-from-1900 x) (seconds-from-1900 y)))
+
+(define-transitive-relation datetime>= (x y)
+  (>= (seconds-from-1900 x) (seconds-from-1900 y)))
+
 
 ;; Compositional functions
 
