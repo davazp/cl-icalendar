@@ -133,6 +133,14 @@
     :initform :monday
     :reader recur-wkst)))
 
+;;; Return a new recur value.
+(defun make-recur (freq &rest args &key until count interval bysecond byminute
+                   byhour byday bymonthday byyearday byweekno bymonth bysetpos wkst)
+  (declare (ignorable until count interval bysecond byminute
+                      byhour byday bymonthday byyearday
+                      byweekno bymonth bysetpos wkst))
+  (apply #'make-instance 'recur :freq freq args))
+
 ;;; Bind the symbols FREQ, UNTIL, COUNT, INTERVAL, BYSECOND, BYMINUTE, BYHOUR,
 ;;; BYDAY, BYMONTHDAY, BYYEARDAY, BYWEEKNO, BYMONTH, BYSETPOSWKST, WKST and
 ;;; BYSETPOS to the respective slot values of RECUR. These symbols are
