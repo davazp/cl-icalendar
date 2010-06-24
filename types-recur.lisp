@@ -776,6 +776,19 @@
   interval
   instances)
 
+(defun filter-bysetpos (list bysetpos)
+  (loop
+     with length = (length list)
+     for index from 1
+     for x in list
+     when (implyp bysetpos
+                  (find index bysetpos
+                        :key (lambda (m) (mod* m length))))
+     collect x))
+
+(defun clean-instances (list)
+  (delete-duplicates (sort list #'datetime<) :test #'datetime=))
+
 (defun recur-iterator-new (recur datetime)
   (unless (%simple-recur-instance-p datetime recur datetime)
     (error "The recur and DTSTART must be synchronized."))
@@ -796,25 +809,31 @@
                (%recur-list-instances-in-month datetime recur))
               (:yearly
                (%recur-list-instances-in-year datetime recur))))
-           (instances
+           (post-instances
             (remove-if (lambda (dt) (datetime< dt datetime))
-                       first-instances)))
+                       first-instances))
+           (final-instances
+            (filter-bysetpos (clean-instances post-instances)
+                             (recur-bysetpos recur))))
       ;; Return the iterator
       (make-recur-iterator :dtstart datetime :interval datetime
-                           :recur recur :instances instances))))
+                           :recur recur :instances final-instances))))
 
 
 (defun recur-iterator-next (iter)
   (let ((datetime (recur-iterator-interval iter))
         (recur (recur-iterator-recur iter)))
     (cond
+      ;; If COUNT rule is not verified, return NIL.
       ((and (recur-count recur)
             (>= (recur-iterator-count iter) (recur-count recur)))
        nil)
+      ;; If there is pending instances, return and increment the counter.
       ((recur-iterator-instances iter)
        (incf (recur-iterator-count iter))
        (pop (recur-iterator-instances iter)))
       (t
+       ;; Otherwise, we request more instances.
        (case (recur-freq recur)
          (:secondly
           (setf datetime (%recur-next-second datetime recur))
@@ -844,7 +863,13 @@
           (setf datetime (%recur-next-year datetime recur))
           (setf (recur-iterator-instances iter)
                 (%recur-list-instances-in-year datetime recur))))
+
+       ;; ...and apply the BYSETPOS rule finally!
        (setf (recur-iterator-interval iter) datetime)
+       (setf (recur-iterator-instances iter)
+             (filter-bysetpos (clean-instances (recur-iterator-instances iter))
+                              (recur-bysetpos recur)))
+
        (when (recur-iterator-instances iter)
          (recur-iterator-next iter))))))
 
@@ -867,8 +892,9 @@
            (%simple-recur-instance-p start complete-recur datetime))
           (t
            (do-recur-instances (dt recur start nil)
-              (when (datetime= dt datetime)
-                (return t))))))))
+             (cond
+               ((datetime= dt datetime) (return t))
+               ((datetime> dt datetime) (return nil)))))))))
 
 
 ;;; Parsing and formatting
@@ -968,7 +994,7 @@
             
             ((string= key "BYSETPOS")
              (setf (slot-value recur 'bysetpos)
-                   (sort (parse-unsigned-integer value) #'<)))
+                   (sort (parse-integer-list value) #'<)))
             
             ((string= key "WKST")
              (setf (slot-value recur 'wkst)
