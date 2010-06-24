@@ -30,13 +30,13 @@
 ;;;
 ;;; According to FREQ recur rule, the BY* rules could be classified in
 ;;; expansion rules and limitation ones. On the one hand, the expansion rules,
-;;; are used to select what datetimes of a period of frequency are instances
-;;; in a recur. On the other hand, the limitation rules are used in order to
-;;; distinguish which periods of frequency are candidate to contain
-;;; instances. See BYDAY for some exceptions. This is implemented in the
-;;; source code described here by couples of functions which are named
-;;; %recur-list-instances-* and %recur-next-*, respectively. These functions
-;;; ignore COUNT and BYSETPOS recur rules.
+;;; are used to select what datetimes of a interval are instances in a
+;;; recur. On the other hand, the limitation rules are used in order to
+;;; distinguish which intervals are candidate to contain instances. See BYDAY
+;;; for some exceptions. This is implemented in the source code described here
+;;; by couples of functions which are named %recur-list-instances-* and
+;;; %recur-next-*, respectively. These functions ignore COUNT and BYSETPOS
+;;; recur rules.
 ;;;
 ;;; Finally, `recur-iterator-new' and `recur-iterator-next' will dispatch upon
 ;;; previous functions, in addition of add support for COUNT and BYSETPOS
@@ -377,7 +377,7 @@
                                     (list (date-month dtstart)))))))
 
 ;;; Given a DATETIME and a RECUR, return a couple of values which are the
-;;; limits of the period of frequency which the datetime belongs to.
+;;; limits of the interval which the datetime belongs to.
 (defun interval-limits (datetime recur)
   (case (recur-freq recur)
     (:secondly
@@ -468,6 +468,21 @@
              (find (time-second datetime) bysecond)))))
 
 
+;;; The ucond macro implements a new control form. The syntax is:
+;;;
+;;;    (ucond (variable initial-form)
+;;;      (condition1
+;;;        ...body1...)
+;;;      (condition2
+;;;        ...body2...)
+;;;      ...)
+;;; 
+;;; First, INITIAL-FORM is evaluated and VARIABLE is bound to its value. Then,
+;;; for each iteration the conditions are evaluated in order, until one is not
+;;; verified. In that case, the associated body is run and the we repeat the
+;;; loop with variable bound to the value return by the last expression in
+;;; that body. If all conditions are verified, the loop finishes and return
+;;; the current value of VARIABLE.
 (defmacro ucond ((variable value) &body code)
   (with-gensyms (initial)
     (check-type variable symbol)
@@ -481,6 +496,7 @@
                     (setf ,variable (progn ,@body))
                     (go ,initial))))
          ,variable)))
+
 
 (defun %recur-list-instances-in-second (dt recur)
   (declare (ignorable recur))
@@ -777,14 +793,16 @@
   instances)
 
 (defun filter-bysetpos (list bysetpos)
-  (loop
-     with length = (length list)
-     for index from 1
-     for x in list
-     when (implyp bysetpos
-                  (find index bysetpos
-                        :key (lambda (m) (mod* m length))))
-     collect x))
+  (if (null bysetpos)
+      list
+      (loop
+            with length = (length list)
+            for index from 1
+            for x in list
+            when (implyp bysetpos
+                         (find index bysetpos
+                               :key (lambda (m) (mod* m length))))
+            collect x)))
 
 (defun clean-instances (list)
   (delete-duplicates (sort list #'datetime<) :test #'datetime=))
@@ -810,8 +828,7 @@
               (:yearly
                (%recur-list-instances-in-year datetime recur))))
            (post-instances
-            (remove-if (lambda (dt) (datetime< dt datetime))
-                       first-instances))
+            (remove-if (curry #'datetime> datetime) first-instances))
            (final-instances
             (filter-bysetpos (clean-instances post-instances)
                              (recur-bysetpos recur))))
