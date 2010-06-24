@@ -845,6 +845,12 @@
       ((and (recur-count recur)
             (>= (recur-iterator-count iter) (recur-count recur)))
        nil)
+      ;; If UNTIL rule is not verified
+      ((and (recur-until recur)
+            (recur-iterator-instances iter)
+            (datetime< (recur-until recur)
+                       (first (recur-iterator-instances iter))))
+       nil)
       ;; If there is pending instances, return and increment the counter.
       ((recur-iterator-instances iter)
        (incf (recur-iterator-count iter))
@@ -912,6 +918,16 @@
              (cond
                ((datetime= dt datetime) (return t))
                ((datetime> dt datetime) (return nil)))))))))
+
+;; List the instances of a bound RECUR.
+(defun recur-list-instances (start recur)
+  (let ((complete-recur (%complete-recur recur start)))
+    (with-recur-slots complete-recur
+      (when (and (not count) (not until))
+        (error "This recur is not an unbound recur."))
+      (with-collect
+        (do-recur-instances (dt recur start nil)
+          (collect dt))))))
 
 
 ;;; Parsing and formatting
