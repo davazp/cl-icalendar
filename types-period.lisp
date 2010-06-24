@@ -20,34 +20,65 @@
 
 (in-package :cl-icalendar)
 
+;;; This clase should not be instantiated directly.
 (defclass period ()
   ((start
     :initarg :start
-    :reader period-start)
-   (end
-    :initarg :end
-    :reader period-end)))
+    :type datetime
+    :reader period-start)))
 
+;;; Type checker.
 (define-predicate-type period)
 
-(defun make-period (start end)
-  (make-instance 'period :start start :end end))
+;;; Period between two explicit datetimes.
+(defclass period-explicit (period)
+  ((end
+    :initarg :end
+    :type datetime
+    :reader period-end)))
 
-(defgeneric duration-of (x)
-  (:method ((x period))
-    ;; FIXME: Use days component of duration if possible.
-    (make-duration
-     :seconds (- (seconds-from-1900 (period-start x))
-                 (seconds-from-1900 (period-end x))))))
+;;; Period from a dattetime for a duration.
+(defclass period-start (period)
+  ((duration
+    :initarg :duration
+    :type duration
+    :reader period-duration)))
 
-(defmethod format-value ((p period) &rest params &key &allow-other-keys)
+(defmethod period-duration ((period period-explicit))
+  (let* ((start (period-start period))
+         (end (period-end period))
+         (secs (- (seconds-from-1900 end) (seconds-from-1900 start))))
+    (if (datetime<= start end)
+        (make-duration :seconds secs)
+        (make-duration :seconds secs :backward-p t))))
+
+(defmethod period-end ((period period-start))
+  (datetime+ (period-start period) (period-duration period)))
+
+;;; Constructor
+(defun make-period (start duration-or-end)
+  (etypecase duration-or-end
+    (duration (make-instance 'period-start    :start start :duration duration-or-end))
+    (datetime (make-instance 'period-explicit :start start :end duration-or-end))))
+
+(defmethod print-object ((x period) stream)
+  (print-unreadable-object (x stream)
+    (flet ((write-datetime (dt stream)
+             (format stream "~2,'0d-~2,'0d-~4,'0d ~2,'0d:~2,'0d:~2,'0d"
+                     (date-day  dt) (date-month  dt) (date-year dt)
+                     (time-hour dt) (time-minute dt) (time-hour dt))))
+      (write-string "PERIOD " stream)
+      (write-datetime (period-start x) stream)
+      (write-string " -- " stream)
+      (write-datetime (period-end x) stream))))
+
+(defmethod format-value ((p period-explicit) &rest params &key &allow-other-keys)
   (declare (ignore params))
-  ;; TODO: We should write down in the class `period' if the user
-  ;; specifies a duration or a end datetime, in order to format it so.
-  (concatenate 'string
-               (format-value (period-start p))
-               "/"
-               (format-value (period-end p))))
+  (concat (format-value (period-start p)) "/" (format-value (period-end p))))
+
+(defmethod format-value ((p period-start) &rest params &key &allow-other-keys)
+  (declare (ignore params))
+  (concat (format-value (period-start p)) "/" (format-value (period-duration p))))
 
 (defmethod parse-value (string (type (eql 'period)) &rest params &key &allow-other-keys)
   (declare (ignore params))
@@ -55,10 +86,9 @@
       (split-string string "/")
     (list start end)
     (let ((dstart (parse-value start 'datetime)))
-      (list dstart end)
       (make-period dstart
                    (if (char= (char end 0) #\P)
                        (datetime+ dstart (parse-value end 'duration))
                        (parse-value end 'datetime))))))
 
-;;; types-period.lisp
+;;; types-period.lisp ends here
