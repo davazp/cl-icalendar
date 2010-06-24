@@ -981,63 +981,63 @@
         (destructuring-bind (key . value)
             rule
           (cond
-            ((string= key "FREQ")
+            ((string-ci= key "FREQ")
              (setf (slot-value recur 'freq)
-                   (or (cdr (assoc value *frequency-table* :test #'string=))
+                   (or (cdr (assoc value *frequency-table* :test #'string-ci=))
                        (%parse-error "'~a' is not a valid value for the FREQ rule." value))))
 
-            ((string= key "UNTIL")
+            ((string-ci= key "UNTIL")
              (setf (slot-value recur 'until)
                    (handler-case
                        (parse-value value 'datetime)
                      (icalendar-parse-error ()
                        (parse-value value 'date)))))
             
-            ((string= key "COUNT")
+            ((string-ci= key "COUNT")
              (setf (slot-value recur 'count)
                    (parse-unsigned-integer value)))
             
-            ((string= key "INTERVAL")
+            ((string-ci= key "INTERVAL")
              (setf (slot-value recur 'interval)
                    (parse-unsigned-integer value)))
             
-            ((string= key "BYSECOND")
+            ((string-ci= key "BYSECOND")
              (setf (slot-value recur 'bysecond)
                    (sort (parse-unsigned-integer-list value) #'<)))
             
-            ((string= key "BYMINUTE")
+            ((string-ci= key "BYMINUTE")
              (setf (slot-value recur 'byminute)
                    (sort (parse-unsigned-integer-list value) #'<)))
             
-            ((string= key "BYHOUR")
+            ((string-ci= key "BYHOUR")
              (setf (slot-value recur 'byhour)
                    (sort (parse-unsigned-integer-list value) #'<)))
             
-            ((string= key "BYDAY")
+            ((string-ci= key "BYDAY")
              (setf (slot-value recur 'byday)
                    (mapcar #'parse-byday-value (split-string value ","))))
 
-            ((string= key "BYMONTH")
+            ((string-ci= key "BYMONTH")
              (setf (slot-value recur 'bymonth)
                    (sort (parse-integer-list value) #'<)))
             
-            ((string= key "BYMONTHDAY")
+            ((string-ci= key "BYMONTHDAY")
              (setf (slot-value recur 'bymonthday)
                    (parse-integer-list value)))
             
-            ((string= key "BYYEARDAY")
+            ((string-ci= key "BYYEARDAY")
              (setf (slot-value recur 'byyearday)
                    (parse-integer-list value)))
             
-            ((string= key "BYWEEKNO")
+            ((string-ci= key "BYWEEKNO")
              (setf (slot-value recur 'byweekno)
                    (parse-integer-list value)))
             
-            ((string= key "BYSETPOS")
+            ((string-ci= key "BYSETPOS")
              (setf (slot-value recur 'bysetpos)
                    (sort (parse-integer-list value) #'<)))
             
-            ((string= key "WKST")
+            ((string-ci= key "WKST")
              (setf (slot-value recur 'wkst)
                    (let ((nday (position value *weekday-names* :test #'string-ci=)))
                      (when (null nday)
