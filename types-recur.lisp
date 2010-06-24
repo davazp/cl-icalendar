@@ -379,7 +379,18 @@
 ;;; Given a DATETIME and a RECUR, return a couple of values which are the
 ;;; limits of the period of frequency which the datetime belongs to.
 (defun interval-limits (datetime recur)
-  (ecase (recur-freq recur)
+  (case (recur-freq recur)
+    (:secondly
+     (values datetime datetime))
+    (:minutely
+     (values (adjust-time datetime :second 0)
+             (adjust-time datetime :second 59)))
+    (:hourly
+     (values (adjust-time datetime :minute 00 :second 00)
+             (adjust-time datetime :minute 59 :second 59)))
+    (:daily
+     (values (adjust-time datetime :hour 00 :minute 00 :second 00)
+             (adjust-time datetime :hour 23 :minute 59 :second 59)))
     (:weekly
      (values (previous-weekday datetime (recur-wkst recur))
              (next-weekday datetime (recur-wkst recur))))
@@ -396,13 +407,13 @@
          (first-day (next-weekday start day-of-week))
          (last-day  (previous-weekday end day-of-week))
          (total-weeks (weeks-between first-day last-day)))
-    (when value
-      (loop for (weekday . n) in value thereis
-            (when (eq day-of-week weekday)
-              (or (null n)
-                  (let* ((weeks (weeks-between first-day datetime)))
-                    (and (< 0 weeks)
-                         (= (mod* n total-weeks) (mod* weeks total-weeks))))))))))
+    (and value
+         (loop for (weekday . n) in value thereis
+              (when (eq day-of-week weekday)
+                (or (null n)
+                    (let* ((weeks (weeks-between first-day datetime)))
+                      (and (< 0 weeks)
+                           (= (mod* n total-weeks) (mod* weeks total-weeks))))))))))
 
 
 ;;; Handle some very simple cases of `recur-instance-p'. In general, every
@@ -410,8 +421,8 @@
 ;;; not needed to iterate.
 (defun %simple-recur-instance-p (start recur datetime)
   (with-recur-slots recur 
-    (assert (not bysetpos))
-    (assert (not count))
+    ;; (assert (not bysetpos))
+    ;; (assert (not count))
     (and
      ;; DATETIME is an instance of RECUR if and only if all the following
      ;; conditions are satisfied.
@@ -581,7 +592,7 @@
 
 (defun %recur-next-day (dt recur)
   (with-recur-slots recur
-    (ucond (datetime (forward-hour dt interval))
+    (ucond (datetime (forward-day dt interval))
       ((implyp bymonth
                (find (date-month datetime) bymonth))
        (adjust-datetime (forward-month datetime) :day 01))
@@ -607,7 +618,7 @@
 
 (defun %recur-next-week (dt recur)
   (with-recur-slots recur
-    (ucond (datetime (forward-hour dt interval))
+    (ucond (datetime (forward-week dt interval))
       ((implyp bymonth
                (find (date-month datetime) bymonth
                      :key (lambda (m)
@@ -664,11 +675,6 @@
                      (collect (forward-day adjusted (* i 7)))))))))))))
 
 (defun %recur-next-month (dt recur)
-  ;; DT is the first day of a period which verify the limitation rules of
-  ;; recur, i.e, the month verify BYMONTH rule and the months between DTSTART
-  ;; and DT is a multiple of INTERVAL. Then, if we add the lesser common
-  ;; multiple of 12 and INTERVAL to DT, we get another instance. Then, it is a
-  ;; bound and we can iterate finitely.
   (with-recur-slots recur
     (do ((delta interval (+ delta interval))
          (datetime (forward-month dt interval)
@@ -775,36 +781,38 @@
 (defun recur-iterator-new (recur datetime)
   (unless (%simple-recur-instance-p datetime recur datetime)
     (error "The recur and DTSTART must be synchronized."))
-  (let* ((first-instances
-          (case (recur-freq recur)
-            (:secondly
-             (%recur-list-instances-in-second datetime recur))
-            (:minutely
-             (%recur-list-instances-in-minute datetime recur))
-            (:hourly
-             (%recur-list-instances-in-hour datetime recur))
-            (:daily
-             (%recur-list-instances-in-day datetime recur))
-            (:weekly
-             (%recur-list-instances-in-week datetime recur))
-            (:monthly
-             (%recur-list-instances-in-month datetime recur))
-            (:yearly
-             (%recur-list-instances-in-year datetime recur))))
-         (instances
-          (remove-if (lambda (dt) (datetime<= dt datetime))
-                                    first-instances
-                                    :key #'datetime=)))
-    ;; Return the iterator
-    (make-recur-iterator :dtstart datetime :interval datetime
-                         :recur recur :instances instances)))
+  (let ((recur (%complete-recur recur datetime)))
+    (let* ((first-instances
+            (case (recur-freq recur)
+              (:secondly
+               (%recur-list-instances-in-second datetime recur))
+              (:minutely
+               (%recur-list-instances-in-minute datetime recur))
+              (:hourly
+               (%recur-list-instances-in-hour datetime recur))
+              (:daily
+               (%recur-list-instances-in-day datetime recur))
+              (:weekly
+               (%recur-list-instances-in-week datetime recur))
+              (:monthly
+               (%recur-list-instances-in-month datetime recur))
+              (:yearly
+               (%recur-list-instances-in-year datetime recur))))
+           (instances
+            (remove-if (lambda (dt) (datetime< dt datetime))
+                       first-instances)))
+      ;; Return the iterator
+      (make-recur-iterator :dtstart datetime :interval datetime
+                           :recur recur :instances instances))))
 
 
 (defun recur-iterator-next (iter)
   (let ((datetime (recur-iterator-interval iter))
         (recur (recur-iterator-recur iter)))
     (cond
-      ((< (recur-count recur) (recur-iterator-count iter)))
+      ((and (recur-count recur)
+            (>= (recur-iterator-count iter) (recur-count recur)))
+       nil)
       ((recur-iterator-instances iter)
        (incf (recur-iterator-count iter))
        (pop (recur-iterator-instances iter)))
@@ -812,42 +820,45 @@
        (case (recur-freq recur)
          (:secondly
           (setf datetime (%recur-next-second datetime recur))
-          (setf (recur-iterator-instances recur)
+          (setf (recur-iterator-instances iter)
                 (%recur-list-instances-in-second datetime recur)))
          (:minutely
           (setf datetime (%recur-next-minute datetime recur))
-          (setf (recur-iterator-instances recur)
+          (setf (recur-iterator-instances iter)
                 (%recur-list-instances-in-minute datetime recur)))
          (:hourly
           (setf datetime (%recur-next-hour datetime recur))
-          (setf (recur-iterator-instances recur)
+          (setf (recur-iterator-instances iter)
                 (%recur-list-instances-in-hour datetime recur)))
          (:daily
           (setf datetime (%recur-next-day datetime recur))
-          (setf (recur-iterator-instances recur)
+          (setf (recur-iterator-instances iter)
                 (%recur-list-instances-in-day datetime recur)))
          (:weekly
           (setf datetime (%recur-next-week datetime recur))
-          (setf (recur-iterator-instances recur)
+          (setf (recur-iterator-instances iter)
                 (%recur-list-instances-in-week datetime recur)))
          (:monthly
           (setf datetime (%recur-next-month datetime recur))
-          (setf (recur-iterator-instances recur)
+          (setf (recur-iterator-instances iter)
                 (%recur-list-instances-in-month datetime recur)))
          (:yearly
           (setf datetime (%recur-next-year datetime recur))
-          (setf (recur-iterator-instances recur)
+          (setf (recur-iterator-instances iter)
                 (%recur-list-instances-in-year datetime recur))))
-       (setf (recur-iterator-interval recur) datetime)
-       (recur-iterator-next iter)))))
+       (setf (recur-iterator-interval iter) datetime)
+       (when (recur-iterator-instances iter)
+         (recur-iterator-next iter))))))
 
 (defmacro do-recur-instances ((variable recur dtstart &optional result) &body code)
   (check-type variable symbol)
-  `(do ((,variable (recur-iterator-new ,recur ,dtstart)
-                   (recur-iterator-next ,variable)))
-       ((null ,variable)
-        ,result)
-     ,@code))
+  (with-gensyms (iterator)
+    `(let ((,iterator (recur-iterator-new ,recur ,dtstart)))
+       (do ((,variable (recur-iterator-next ,iterator)
+                       (recur-iterator-next ,iterator)))
+           ((null ,variable)
+            ,result)
+         ,@code))))
 
 ;; Check if DATETIME is a valid ocurrence in RECUR.
 (defun recur-instance-p (start recur datetime)
@@ -860,13 +871,6 @@
            (do-recur-instances (dt recur start nil)
               (when (datetime= dt datetime)
                 (return t))))))))
-
-(defun recur-list-instances-p (dtstart dtend recur)
-  (with-collect
-    (do-recur-instances (dt recur dtstart)
-      (if (datetime<= dt dtend)
-          (collect dt)
-          (return nil)))))
 
 
 ;;; Parsing and formatting

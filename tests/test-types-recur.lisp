@@ -77,7 +77,7 @@
                              (parse-value "FREQ=YEARLY;INTERVAL=4;UNTIL=20160101T010101" 'recur)
                              (make-datetime 01 01 2009 00 00 00))))
   (is (recur-instance-p (make-datetime 01 01 2000 00 00 00)
-                        (parse-value "FREQ=MONTHLY;INTERVAL=6;COUNT=8" 'recur)
+                        (parse-value "FREQ=MONTHLY;INTERVAL=6;COUNT=18" 'recur)
                         (make-datetime 01 07 2008 00 00 00))))
 
 (test recur-instance-p-bymonth

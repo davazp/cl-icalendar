@@ -303,9 +303,7 @@
 (defun required-arg ()
   (error "A required &KEY or &OPTIONAL argument was not supplied."))
 
-;;; Like `(format t ...)', useful for debugging.
-(defmacro /debug (form)
-  #+cl-icalendar-debug
+(defmacro /debug1 (form)
   (with-gensyms (value)
     `(progn
        (let ((,value ,form))
@@ -315,13 +313,30 @@
          (write-string " ===> " *error-output*)
          (princ ,value *error-output*)
          (terpri *error-output*)
-         ,value)))
-  #-cl-icalendar-debug
-  form)
+         ,value))))
+
+;;; Run CODE and print information about the evaluation of
+;;; CODE. Useful for debugging.
+(defmacro /debug (&body code)
+  `(progn
+     ,@(loop for form in code collect `(/debug1 ,form))))
+
 
 (definline mod7 (n)
   (declare (optimize speed))
   (declare (fixnum n))
   (mod n 7))
+
+(defmacro implyp (p q)
+  `(if ,p
+       (and ,q t)
+       t))
+
+(defun range (m n &optional (step 1))
+  (loop for i from m to n by step collect i))
+
+(defun curry (fn &rest preargs)
+  (lambda (&rest postargs)
+    (apply fn (append preargs postargs))))
 
 ;;; utils.lisp ends here
