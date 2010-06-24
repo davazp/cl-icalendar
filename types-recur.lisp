@@ -451,9 +451,7 @@
      (implyp byyearday
              (find (date-day-of-year datetime) byyearday
                    :key (lambda (n)
-                          (if (leap-year-p (date-year datetime))
-                              (mod* n 366)
-                              (mod* n 365)))))
+                          (yearday n (date-year datetime)))))
      (implyp bymonthday
              (find (date-day datetime) bymonthday
                    :key (lambda (n)
