@@ -946,7 +946,7 @@
     (if (and (null n) (< 0 end))
         (%parse-error "~a is not a weekday." string)
         (let* ((str (subseq string end)))
-          (aif (position str #("MO" "TU" "WE" "TH" "FR" "SA" "SU") :test #'string=)
+          (aif (position str #("MO" "TU" "WE" "TH" "FR" "SA" "SU") :test #'string-ci=)
                (cons (elt *weekday* it) n)
                (%parse-error "~a is not a weekday." str))))))
 
@@ -970,7 +970,7 @@
   (declare (ignore params))
   (let ((rules (parse-rules string))
         (recur (make-instance 'recur)))
-    (when (duplicatep rules :key #'car :test #'string=)
+    (when (duplicatep rules :key #'car :test #'string-ci=)
       (%parse-error "Duplicate key in recurrence."))
     (flet ((parse-integer-list (x)
              (mapcar #'parse-integer (split-string x ",")))
