@@ -179,6 +179,14 @@
             collect seq
           while end)))
 
+;;; Concatenate strings.
+(defun concat (&rest strings)
+  (if (null strings)
+      (make-string 0)
+      (reduce (lambda (s1 s2)
+                (concatenate 'string s1 s2))
+              strings)))
+
 ;;; Concatenate the list of STRINGS.
 (defun join-strings (strings &optional (separator #\space))
   (if (null strings)
@@ -294,7 +302,7 @@
 
 ;;; Check if N divides to M.
 (definline divisiblep (m n)
-  (declare (integer m n))
+  (declare (fixnum m n) (optimize speed))
   (zerop (mod m n)))
 
 ;;; Set PLACE to zero.
@@ -337,6 +345,10 @@
 
 (defun curry (fn &rest preargs)
   (lambda (&rest postargs)
+    (apply fn (append preargs postargs))))
+
+(defun rcurry (fn &rest postargs)
+  (lambda (&rest preargs)
     (apply fn (append preargs postargs))))
 
 ;;; utils.lisp ends here
