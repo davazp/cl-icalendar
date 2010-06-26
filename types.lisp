@@ -194,8 +194,7 @@
 
 (defun make-uri (uri)
   (declare (string uri))
-  (make-instance 'uri
-		 :uri uri))
+  (make-instance 'uri :uri uri))
 
 
 ;;;; Cal-address
@@ -207,7 +206,11 @@
 
 (defun make-cal-address (uri)
   (declare (string uri))
-  (make-instance 'cal-address
-		 :uri uri))
+  (make-instance 'cal-address :uri uri))
+
+
+;; User-defined iCalendar data types
+
+
 
 ;;; types.lisp ends here

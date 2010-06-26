@@ -22,7 +22,7 @@
 
 (deftype day   () '(integer 1 31))
 (deftype month () '(integer 1 12))
-(deftype year  () '(integer 1900))
+(deftype year  () `(integer 1900 ,most-positive-fixnum))
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (defvar *weekday*
@@ -61,12 +61,13 @@
      (leap-years-before start)))
 
 (defun leap-year-p (year)
-  (declare (year year))
+  (declare (optimize speed) (year year))
   (and (divisiblep year 4)
        (or (not (divisiblep year 100))
            (divisiblep year 400))))
 
 (defun day-from-new-year (day month year)
+  (declare (day day) (month month) (year year))
   (let ((days-before-month      #(0 0 31 59 90 120 151 181 212 243 273 304 334))
         (days-before-month-leap #(0 0 31 60 91 121 152 182 213 244 274 305 335)))
     (if (leap-year-p year)
