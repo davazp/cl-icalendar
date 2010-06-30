@@ -345,6 +345,37 @@
            (do-cartesian ,others
              ,@code)))))
 
+;;; The ucond macro implements a new control form. The syntax is:
+;;;
+;;;    (ucond (variable initial-form)
+;;;      (condition1
+;;;        ...body1...)
+;;;      (condition2
+;;;        ...body2...)
+;;;      ...)
+;;; 
+;;; First, INITIAL-FORM is evaluated and VARIABLE is bound to its value. Then,
+;;; for each iteration the conditions are evaluated in order, until one is not
+;;; verified. In that case, the associated body is run and the we repeat the
+;;; loop with variable bound to the value return by the last expression in
+;;; that body. If all conditions are verified, the loop finishes and return
+;;; the current value of VARIABLE.
+(defmacro ucond ((variable value) &body code)
+  (with-gensyms (initial)
+    (check-type variable symbol)
+    `(let ((,variable ,value))
+         (tagbody
+            ,initial
+            ,@(loop
+                 for (condition . body) in code
+                 collect
+                 `(unless ,condition
+                    (setf ,variable (progn ,@body))
+                    (go ,initial))))
+         ,variable)))
+
+
+
 ;;; Return a recur such that the omitted rules: BYSECOND, BYMINUTE, BYHOUR,
 ;;; BYMONTHDAY, BYMONTH, and BYDAY, are filled with default values taken from
 ;;; the DTSTART datetime.
@@ -474,36 +505,6 @@
              (find (time-minute datetime) byminute))
      (implyp bysecond
              (find (time-second datetime) bysecond)))))
-
-
-;;; The ucond macro implements a new control form. The syntax is:
-;;;
-;;;    (ucond (variable initial-form)
-;;;      (condition1
-;;;        ...body1...)
-;;;      (condition2
-;;;        ...body2...)
-;;;      ...)
-;;; 
-;;; First, INITIAL-FORM is evaluated and VARIABLE is bound to its value. Then,
-;;; for each iteration the conditions are evaluated in order, until one is not
-;;; verified. In that case, the associated body is run and the we repeat the
-;;; loop with variable bound to the value return by the last expression in
-;;; that body. If all conditions are verified, the loop finishes and return
-;;; the current value of VARIABLE.
-(defmacro ucond ((variable value) &body code)
-  (with-gensyms (initial)
-    (check-type variable symbol)
-    `(let ((,variable ,value))
-         (tagbody
-            ,initial
-            ,@(loop
-                 for (condition . body) in code
-                 collect
-                 `(unless ,condition
-                    (setf ,variable (progn ,@body))
-                    (go ,initial))))
-         ,variable)))
 
 
 (defun %recur-list-instances-in-second (dt recur)
