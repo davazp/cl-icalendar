@@ -1062,14 +1062,14 @@
     (format s "~@[;UNTIL=~a~]"              (recur-until recur))
     (format s "~@[;BYSECOND=~{~A~^,~}~]"    (recur-bysecond recur))
     (format s "~@[;BYMINUTE=~{~A~^,~}~]"    (recur-byminute recur))
-    (format s "~@[;BYHOUR=~{~A~^,~}~]"     (recur-byhour recur))
+    (format s "~@[;BYHOUR=~{~A~^,~}~]"      (recur-byhour recur))
     (format s "~@[;BYDAY=~{~@[~d~]~a~^,~}~]"
             (with-collect
               (dolist (day (recur-byday recur))
                 (destructuring-bind (wday . n) day
                   (collect n)
                   (collect (elt *weekday-names* (position wday *weekday*)))))))
-    (format s "~@[;BYMONTH=~{~A~^,~}~]"   (recur-bymonth recur))
+    (format s "~@[;BYMONTH=~{~A~^,~}~]"    (recur-bymonth recur))
     (format s "~@[;BYMONTHDAY=~{~A~^,~}~]" (recur-bymonthday recur))
     (format s "~@[;BYYEARDAY=~{~A~^,~}~]"  (recur-byyearday recur))
     (format s "~@[;BYWEEKNO=~{~A~^,~}~]"   (recur-byweekno recur))
