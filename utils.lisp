@@ -246,6 +246,12 @@
       (let ((tail (nthcdr (1- n) list)))
         (setf (cdr tail) (cddr tail))
         list)))
+
+;;; Return X if it is a list, (list X) otherwise.
+(defun mklist (x)
+  (if (listp x)
+      x
+      (list x)))
 
 ;;;; Streams
 ;;; Read characters from STREAM until it finds a char of CHAR-BAG. If
