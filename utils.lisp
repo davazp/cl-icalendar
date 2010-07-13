@@ -220,6 +220,32 @@
            x
            (append (looping (car x) (and limit (1- k)))
                    (looping (cdr x) k)))))))
+
+
+;;; Return a list with the nth element of list removed.
+(defun remove-nth (n list)
+  (let* ((result (cons nil nil))
+         (tail result))
+    (do ((i 0 (1+ i))
+         (l list (cdr l)))
+        ((or (= i n) (null l))
+         (setf (cdr tail) (cdr l))
+         (cdr result))
+      (setf (cdr tail) (cons (car l) nil))
+      (setf tail (cdr tail)))))
+
+;;; delete-nth is as remove-nth but it could modify the list.
+;;; 
+;;; NOTE: if you want delete the nth element of the value of a
+;;; variable V, you should use '(setf v (delete-nth n v))', indeed of
+;;; '(delete-nth n v)', just as the standard delete function.
+(defun delete-nth (n list)
+  (declare (type (integer 0 *) n) (list list))
+  (if (zerop n)
+      (cdr list)
+      (let ((tail (nthcdr (1- n) list)))
+        (setf (cdr tail) (cddr tail))
+        list)))
 
 ;;;; Streams
 ;;; Read characters from STREAM until it finds a char of CHAR-BAG. If
