@@ -71,8 +71,8 @@
   (let ((days-before-month      #(0 0 31 59 90 120 151 181 212 243 273 304 334))
         (days-before-month-leap #(0 0 31 60 91 121 152 182 213 244 274 305 335)))
     (if (leap-year-p year)
-        (+ day (elt days-before-month-leap month))
-        (+ day (elt days-before-month month)))))
+        (+ day (svref days-before-month-leap month))
+        (+ day (svref days-before-month month)))))
 
 (defun make-date (day month year)
   (declare (day day) (month month) (year year))
@@ -121,7 +121,7 @@
   ;; Note 1 of January of 1900 was Monday.
   (let* ((nwkst (position wkst *weekday*))
          (nday (mod7 (day-from-1900 x)))
-         (day (elt *weekday* (mod7 (1- nday)))))
+         (day (svref *weekday* (mod7 (1- nday)))))
     (values day (1+ (mod7 (- nday nwkst 1))))))
 
 ;;; Begins in 1

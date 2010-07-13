@@ -325,7 +325,7 @@
          (if (leap-year-p year)
              #(0 31 29 31 30 31 30 31 31 30 31 30 31)
              #(0 31 28 31 30 31 30 31 31 30 31 30 31))))
-    (mod* day (elt monthdays month))))
+    (mod* day (svref monthdays month))))
 
 ;;; Return the nth DAY in year. This handles negative days propertily.
 (defun yearday (day year)
@@ -948,7 +948,7 @@
         (%parse-error "~a is not a weekday." string)
         (let* ((str (subseq string end)))
           (aif (position str #("MO" "TU" "WE" "TH" "FR" "SA" "SU") :test #'string-ci=)
-               (cons (elt *weekday* it) n)
+               (cons (svref *weekday* it) n)
                (%parse-error "~a is not a weekday." str))))))
 
 (defun parse-rule-part (string)
@@ -1043,7 +1043,7 @@
                    (let ((nday (position value *weekday-names* :test #'string-ci=)))
                      (when (null nday)
                        (%parse-error "~a is not a weekday." value))
-                     (elt *weekday* nday))))
+                     (nth *weekday* nday))))
             (t
              (%parse-error "Unknown recurrence component ~a" key)))))
 
@@ -1068,7 +1068,7 @@
               (dolist (day (recur-byday recur))
                 (destructuring-bind (wday . n) day
                   (collect n)
-                  (collect (elt *weekday-names* (position wday *weekday*)))))))
+                  (collect (svref *weekday-names* (position wday *weekday*)))))))
     (format s "~@[;BYMONTH=~{~A~^,~}~]"    (recur-bymonth recur))
     (format s "~@[;BYMONTHDAY=~{~A~^,~}~]" (recur-bymonthday recur))
     (format s "~@[;BYYEARDAY=~{~A~^,~}~]"  (recur-byyearday recur))
@@ -1076,7 +1076,7 @@
     (format s "~@[;BYSETPOS=~{~A~^,~}~]"   (recur-bysetpos recur))
     (unless (eq (recur-wkst recur) :monday)
       (let ((nwkst (position (recur-wkst recur) *weekday*)))
-        (format s ";WKST=~a" (elt *weekday-names* nwkst))))))
+        (format s ";WKST=~a" (svref *weekday-names* nwkst))))))
 
 
 ;;; Local variables:

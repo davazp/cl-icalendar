@@ -30,13 +30,8 @@
 ;;; objects to strings and vice versa.
 
 (deftype ical-value ()
-  '(or
-    boolean integer float text binary
-    uri cal-address utc-offset date time date-time
-    duration period recur
-    ;; x-type??
-    ;; A (satisfies x-typep) be placed here soon.
-    ))
+  '(or boolean integer float text binary uri cal-address utc-offset date
+    time date-time duration period recur x-ical-value))
 
 ;;; Like `check-type' but it signals an error with %parse-error.
 (defmacro check-ical-type (place type)
@@ -211,6 +206,8 @@
 
 ;; User-defined iCalendar data types
 
+(defclass x-ical-value ()
+  nil)
 
 
 ;;; types.lisp ends here
