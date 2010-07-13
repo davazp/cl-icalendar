@@ -129,16 +129,17 @@
   (:method ((component component-object) property-name)
     ))
 
-(defmethod (setf property-value)
-    (new-value (component component-object) property-name)
-  nil)
+(defgeneric (setf property-value) (new-value component property-name)
+  (:method (new-value (component component-object) property-name)
+    nil))
 
-(defmethod property-param ((component component-object) property-name parameter-name)
-  nil)
+(defgeneric property-param (component property-name parameter-name)
+  (:method ((component component-object) property-name parameter-name)
+    nil))
 
-(defmethod (setf property-param)
-    (new-value (component component-object) property-name parameter-name)
-  nil)
+(defgeneric (setf property-param) (new-value component property-name parameter-name)
+  (:method (new-value (component component-object) property-name parameter-name)
+    nil))
 
 (defmethod slot-value-using-class :around
     ((class component-class)
