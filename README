@@ -14,6 +14,9 @@ has been tested on:
 
 The following libraries are required in order to use cl-icalendar:
 
+  o closer-mop
+    http://www.cliki.net/closer-mop
+
   o trivial-gray-streams
     http://www.cliki.net/trivial-gray-streams
 

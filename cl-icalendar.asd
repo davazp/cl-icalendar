@@ -27,7 +27,7 @@
 (defsystem :cl-icalendar
   :name "iCalendar library"
   :license "GPLv3+"
-  :depends-on (:trivial-gray-streams :cl-base64 :uuid)
+  :depends-on (:trivial-gray-streams :cl-base64 :uuid :closer-mop)
   :serial t
   :components
   ((:static-file "COPYING")
@@ -47,8 +47,8 @@
    (:file "types-recur")
    (:file "folding")
    (:file "content-line")
-   (:file "properties")
    (:file "components")
+   (:file "components-standard")
    (:file "cl-icalendar")))
 
 ;; cl-icalendar.asd ends here

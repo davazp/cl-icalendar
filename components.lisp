@@ -1,4 +1,4 @@
-;; components.lisp --- iCalendar components
+;; components.lisp --- iCalendar's component functionality
 ;;
 ;; Copyrigth (C) 2010 David Vázquez
 ;;
@@ -19,171 +19,156 @@
 
 (in-package :cl-icalendar)
 
-(defvar *component-classes*
-  (make-hash-table :test #'equalp))
-
-(defclass component-class ()
-  ((name
-    :initform (required-arg)
-    :type string
-    :initarg :name
-    :reader component-name)
-   (allow-x-properties-p
-    :initform t
-    :type boolean
-    :initarg :allow-x-properties-p
-    :reader component-allow-x-properties-p)
-   (subcomponents
-    :initform nil
-    :type list
+;;; Metaclass of component classes
+(defclass component-class (standard-class)
+  ((subcomponents
     :initarg :subcomponents
-    :reader component-subcomponents)
-   (property-list
-    :initform nil
     :type list
-    :initarg :property-list
-    :reader component-property-list)))
+    :initform nil
+    :reader component-class-subcomponents)))
 
-(defmethod print-object ((object component-class) stream)
-  (print-unreadable-object (object stream :type t)
-    (princ (component-name object) stream)))
+(defmethod validate-superclass ((c component-class) (superclass standard-class))
+  t)
 
-(defun find-component (cname)
-  (values (gethash cname *component-classes*)))
+;;; A particular instance of a property, with a list of parameters and
+;;; a list of associated values.
+(defstruct property-impl
+  parameters
+  values)
 
-(defmacro define-component (name supercomponents properties &rest options)
-  (declare (ignorable supercomponents options))
-  (declare (symbol name))
-  `(setf (gethash (string ',name) *component-classes*)
-         (apply #'make-instance 'component-class
-                :name (string ',name)
-                :property-list
-                (mapcar #'make-property-from-definition ',properties)
-                ',(with-collect
-                   (dolist (option options)
-                     (let ((option-name (car option))
-                           (option-values (cdr option)))
-                       (collect option-name)
-                       (collect option-values)))))))
+;;; Superclass of all component classes. Therefore, the behaviour of
+;;; this class is inherited by all them. We implement the property and
+;;; subcomponents artillery here.
+(defclass component-object ()
+  ((properties
+    :type hash-table
+    :initform (make-hash-table :test #'equalp)
+    :accessor component-properties)
+   (subcomponents
+    :type list
+    :initform nil
+    :accessor component-subcomponents))
+  (:metaclass component-class))
+
+(defmethod initialize-instance ((class component-class) &rest initargs
+                                &key direct-superclasses &allow-other-keys)
+  (let ((superclasses (copy-list direct-superclasses)))
+    ;; If no specified spuerclasses of CLASS is a subclass of
+    ;; component-object, then we add it to the list fo
+    ;; superclasses. So, it seems as the default superclass.
+    (unless (some (rcurry #'subclassp 'component-object) direct-superclasses)
+      (nconc superclasses (list (find-class 'component-object))))
+    (apply #'call-next-method class :direct-superclasses superclasses initargs)))
+
+
+;;; Identify iCalendar properties with CL slots. So we integrate the
+;;; system of components into CLOS. The slot value will be computed
+;;; from the property-table present in the class.
+;;; (The extensibility is wonderful)
+(defclass property-definition (standard-slot-definition)
+  (;; If the TYPE parameter in a property instance is not set, then we
+   ;; consider it is a representation for a object of type
+   ;; DEFAULT-TYPE.
+   (default-type
+    :initarg :type
+    :reader property-definition-default-type)
+   ;; Describe the number of values that a property can take. If it is
+   ;; NIL, a unique value is allowed. If it is T, then multiple-value
+   ;; is allowed. If it is an integer, then it is the exactly the
+   ;; number of values that the property must take.
+   (multiple-value
+    :type (or boolean (integer 0 *))
+    :reader property-definition-multiple-value)
+   ;; The minimum number of properties which be belong to this
+   ;; definition in a given component.
+   (instances-min
+    :type (integer 0 *)
+    :reader property-definition-instances-min)
+   ;; The maximum number of properties which be belong to this
+   ;; definition in a given component.
+   (instances-max
+    :type (or null (integer 0 *))
+    :reader property-definition-instances-max)))
+
+(defclass direct-property-definition
+    (property-definition standard-direct-slot-definition)
+  nil)
+
+(defclass effective-property-definition
+    (property-definition standard-effective-slot-definition)
+  nil)
+
+(defmethod direct-slot-definition-class ((x component-class) &rest initargs)
+  (declare (ignore initargs))
+  (find-class 'direct-property-definition))
+
+(defmethod effective-slot-definition-class ((x component-class) &rest initargs)
+  (declare (ignore initargs))
+  (find-class 'effective-property-definition))
+
+(defmethod finalize-inheritance ((class component-class))
+  (flet ((compute-subcomponents (class)
+           ;; Return the effective list of subcomponents allowed by
+           ;; the class. It is computed appending the inherited
+           ;; ':subcomponents' option from superclasses to the
+           ;; :subcomponents class's option.
+           (with-slots (subcomponents) class
+             (let ((effective-subcomponents subcomponents))
+               (dolist (c (class-direct-superclasses class))
+                 (when (subclassp (class-of c) (find-class 'component-class))
+                   (nconc effective-subcomponents (component-class-subcomponents c))))
+               effective-subcomponents))))
+    (unless (class-finalized-p class)
+      (setf (slot-value class 'subcomponents)
+            (compute-subcomponents class)))
+    (call-next-method)))
 
 
-;;;; Standard component's definitions
 
-(define-component vcalendar ()
-  ((proid
-    :required t
-    :type text)
-   (version
-    :required t
-    :type text
-    :default "2.0")
-   (calscale
-    :type text
-    :default "GREGORIAN")
-   (method
-    :type text))
-  ;; Options
-  (:subcomponents vevent vtodo vjourunal vfreebusy vtimezone))
+(defgeneric property-value (component property-name)
+  (:method ((component component-object) property-name)
+    ))
 
+(defmethod (setf property-value)
+    (new-value (component component-object) property-name)
+  nil)
 
-(define-component vtodo ()
-  ((dtstamp :required t :type datetime)
-   (uid     :required t :type text)
-   (class               :type text)
-   (completed           :type datetime)
-   (created             :type datetime)
-   (description         :type text)
-   (dtstart             :type (or datetime date) :default-type datetime )
-   (geo                 :type float :count 2 )
-   (last-modified       :type datetime)
-   (location            :type text)
-   (organizer           :type cal-address)
-   (percent-complete    :type (integer 0 100))
-   (priority            :type (integer 0 9))
-   (recurrence-id       :type (or datetime date) :default-type datetime)
-   (sequence            :type (integer 0 *))
-   (status              :type text)
-   (summary             :type text)
-   (url                 :type uri)
-   (rrule               :type recur)
-   (due                 :type (or datetime date) :default-type datetime)
-   (duration            :type duration)
-   (attach              :type binary :default-type uri)
-   (attendee            :type cal-address)
-   (categories          :type text)
-   (comment             :type text)
-   (contact             :type text)
-   (exdate              :type (or datetime date) :default-type datetime)
-   (request-status      :type text)
-   (related-to          :type text)
-   (resources           :type text :count nil)
-   (rdate               :type (or datetime date period) :default-type datetime))
-  ;; Options
-  (:subcomponents valarm))
+(defmethod property-param ((component component-object) property-name parameter-name)
+  nil)
+
+(defmethod (setf property-param)
+    (new-value (component component-object) property-name parameter-name)
+  nil)
+
+(defmethod slot-value-using-class :around
+    ((class component-class)
+     (instance component-object)
+     (prop effective-property-definition))
+  (call-next-method))
+
+(defmethod (setf slot-value-using-class) :around
+    (new-value (class component-class)
+               (instance component-object)
+               (prop effective-property-definition))
+  (call-next-method))
 
 
-(define-component vevent ()
-  ((dtstamp :required t :type datetime)
-   (uid     :required t :type text)
-   ;; FIXME: This property is required if iCalendar METHOD one is not
-   ;; specified.
-   (dtstart :required t :type datetime)
-   (class               :type text)
-   (created             :type datetime)
-   (description         :type text)
-   (geo                 :type float :count 2 )
-   (last-modified       :type datetime)
-   (location            :type text)
-   (organizer           :type cal-address)
-   (priority            :type (integer 0 9))
-   (sequence            :type (integer 0 *))
-   (status              :type text)
-   (summary             :type text)
-   (transp              :type (member "OPAQUE" "TRANSPARENT") :default "OPAQUE")
-   (url                 :type uri)
-   (recurrence-id       :type (or datetime date) :default-type datetime)
-   (rrule               :type recur)
-   (dtend               :type (or datetime date) :default-type datetime)
-   (duration            :type duration)
-   (attach              :type binary :default-type uri)
-   (attendee            :type cal-address)
-   (categories          :type text)
-   (comment             :type text)
-   (contact             :type text)
-   (exdate              :type (or datetime date) :default-type datetime)
-   (request-status      :type text)
-   (related-to          :type text)
-   (resources           :type text :count nil)
-   (rdate               :type (or datetime date period) :default-type datetime))
-  ;; Options
-  (:subcomponents valarm))
-
-
-;;;; Timezone component
-
-(define-component standard ()
-  ((dtstart      :required t :type datetime)
-   (tzoffsetto   :required t :type utc-offset)
-   (tzoffsetfrom :required t :type utc-offset)
-   (rrule   :type recur)
-   (comment :type string)
-   (rdate   :type (or datetime date period) :default-type datetime)
-   (tzname  :type string)))
-
-(define-component daylight ()
-  ((dtstart      :required t :type datetime)
-   (tzoffsetto   :required t :type utc-offset)
-   (tzoffsetfrom :required t :type utc-offset)
-   (rrule   :type recur)
-   (comment :type string)
-   (rdate   :type (or datetime date period) :default-type datetime)
-   (tzname  :type string)))
-
-(define-component vtimezone ()
-  ((tzid :required t :type text)
-   (last-modified :type datetime)
-   (tzurl :type uri))
-  (:subcomponents standard daylight))
+;;; Like `defclass', but the metaclass must be a subclass of
+;;; component-class, which is, indeed, the default metaclass.
+(defmacro defcomponent (name super-components slots &rest options)
+  (let ((metaclass (cadr (assoc :metaclass options))))
+    (cond
+      (metaclass
+       (unless (subclassp metaclass 'component-class)
+         (error "The :metaclass option must specify a submetaclass of component-class."))
+       `(defclass ,name ,super-components
+          ,slots
+          ,@options))
+      (t
+       `(defcomponent ,name ,super-components
+          ,slots
+          (:metaclass component-class)
+          ,@options)))))
 
 
 ;;; components.ends here

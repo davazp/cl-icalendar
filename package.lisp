@@ -21,8 +21,12 @@
 
 (defpackage :cl-icalendar
   (:nicknames :icalendar :ical)
-  (:use :cl :trivial-gray-streams)
+  (:use :c2cl :trivial-gray-streams)
   (:shadow #:time)
+  ;; If it is running on SBCL, lock the package.
+  #+sbcl (:lock t)
+  ;; Exported symbols. It could be mantained for each file separately,
+  ;; however I think it will help to keep the API stable so.
   (:export #:make-folding-stream
            #:with-folding-stream
            ;; Data types
