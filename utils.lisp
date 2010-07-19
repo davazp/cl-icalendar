@@ -34,6 +34,17 @@
 			 (list `(,(first i) (gensym ,(second i))))))
      ,@code))
 
+;;; The famous macro once-only macro.
+;;; FIXME: How ugly is! Write a more beautiful implementation. This would be both
+;;; more verbose, and clearer.
+(defmacro once-only ((&rest names) &body body)
+  (let ((gensyms (loop for n in names collect (gensym))))
+    `(let (,@(loop for g in gensyms collect `(,g (gensym))))
+      `(let (,,@(loop for g in gensyms for n in names collect ``(,,g ,,n)))
+        ,(let (,@(loop for n in names for g in gensyms collect `(,n ,g)))
+           ,@body)))))
+
+
 (defmacro with-collect (&body code)
   (with-gensyms (collected tail)
     `(let* ((,collected (list '#:collect))
