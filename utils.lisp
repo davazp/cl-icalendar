@@ -306,13 +306,21 @@
 
 ;;;; setf-based
 
-;;; Set PLACE to 0
-(defmacro zerof (place)
-  `(setf ,place 0))
+;;; The multiple-setf macro was written by Mario Castelán. It is a
+;;; beautiful form to support multiple places in zerof and nilf.
+(defmacro multiple-setf (value &rest places)
+  (with-gensyms (tmp)
+    `(let ((,tmp ,value))
+       ,@(loop for place in places
+               collect `(setf ,place ,tmp)))))
+
+;;; Set PLACES to 0
+(defmacro zerof (&rest places)
+  `(multiple-setf 0 ,@places))
 
 ;;; Set PLACE to nil.
-(defmacro nilf (place)
-  `(setf ,place nil))
+(defmacro nilf (&rest places)
+  `(multiple-setf nil ,@places))
 
 ;;; (modf place N) set place to (mod place N)
 (define-modify-macro modf (n) mod)
