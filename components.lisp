@@ -19,23 +19,6 @@
 
 (in-package :cl-icalendar)
 
-;;; Metaclass of component classes
-(defclass component-class (standard-class)
-  ((subcomponents
-    :initarg :subcomponents
-    :type list
-    :initform nil
-    :reader component-class-subcomponents)))
-
-(defmethod validate-superclass ((c component-class) (superclass standard-class))
-  t)
-
-;;; A particular instance of a property, with a list of parameters and
-;;; a list of associated values.
-(defstruct property-impl
-  parameters
-  values)
-
 ;;; Superclass of all component classes. Therefore, the behaviour of
 ;;; this class is inherited by all them. We implement the property and
 ;;; subcomponents artillery here.
@@ -47,19 +30,150 @@
    (subcomponents
     :type list
     :initform nil
-    :accessor component-subcomponents))
-  (:metaclass component-class))
+    :accessor component-subcomponents)))
+
+(defclass property ()
+  ((name
+    :type string
+    :initarg :name
+    :initform (required-arg)
+    :reader property-name)
+   (parameters
+    :type list
+    :initarg :parameters
+    :initform nil
+    :accessor property-parameters)
+   (value
+    :initarg :value
+    :type ical-value
+    :accessor property-value)
+   (previous
+    :type (or null property)
+    :accessor %previous-property)
+   (next
+    :type (or null property)
+    :accessor %next-property)))
+
+(defgeneric add-property (component property-name values &rest parameters)
+  (:method ((c component-object) pname values &rest params)
+    (let ((pname (string pname))
+          (ptable (component-properties c))
+          (values (mklist values))
+          (strparams (mapcar #'string params)))
+      (dolist (value values)
+        (let* ((next (gethash pname ptable))
+               (property
+                (make-instance 'property
+                               :name pname
+                               :parameters strparams
+                               :value (format-value value))))
+          (nilf (%previous-property property))
+          (setf (%next-property property) next)
+          (and next (setf (%previous-property next) property))
+          (setf (gethash pname ptable) property))))))
+
+(defgeneric find-property (property-name component)
+  (:method (pname (c component-object))
+    (values (gethash (string pname) (component-properties c)))))
+
+(defgeneric delete-property (property component)
+  (:method ((property symbol) (component component-object))
+    (remhash (string property) (component-properties component)))
+  (:method ((property property) (component component-object))
+    (with-slots (name previous next) property
+      (cond
+        (previous
+         (setf (%next-property previous) next)
+         (setf (%previous-property next) previous))
+        (t
+         (let ((ptable (component-properties component)))
+           (when next
+             (nilf (%previous-property next)))
+           (setf (gethash name ptable) next))))
+      (nilf previous next)
+      (values))))
+
+(defmacro %do-property-1 ((property &key name) component &body code)
+  (once-only (name component)
+    `(do ((,property
+           (gethash (string ,name) (component-properties ,component))
+           (%next-property ,property)))
+         ((null ,property))
+       ,@code)))
+
+(defmacro %do-property-all ((property) component &body code)
+  (with-gensyms (iterator morep key)
+    (once-only (component)
+      `(let ((,component ,component))
+         (with-hash-table-iterator (,iterator (component-properties ,component))
+           (loop
+            (multiple-value-bind (,morep ,key)
+                (,iterator)
+              (unless ,morep (return))
+              (do-property (,property :name ,key)
+                  ,component
+                ,@code))))))))
+
+(defmacro do-property ((property &key (name nil namep)) component &body code)
+  (check-type property symbol)
+  (if namep
+      `(%do-property-1 (,property :name ,name) ,component
+         ,@code)
+      `(%do-property-all (,property) ,component
+         ,@code)))
+
+(defgeneric count-property (component &optional property-name)
+  (:method ((component component-object) &optional pname)
+    (let (count)
+      (if pname
+          (do-property (property :name pname) component
+            (incf count))
+          (do-property (property) component
+            (incf count))))))
+
+
+
+;;; Metaclass of component classes
+(defclass component-class (standard-class)
+  ((subcomponents
+    :initarg :subcomponents
+    :type list
+    :initform nil
+    :reader component-class-subcomponents)))
+
+(defmethod validate-superclass ((c component-class) (superclass standard-class))
+  t)
 
 (defmethod initialize-instance ((class component-class) &rest initargs
                                 &key direct-superclasses &allow-other-keys)
   (let ((superclasses (copy-list direct-superclasses)))
-    ;; If no specified spuerclasses of CLASS is a subclass of
+    ;; If no specified superclasses of CLASS is a subclass of
     ;; component-object, then we add it to the list fo
     ;; superclasses. So, it seems as the default superclass.
     (unless (some (rcurry #'subclassp 'component-object) direct-superclasses)
       (nconc superclasses (list (find-class 'component-object))))
     (apply #'call-next-method class :direct-superclasses superclasses initargs)))
 
+(defmethod finalize-inheritance ((class component-class))
+  (flet ((compute-subcomponents (class)
+           ;; Return the effective list of subcomponents allowed by
+           ;; the class. It is computed appending the inherited
+           ;; subcomponents from superclasses to the :subcomponents
+           ;; class's option.
+           (with-slots (subcomponents) class
+             (let ((effective-subcomponents subcomponents))
+               (dolist (c (class-direct-superclasses class))
+                 (when (subclassp (class-of c) (find-class 'component-class))
+                   (nconc effective-subcomponents (component-class-subcomponents c))))
+               effective-subcomponents))))
+    (unless (class-finalized-p class)
+      (setf (slot-value class 'subcomponents)
+            (compute-subcomponents class)))
+    (call-next-method)))
+
+(defmethod print-object ((class component-class) stream)
+  (print-unreadable-object (class stream :type t)
+    (write (class-name class) :stream stream)))
 
 ;;; Identify iCalendar properties with CL slots. So we integrate the
 ;;; system of components into CLOS. The slot value will be computed
@@ -105,54 +219,24 @@
 (defmethod effective-slot-definition-class ((x component-class) &rest initargs)
   (declare (ignore initargs))
   (find-class 'effective-property-definition))
+ 
+;; (defmethod slot-value-using-class
+;;     ((class component-class)
+;;      (instance component-object)
+;;      prop)
+;;   (declare (ignore class))
+;;   (call-next-method))
 
-(defmethod finalize-inheritance ((class component-class))
-  (flet ((compute-subcomponents (class)
-           ;; Return the effective list of subcomponents allowed by
-           ;; the class. It is computed appending the inherited
-           ;; ':subcomponents' option from superclasses to the
-           ;; :subcomponents class's option.
-           (with-slots (subcomponents) class
-             (let ((effective-subcomponents subcomponents))
-               (dolist (c (class-direct-superclasses class))
-                 (when (subclassp (class-of c) (find-class 'component-class))
-                   (nconc effective-subcomponents (component-class-subcomponents c))))
-               effective-subcomponents))))
-    (unless (class-finalized-p class)
-      (setf (slot-value class 'subcomponents)
-            (compute-subcomponents class)))
-    (call-next-method)))
-
-
-
-(defgeneric property-value (component property-name)
-  (:method ((component component-object) property-name)
-    ))
-
-(defgeneric (setf property-value) (new-value component property-name)
-  (:method (new-value (component component-object) property-name)
-    nil))
-
-(defgeneric property-param (component property-name parameter-name)
-  (:method ((component component-object) property-name parameter-name)
-    nil))
-
-(defgeneric (setf property-param) (new-value component property-name parameter-name)
-  (:method (new-value (component component-object) property-name parameter-name)
-    nil))
-
-(defmethod slot-value-using-class :around
-    ((class component-class)
-     (instance component-object)
-     (prop effective-property-definition))
-  (call-next-method))
-
-(defmethod (setf slot-value-using-class) :around
-    (new-value (class component-class)
-               (instance component-object)
-               (prop effective-property-definition))
-  (call-next-method))
-
+;; (defmethod (setf slot-value-using-class)
+;;     (new-value
+;;      (class component-class)
+;;      (instance component-object)
+;;      (prop effective-property-definition))
+;;   (declare (ignore class))
+;;   (let ((pname (slot-definition-name prop)))
+;;     (delete-property pname instance)
+;;     (add-property instance pname new-value))
+;;   (values))
 
 ;;; Like `defclass', but the metaclass must be a subclass of
 ;;; component-class, which is, indeed, the default metaclass.
