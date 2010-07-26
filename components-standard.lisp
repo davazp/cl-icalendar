@@ -23,7 +23,7 @@
   nil
   (:metaclass component-class))
 
-(defclass x-component-object (standard-component-object)
+(defclass x-component-object ()
   nil
   (:metaclass component-class))
 

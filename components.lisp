@@ -124,12 +124,13 @@
 
 (defgeneric count-property (component &optional property-name)
   (:method ((component component-object) &optional pname)
-    (let (count)
+    (let ((count 0))
       (if pname
           (do-property (property :name pname) component
             (incf count))
           (do-property (property) component
-            (incf count))))))
+            (incf count)))
+      count)))
 
 
 
@@ -141,39 +142,45 @@
     :initform nil
     :reader component-class-subcomponents)))
 
-(defmethod validate-superclass ((c component-class) (superclass standard-class))
+;; Return the effective list of subcomponents allowed by the class.
+(defgeneric compute-subcomponents (class))
+
+(defmethod validate-superclass
+    ((c component-class) (superclass standard-class))
   t)
 
-(defmethod initialize-instance ((class component-class) &rest initargs
-                                &key direct-superclasses &allow-other-keys)
+(defmethod initialize-instance :around
+    ((class component-class)
+     &rest initargs &key direct-superclasses &allow-other-keys)
   (let ((superclasses (copy-list direct-superclasses)))
     ;; If no specified superclasses of CLASS is a subclass of
     ;; component-object, then we add it to the list fo
     ;; superclasses. So, it seems as the default superclass.
-    (unless (some (rcurry #'subclassp 'component-object) direct-superclasses)
-      (nconc superclasses (list (find-class 'component-object))))
+    (unless (some (curry #'superclassp 'component-object) direct-superclasses)
+      (setf superclasses (nconc superclasses (list (find-class 'component-object)))))
     (apply #'call-next-method class :direct-superclasses superclasses initargs)))
 
-(defmethod finalize-inheritance ((class component-class))
-  (flet ((compute-subcomponents (class)
-           ;; Return the effective list of subcomponents allowed by
-           ;; the class. It is computed appending the inherited
-           ;; subcomponents from superclasses to the :subcomponents
-           ;; class's option.
-           (with-slots (subcomponents) class
-             (let ((effective-subcomponents subcomponents))
-               (dolist (c (class-direct-superclasses class))
-                 (when (subclassp (class-of c) (find-class 'component-class))
-                   (nconc effective-subcomponents (component-class-subcomponents c))))
-               effective-subcomponents))))
-    (unless (class-finalized-p class)
-      (setf (slot-value class 'subcomponents)
-            (compute-subcomponents class)))
-    (call-next-method)))
+(defmethod finalize-inheritance :around ((class component-class))
+  (unless (class-finalized-p class)
+    (with-slots (subcomponents) class
+      (setf subcomponents (compute-subcomponents class))))
+  (call-next-method))
 
 (defmethod print-object ((class component-class) stream)
   (print-unreadable-object (class stream :type t)
     (write (class-name class) :stream stream)))
+
+(defmethod compute-subcomponents ((class component-class))
+  ;; Compute the effective list of subcomponents allowed by the class.
+  ;; It is computed appending the inherited subcomponents from
+  ;; superclasses to the :subcomponents class' option.
+  (with-slots (subcomponents) class
+    (let ((effective-subcomponents subcomponents))
+      (dolist (c (class-direct-superclasses class))
+        (when (subclassp (class-of c) (find-class 'component-class))
+          (nconc effective-subcomponents (component-class-subcomponents c))))
+      effective-subcomponents)))
+
 
 ;;; Identify iCalendar properties with CL slots. So we integrate the
 ;;; system of components into CLOS. The slot value will be computed
@@ -192,17 +199,9 @@
    ;; number of values that the property must take.
    (multiple-value
     :type (or boolean (integer 0 *))
-    :reader property-definition-multiple-value)
-   ;; The minimum number of properties which be belong to this
-   ;; definition in a given component.
-   (instances-min
-    :type (integer 0 *)
-    :reader property-definition-instances-min)
-   ;; The maximum number of properties which be belong to this
-   ;; definition in a given component.
-   (instances-max
-    :type (or null (integer 0 *))
-    :reader property-definition-instances-max)))
+    :initform t
+    :reader property-definition-multiple-value))
+  (:default-initargs :allocation :property))
 
 (defclass direct-property-definition
     (property-definition standard-direct-slot-definition)
@@ -212,36 +211,59 @@
     (property-definition standard-effective-slot-definition)
   nil)
 
-(defmethod direct-slot-definition-class ((x component-class) &rest initargs)
+(defmethod direct-slot-definition-class
+    ((x component-class) &rest initargs &key (allocation :property) &allow-other-keys)
   (declare (ignore initargs))
-  (find-class 'direct-property-definition))
+  (if (eq allocation :property)
+      (find-class 'direct-property-definition)
+      (call-next-method)))
 
-(defmethod effective-slot-definition-class ((x component-class) &rest initargs)
+(defmethod effective-slot-definition-class
+    ((x component-class) &rest initargs &key (allocation :property) &allow-other-keys)
   (declare (ignore initargs))
-  (find-class 'effective-property-definition))
- 
-;; (defmethod slot-value-using-class
-;;     ((class component-class)
-;;      (instance component-object)
-;;      prop)
-;;   (declare (ignore class))
-;;   (call-next-method))
+  (if (eq allocation :property)
+      (find-class 'effective-property-definition)
+      (call-next-method)))
 
-;; (defmethod (setf slot-value-using-class)
-;;     (new-value
-;;      (class component-class)
-;;      (instance component-object)
-;;      (prop effective-property-definition))
-;;   (declare (ignore class))
-;;   (let ((pname (slot-definition-name prop)))
-;;     (delete-property pname instance)
-;;     (add-property instance pname new-value))
-;;   (values))
+
+(defmethod slot-value-using-class
+    ((class component-class)
+     (instance component-object)
+     (prop effective-property-definition))
+  (if (property-definition-multiple-value prop)
+      (with-collect
+        (do-property (prop :name (slot-definition-name prop)) instance
+          (collect (property-value prop))))
+      (do-property (property :name (slot-definition-name prop)) instance
+        (return (property-value prop)))))
+
+(defmethod (setf slot-value-using-class)
+    (new-value
+     (class component-class)
+     (instance component-object)
+     (prop effective-property-definition))
+  (let ((name (slot-definition-name prop)))
+    (delete-property name instance)
+    ;; IDEA: default parameters by property?
+    (add-property instance name new-value)))
+
+(defmethod slot-boundp-using-class
+    ((class component-class)
+     (object component-object)
+     (slotd effective-property-definition))
+  (not (zerop (count-property object (slot-definition-name slotd)))))
+
+(defmethod slot-makunbound-using-class
+    ((class component-class)
+     (object component-object)
+     (slotd effective-property-definition))
+  (delete-property (slot-definition-name slotd) object))
+
 
 ;;; Like `defclass', but the metaclass must be a subclass of
 ;;; component-class, which is, indeed, the default metaclass.
 (defmacro defcomponent (name super-components slots &rest options)
-  (let ((metaclass (cadr (assoc :metaclass options))))
+  (let ((metaclass (second (assoc :metaclass options))))
     (cond
       (metaclass
        (unless (subclassp metaclass 'component-class)

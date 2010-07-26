@@ -44,7 +44,8 @@
         ,(let (,@(loop for n in names for g in gensyms collect `(,n ,g)))
            ,@body)))))
 
-
+;;; TODO: Generalize with-collect to with-collecting in order to
+;;; support initialization of the collection.
 (defmacro with-collect (&body code)
   (with-gensyms (collected tail)
     `(let* ((,collected (list '#:collect))
@@ -401,5 +402,10 @@
 (defun rcurry (fn &rest postargs)
   (lambda (&rest preargs)
     (apply fn (append preargs postargs))))
+
+;;; Check if CLASS1 is a superclass of CLASS2.
+(defun superclassp (class1 class2)
+  (subclassp class2 class1))
+
 
 ;;; utils.lisp ends here
