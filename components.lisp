@@ -149,26 +149,41 @@
     ((c component-class) (superclass standard-class))
   t)
 
-(defmethod initialize-instance :around
-    ((class component-class)
-     &rest initargs &key direct-superclasses &allow-other-keys)
-  (let ((superclasses (copy-list direct-superclasses)))
-    ;; If no specified superclasses of CLASS is a subclass of
-    ;; component-object, then we add it to the list fo
-    ;; superclasses. So, it seems as the default superclass.
-    (unless (some (curry #'superclassp 'component-object) direct-superclasses)
-      (setf superclasses (nconc superclasses (list (find-class 'component-object)))))
-    (apply #'call-next-method class :direct-superclasses superclasses initargs)))
-
-(defmethod finalize-inheritance :around ((class component-class))
-  (unless (class-finalized-p class)
-    (with-slots (subcomponents) class
-      (setf subcomponents (compute-subcomponents class))))
-  (call-next-method))
-
 (defmethod print-object ((class component-class) stream)
   (print-unreadable-object (class stream :type t)
     (write (class-name class) :stream stream)))
+
+;;; The following couple of routines define the default superclass for
+;;; the component-class metaclass. They were written by Pascal
+;;; Costanza and taken from
+;;; http://www.cliki.net/MOP%20design%20patterns
+(defmethod initialize-instance :around
+  ((class component-class) &rest initargs &key direct-superclasses)
+  ;(declare (dynamic-extent initargs))
+  (if (loop for class in direct-superclasses thereis (subtypep class 'component-object))
+      ;; 'component-object is already one of the (indirect) superclasses
+      (call-next-method)
+      ;; 'component-object is not one of the superclasses, so we have to add it
+      (apply #'call-next-method class
+             :direct-superclasses (append direct-superclasses (list (find-class 'component-object))) initargs)))
+
+(defmethod reinitialize-instance :around
+    ((class component-class) &rest initargs &key (direct-superclasses '() direct-superclasses-p))
+  ;(declare (dynamic-extent initargs))
+  (if direct-superclasses-p
+      ;; if direct superclasses are explicitly passed this is exactly
+      ;; like above
+      (if (loop for class in direct-superclasses thereis (subtypep class 'component-object))
+          (call-next-method)
+          (apply #'call-next-method class
+                 :direct-superclasses (append direct-superclasses (list (find-class 'component-object))) initargs))
+      ;; if direct superclasses are not explicitly passed
+      ;; we _must_ not change anything
+      (call-next-method)))
+
+(defmethod finalize-inheritance :after ((class component-class))
+  (with-slots (subcomponents) class
+    (setf subcomponents (compute-subcomponents class))))
 
 (defmethod compute-subcomponents ((class component-class))
   ;; Compute the effective list of subcomponents allowed by the class.
@@ -177,8 +192,16 @@
   (with-slots (subcomponents) class
     (let ((effective-subcomponents subcomponents))
       (dolist (c (class-direct-superclasses class))
-        (when (subclassp (class-of c) (find-class 'component-class))
-          (nconc effective-subcomponents (component-class-subcomponents c))))
+        (when (typep c 'component-class)
+          (nconc effective-subcomponents
+                 ;; FIXME: SBCL 1.0.39 signals an error if we use the
+                 ;; reader component-class-subcomponents here, when
+                 ;; the system try to finalize
+                 ;; standard-component-object, as result of redefine
+                 ;; component-class.
+                 (slot-value c 'subcomponents)
+                 ;;(component-class-subcomponents c)
+                 )))
       effective-subcomponents)))
 
 
@@ -187,19 +210,19 @@
 ;;; from the property-table present in the class.
 ;;; (The extensibility is wonderful)
 (defclass property-definition (standard-slot-definition)
-  (;; If the TYPE parameter in a property instance is not set, then we
+  ( ;; If the TYPE parameter in a property instance is not set, then we
    ;; consider it is a representation for a object of type
    ;; DEFAULT-TYPE.
    (default-type
-    :initarg :type
-    :reader property-definition-default-type)
+       :initarg :type
+     :reader property-definition-default-type)
    ;; Describe the number of values that a property can take. If it is
    ;; NIL, a unique value is allowed. If it is T, then multiple-value
    ;; is allowed. If it is an integer, then it is the exactly the
    ;; number of values that the property must take.
    (multiple-value
     :type (or boolean (integer 0 *))
-    :initform t
+    :initform nil
     :reader property-definition-multiple-value))
   (:default-initargs :allocation :property))
 
@@ -225,7 +248,6 @@
       (find-class 'effective-property-definition)
       (call-next-method)))
 
-
 (defmethod slot-value-using-class
     ((class component-class)
      (instance component-object)
@@ -234,8 +256,8 @@
       (with-collect
         (do-property (prop :name (slot-definition-name prop)) instance
           (collect (property-value prop))))
-      (do-property (property :name (slot-definition-name prop)) instance
-        (return (property-value prop)))))
+      (let ((prop (find-property (slot-definition-name prop) instance)))
+        (property-value prop))))
 
 (defmethod (setf slot-value-using-class)
     (new-value
