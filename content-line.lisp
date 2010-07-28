@@ -51,6 +51,12 @@
         (collect (cons name (read-params-values stream)))))))
 
 (defun read-content-line (stream)
+  ;; Skip whitespaces (newlines and spaces) characters.
+  (loop for ch = (peek-char nil stream)
+        while (or (char= ch #\newline)
+                  (char= ch #\space)
+                  (char= ch #\tab))
+        do (read-char stream))
   (make-content-line
    :name (read-until stream ";:" #\Newline)
    :params (read-params stream)
