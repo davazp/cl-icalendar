@@ -254,16 +254,21 @@
     :reader property-definition-multiple-value))
   (:default-initargs :allocation :property))
 
-(defmethod initialize-instance :after ((pdefinition property-definition) &rest initargs)
-  (declare (ignore initargs))
+(defmethod initialize-instance :after
+    ((pdefinition property-definition)
+     &rest initargs &key (type nil typep) &allow-other-keys)
+  (declare (ignore initargs type))
   ;; Do some error-checking in order to validate the property definition.
+  (unless typep
+    (error "The :type option must be specified for the slot ~a."
+           (slot-definition-name pdefinition)))
   (unless (subtypep (property-definition-default-type pdefinition)
                     (slot-definition-type pdefinition))
     (error "The type of the slot ~a must be a subtype of ICAL-VALUE."
            (slot-definition-name pdefinition)))
   (unless (subtypep (slot-definition-type pdefinition) 'ical-value)
     (error "The default type of the slot ~a must be a subtype of its type."
-           (slot-definition-name pdefinition))))
+           (slot-definition-name pdefinition)))
 
 (defclass direct-property-definition
     (property-definition standard-direct-slot-definition)
