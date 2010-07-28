@@ -136,15 +136,15 @@
 ;;;; Compatibility CLOS Layer
 ;;; 
 ;;; The component-object provides a close abstraction to the described
-;;; one in the RFC5545 document about components and; properties.
+;;; one in the RFC5545 document about components and properties.
 ;;; However, it does not provide a pleasant abstraction to the user in
 ;;; order to handle them.
 ;;;
-;;; Thereforce, in order to provide that abstraction, we build a layer
+;;; Therefore, in order to provide that abstraction, we build a layer
 ;;; of compatibility upon CLOS, using the Meta-Object Protocol
 ;;; (MOP). The main result is the component-class metaobject, which is
-;;; an extension to the default standard-class, which could be
-;;; extended by the user too.
+;;; an extension to the default standard-class, that could be extended
+;;; by the user too.
 ;;; 
 ;;; The classes which are instances of component-class are always
 ;;; subclasses of component-object. A new allocation method named
