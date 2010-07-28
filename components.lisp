@@ -268,7 +268,7 @@
            (slot-definition-name pdefinition)))
   (unless (subtypep (slot-definition-type pdefinition) 'ical-value)
     (error "The default type of the slot ~a must be a subtype of its type."
-           (slot-definition-name pdefinition)))
+           (slot-definition-name pdefinition))))
 
 (defclass direct-property-definition
     (property-definition standard-direct-slot-definition)
