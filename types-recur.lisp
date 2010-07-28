@@ -357,8 +357,8 @@
 ;;; First, INITIAL-FORM is evaluated and VARIABLE is bound to its value. Then,
 ;;; for each iteration the conditions are evaluated in order, until one is not
 ;;; verified. In that case, the associated body is run and the we repeat the
-;;; loop with variable bound to the value return by the last expression in
-;;; that body. If all conditions are verified, the loop finishes and return
+;;; loop modifying the variable to the returned value by the last expression
+;;; in that body. If all conditions are verified, the loop finishes and return
 ;;; the current value of VARIABLE.
 (defmacro ucond ((variable value) &body code)
   (with-gensyms (initial)
