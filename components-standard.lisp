@@ -30,7 +30,7 @@
 (defcomponent vcalendar (standard-component-object)
   ((prodid :type text)
    (version :type text)
-   (calscale :initform "GREGORIAN")
+   (calscale :initform "GREGORIAN" :type text)
    (method :type text))
   (:subcomponents vtodo vjournal))
 
