@@ -133,6 +133,34 @@
       count)))
 
 
+;;;; Compatibility CLOS Layer
+;;; 
+;;; The component-object provides a close abstraction to the described
+;;; one in the RFC5545 document about components and; properties.
+;;; However, it does not provide a pleasant abstraction to the user in
+;;; order to handle them.
+;;;
+;;; Thereforce, in order to provide that abstraction, we build a layer
+;;; of compatibility upon CLOS, using the Meta-Object Protocol
+;;; (MOP). The main result is the component-class metaobject, which is
+;;; an extension to the default standard-class, which could be
+;;; extended by the user too.
+;;; 
+;;; The classes which are instances of component-class are always
+;;; subclasses of component-object. A new allocation method named
+;;; :property is avalaible for the slots; in fact, this is the default
+;;; allocation method for component-class' instances. The user could
+;;; override it to the standard :instance or :class methods yet. There
+;;; some special options for property-allocated slots. See
+;;; property-definition class.
+;;;
+;;; The usual operations on a slot have special effects on
+;;; property-allocated slots, modifying the property table of the
+;;; component in a hopefully intuitive and predictible way. Indeed the
+;;; property-allocated slots know about property metainformation as
+;;; type, default-type, single and multiple-valued properties, so they
+;;; do more intensive error-checking to help to create well-formed
+;;; iCalendar objects.
 
 ;;; Metaclass of component classes
 (defclass component-class (standard-class)
@@ -210,7 +238,7 @@
 ;;; from the property-table present in the class.
 ;;; (The extensibility is wonderful)
 (defclass property-definition (standard-slot-definition)
-  ( ;; If the TYPE parameter in a property instance is not set, then we
+  (;; If the TYPE parameter in a property instance is not set, then we
    ;; consider it is a representation for a object of type
    ;; DEFAULT-TYPE.
    (default-type
@@ -226,13 +254,27 @@
     :reader property-definition-multiple-value))
   (:default-initargs :allocation :property))
 
+(defmethod initialize-instance :after ((pdefinition property-definition) &rest initargs)
+  (declare (ignore initargs))
+  ;; Do some error-checking in order to validate the property definition.
+  (unless (subtypep (property-definition-default-type pdefinition)
+                    (slot-definition-type pdefinition))
+    (error "The type of the slot ~a must be a subtype of ICAL-VALUE."
+           (slot-definition-name pdefinition)))
+  (unless (subtypep (slot-definition-type pdefinition) 'ical-value)
+    (error "The default type of the slot ~a must be a subtype of its type."
+           (slot-definition-name pdefinition))))
+
 (defclass direct-property-definition
     (property-definition standard-direct-slot-definition)
   nil)
 
 (defclass effective-property-definition
     (property-definition standard-effective-slot-definition)
-  nil)
+  ;; The value processed by the the :initform option is stored in this
+  ;; slot, since as we use a :property allocation,
+  ;; slot-value-using-class cannot be used.
+  ((initform-value :accessor initform-value)))
 
 (defmethod direct-slot-definition-class
     ((x component-class) &rest initargs &key (allocation :property) &allow-other-keys)
@@ -248,38 +290,68 @@
       (find-class 'effective-property-definition)
       (call-next-method)))
 
+;;;; Specialize the four operations on CLOS slots
+
+;;; It is T when we are processing a :initform, NIL otherwise.
+;;; It is used to initialize the slots without create the property in the component.
+(defvar *initializing-property-slot-p* nil)
+
+(defmethod shared-initialize :around ((inst component-object) slot-names &rest initargs)
+  (declare (ignore slot-names initargs))
+  (let ((*initializing-property-slot-p* t))
+    (call-next-method)))
+
 (defmethod slot-value-using-class
     ((class component-class)
      (instance component-object)
      (prop effective-property-definition))
-  (if (property-definition-multiple-value prop)
-      (with-collect
-        (do-property (prop :name (slot-definition-name prop)) instance
-          (collect (property-value prop))))
-      (let ((prop (find-property (slot-definition-name prop) instance)))
-        (property-value prop))))
+  (let ((values
+         (with-collect
+           (do-property (prop :name (slot-definition-name prop))
+               instance
+             (collect (property-value prop))))))
+    (if (zerop (length values))
+        ;; There are not properties. So we use call-next-method in
+        ;; order to signal an error, or return the :initform if it is
+        ;; present.
+        (initform-value prop)
+        (if (property-definition-multiple-value prop)
+            values
+            (car values)))))
 
 (defmethod (setf slot-value-using-class)
     (new-value
      (class component-class)
      (instance component-object)
      (prop effective-property-definition))
-  (let ((name (slot-definition-name prop)))
-    (delete-property name instance)
-    ;; IDEA: default parameters by property?
-    (add-property instance name new-value)))
+  (if *initializing-property-slot-p*
+      ;; We are processing the initialization of a slot by a :initform
+      ;; option. If the property is multiple-valued, then we make sure
+      ;; it is a list object.
+      (if (property-definition-multiple-value prop)
+          (setf (initform-value prop) (mklist new-value))
+          (setf (initform-value prop) new-value))
+      ;; Add the property to the property table of the component.
+      ;; IDEA: default parameters by property?
+      (let ((name (slot-definition-name prop)))
+        (delete-property name instance)
+        (add-property instance name new-value))))
 
 (defmethod slot-boundp-using-class
     ((class component-class)
      (object component-object)
      (slotd effective-property-definition))
-  (not (zerop (count-property object (slot-definition-name slotd)))))
+  (or (not (zerop (count-property object (slot-definition-name slotd))))
+      ;; Maybe the slot was initialized by the :initform. This value
+      ;; is stored in initform-value slot, so we check if it is bound.
+      (slot-boundp slotd 'initform-value)))
 
 (defmethod slot-makunbound-using-class
     ((class component-class)
      (object component-object)
      (slotd effective-property-definition))
-  (delete-property (slot-definition-name slotd) object))
+  (delete-property (slot-definition-name slotd) object)
+  (slot-makunbound slotd 'initform-value))
 
 
 ;;; Like `defclass', but the metaclass must be a subclass of
