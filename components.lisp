@@ -22,7 +22,7 @@
 ;;; Superclass of all component classes. Therefore, the behaviour of
 ;;; this class is inherited by all them. We implement the property and
 ;;; subcomponents artillery here.
-(defclass component-object ()
+(defclass component ()
   ((properties
     :type hash-table
     :initform (make-hash-table :test #'equalp)
@@ -55,7 +55,7 @@
     :accessor %next-property)))
 
 (defgeneric add-property (component property-name values &rest parameters)
-  (:method ((c component-object) pname values &rest params)
+  (:method ((c component) pname values &rest params)
     (let ((pname (string pname))
           (ptable (component-properties c))
           (values (mklist values))
@@ -73,13 +73,13 @@
           (setf (gethash pname ptable) property))))))
 
 (defgeneric find-property (property-name component)
-  (:method (pname (c component-object))
+  (:method (pname (c component))
     (values (gethash (string pname) (component-properties c)))))
 
 (defgeneric delete-property (property component)
-  (:method ((property symbol) (component component-object))
+  (:method ((property symbol) (component component))
     (remhash (string property) (component-properties component)))
-  (:method ((property property) (component component-object))
+  (:method ((property property) (component component))
     (with-slots (name previous next) property
       (cond
         (previous
@@ -123,7 +123,7 @@
          ,@code)))
 
 (defgeneric count-property (component &optional property-name)
-  (:method ((component component-object) &optional pname)
+  (:method ((component component) &optional pname)
     (let ((count 0))
       (if pname
           (do-property (property :name pname) component
@@ -135,7 +135,7 @@
 
 ;;;; Compatibility CLOS Layer
 ;;; 
-;;; The component-object provides a close abstraction to the described
+;;; The component provides a close abstraction to the described
 ;;; one in the RFC5545 document about components and properties.
 ;;; However, it does not provide a pleasant abstraction to the user in
 ;;; order to handle them.
@@ -161,6 +161,9 @@
 ;;; type, default-type, single and multiple-valued properties, so they
 ;;; do more intensive error-checking to help to create well-formed
 ;;; iCalendar objects.
+
+(defclass component-object (component)
+  nil)
 
 ;;; Metaclass of component classes
 (defclass component-class (standard-class)
@@ -242,7 +245,7 @@
    ;; consider it is a representation for a object of type
    ;; DEFAULT-TYPE.
    (default-type
-       :initarg :type
+     :initarg :default-type
      :reader property-definition-default-type)
    ;; Describe the number of values that a property can take. If it is
    ;; NIL, a unique value is allowed. If it is T, then multiple-value
@@ -262,12 +265,13 @@
   (unless typep
     (error "The :type option must be specified for the slot ~a."
            (slot-definition-name pdefinition)))
-  (unless (subtypep (property-definition-default-type pdefinition)
-                    (slot-definition-type pdefinition))
-    (error "The type of the slot ~a must be a subtype of ICAL-VALUE."
+  (when (and (slot-boundp pdefinition 'default-type)
+             (not (subtypep (property-definition-default-type pdefinition)
+                            (slot-definition-type pdefinition))))
+    (error "The default type of the slot ~a must be a subtype of its type."
            (slot-definition-name pdefinition)))
   (unless (subtypep (slot-definition-type pdefinition) 'ical-value)
-    (error "The default type of the slot ~a must be a subtype of its type."
+    (error "The type of the slot ~a must be a subtype of ICAL-VALUE."
            (slot-definition-name pdefinition))))
 
 (defclass direct-property-definition
@@ -294,6 +298,18 @@
   (if (eq allocation :property)
       (find-class 'effective-property-definition)
       (call-next-method)))
+
+(defmethod compute-effective-slot-definition ((c component-object) name dslots)
+  (let ((eslot (call-next-method))
+        (dslot (find name dslots :key #'slot-definition-name)))
+    (when (typep eslot 'effective-property-definition)
+      (flet (;; Copy from the class TO to the class FROM the slot SLOT.
+             (copy-slot (slot)
+               (when (slot-boundp dslot slot)
+                 (setf (slot-value eslot slot) (slot-value dslot slot)))))
+        (copy-slot 'default-type)
+        (copy-slot 'multiple-value)))))
+
 
 ;;;; Specialize the four operations on CLOS slots
 

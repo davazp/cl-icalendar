@@ -19,23 +19,98 @@
 
 (in-package :cl-icalendar)
 
-(defclass standard-component-object ()
-  nil
+(defclass standard-component-object () nil
   (:metaclass component-class))
 
-(defclass x-component-object ()
-  nil
+(defclass x-component-object () nil
   (:metaclass component-class))
 
-(defcomponent vcalendar (standard-component-object)
-  ((prodid :type text)
-   (version :type text)
-   (calscale :initform "GREGORIAN" :type text)
-   (method :type text))
+(defcomponent vcalendar ()
+  ((prodid
+    :type text)
+   (version
+    :type text)
+   (calscale
+    :default-value "GREGORIAN"
+    :type text)
+   (method
+    :type text))
   (:subcomponents vtodo vjournal))
 
-(defcomponent vtodo (standard-component-object)
-  nil)
+(defcomponent vtodo ()
+  ((dtstamp
+    ;:required t
+    :type datetime)
+   (uid
+    ;:required t
+    :type text)
+   (class
+    :type text)
+   (completed
+    :type datetime)
+   (created
+    :type datetime)
+   (description
+    :type text)
+   (dtstart
+    :type (or datetime date)
+    :default-type datetime )
+   (geo
+    :type float)
+   (last-modified
+    :type datetime)
+   (location
+    :type text)
+   (organizer
+    :type cal-address)
+   (percent-complete
+    :type (integer 0 100))
+   (priority
+    :type (integer 0 9))
+   (recurrence-id
+    :type (or datetime date)
+    :default-type datetime)
+   (sequence
+    :type (integer 0 *))
+   (status
+    :type text)
+   (summary
+    :type text)
+   (url
+    :type uri)
+   (rrule
+    :type recur)
+   (due
+    :type (or datetime date)
+    :default-type datetime)
+   (duration
+    :type duration)
+   (attach
+    :type (or binary uri)
+    :default-type uri)
+   (attendee
+    :type cal-address)
+   (categories
+    :type text)
+   (comment
+    :type text)
+   (contact
+    :type text)
+   (exdate
+    :type (or datetime date)
+    :default-type datetime)
+   (request-status
+    :type text)
+   (related-to
+    :type text)
+   (resources
+    :type text)
+   (rdate
+    :type (or datetime date period)
+    :default-type datetime))
+  ;; Options
+  (:subcomponents valarm))
+
 
 (defcomponent vjournal (standard-component-object)
   nil)
