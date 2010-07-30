@@ -165,6 +165,18 @@
 (defclass component-object (component)
   nil)
 
+(defmethod initialize-instance :around ((inst component-object) &rest initargs)
+  (declare (ignore initargs))
+  ;; FIXME: slot-value-using-class is called by shared-initialize in
+  ;; order to initialize property-allocated slots. Likewise,
+  ;; slot-value-using-class calls itself recursively to set COMPONENT
+  ;; and PROPERTY slots. Therefore, COMPONENT and PROPERTY slots
+  ;; should be initialized before another slot. SBCL initializes
+  ;; last-specific slot later, but the CLHS does not say
+  ;; anything. CLTL does say slot order initialization is undefined
+  ;; explicitly.
+  (call-next-method))
+
 ;;; Metaclass of component classes
 (defclass component-class (standard-class)
   ((subcomponents
@@ -173,7 +185,7 @@
     :initform nil
     :reader component-class-subcomponents)))
 
-;; Return the effective list of subcomponents allowed by the class.
+;;; Return the effective list of subcomponents allowed by the class.
 (defgeneric compute-subcomponents (class))
 
 (defmethod validate-superclass
@@ -240,13 +252,13 @@
 ;;; system of components into CLOS. The slot value will be computed
 ;;; from the property-table present in the class.
 ;;; (The extensibility is wonderful)
-(defclass property-definition (standard-slot-definition)
+(defclass pdefinition (standard-slot-definition)
   (;; If the TYPE parameter in a property instance is not set, then we
    ;; consider it is a representation for a object of type
    ;; DEFAULT-TYPE.
    (default-type
-     :initarg :default-type
-     :reader property-definition-default-type)
+    :initarg :default-type
+    :reader pdefinition-default-type)
    ;; Describe the number of values that a property can take. If it is
    ;; NIL, a unique value is allowed. If it is T, then multiple-value
    ;; is allowed. If it is an integer, then it is the exactly the
@@ -254,19 +266,33 @@
    (multiple-value
     :type (or boolean (integer 0 *))
     :initform nil
-    :reader property-definition-multiple-value))
+    :reader pdefinition-multiple-value)
+   ;; Can multiple-values be inlined in the same property?
+   (inline-multiple-value-p
+    :type boolean
+    :initform nil
+    :reader pdefinition-inline-multiple-value-p)
+   ;; The default value if no property is specified.
+   (default-value
+    :type ical-value
+    :initarg :default-value
+    :reader pdefinition-default-value))
   (:default-initargs :allocation :property))
 
 (defmethod initialize-instance :after
-    ((pdefinition property-definition)
-     &rest initargs &key (type nil typep) &allow-other-keys)
+    ((pdefinition pdefinition) &rest initargs &key (type nil typep))
   (declare (ignore initargs type))
   ;; Do some error-checking in order to validate the property definition.
   (unless typep
     (error "The :type option must be specified for the slot ~a."
            (slot-definition-name pdefinition)))
+  (when (and (slot-boundp pdefinition 'default-value)
+             (not (typep (pdefinition-default-value pdefinition)
+                         (slot-definition-type pdefinition))))
+    (error "The type of the :default-value option of the property ~a is wrong."
+           (slot-definition-name pdefinition)))
   (when (and (slot-boundp pdefinition 'default-type)
-             (not (subtypep (property-definition-default-type pdefinition)
+             (not (subtypep (pdefinition-default-type pdefinition)
                             (slot-definition-type pdefinition))))
     (error "The default type of the slot ~a must be a subtype of its type."
            (slot-definition-name pdefinition)))
@@ -274,69 +300,58 @@
     (error "The type of the slot ~a must be a subtype of ICAL-VALUE."
            (slot-definition-name pdefinition))))
 
-(defclass direct-property-definition
-    (property-definition standard-direct-slot-definition)
+(defclass direct-pdefinition
+    (pdefinition standard-direct-slot-definition)
   nil)
 
-(defclass effective-property-definition
-    (property-definition standard-effective-slot-definition)
-  ;; The value processed by the the :initform option is stored in this
-  ;; slot, since as we use a :property allocation,
-  ;; slot-value-using-class cannot be used.
-  ((initform-value :accessor initform-value)))
+(defclass effective-pdefinition
+    (pdefinition standard-effective-slot-definition)
+  nil)
 
 (defmethod direct-slot-definition-class
-    ((x component-class) &rest initargs &key (allocation :property) &allow-other-keys)
+    ((x component-class) &rest initargs &key (allocation :property))
   (declare (ignore initargs))
   (if (eq allocation :property)
-      (find-class 'direct-property-definition)
+      (find-class 'direct-pdefinition)
       (call-next-method)))
 
 (defmethod effective-slot-definition-class
-    ((x component-class) &rest initargs &key (allocation :property) &allow-other-keys)
+    ((x component-class) &rest initargs &key (allocation :property))
   (declare (ignore initargs))
   (if (eq allocation :property)
-      (find-class 'effective-property-definition)
+      (find-class 'effective-pdefinition)
       (call-next-method)))
 
-(defmethod compute-effective-slot-definition ((c component-object) name dslots)
+(defmethod compute-effective-slot-definition ((c component-class) name dslots)
   (let ((eslot (call-next-method))
         (dslot (find name dslots :key #'slot-definition-name)))
-    (when (typep eslot 'effective-property-definition)
+    (when (typep eslot 'effective-pdefinition)
       (flet (;; Copy from the class TO to the class FROM the slot SLOT.
              (copy-slot (slot)
                (when (slot-boundp dslot slot)
-                 (setf (slot-value eslot slot) (slot-value dslot slot)))))
+                 (setf (slot-value eslot slot)
+                       (slot-value dslot slot)))))
         (copy-slot 'default-type)
-        (copy-slot 'multiple-value)))))
+        (copy-slot 'multiple-value)
+        (copy-slot 'inline-multiple-value-p)
+        (copy-slot 'default-value)))
+    eslot))
 
 
 ;;;; Specialize the four operations on CLOS slots
 
-;;; It is T when we are processing a :initform, NIL otherwise.
-;;; It is used to initialize the slots without create the property in the component.
-(defvar *initializing-property-slot-p* nil)
-
-(defmethod shared-initialize :around ((inst component-object) slot-names &rest initargs)
-  (declare (ignore slot-names initargs))
-  (let ((*initializing-property-slot-p* t))
-    (call-next-method)))
-
 (defmethod slot-value-using-class
     ((class component-class)
      (instance component-object)
-     (prop effective-property-definition))
+     (prop effective-pdefinition))
   (let ((values
          (with-collect
            (do-property (prop :name (slot-definition-name prop))
                instance
              (collect (property-value prop))))))
-    (if (zerop (length values))
-        ;; There are not properties. So we use call-next-method in
-        ;; order to signal an error, or return the :initform if it is
-        ;; present.
-        (initform-value prop)
-        (if (property-definition-multiple-value prop)
+    (if (null values)
+        (pdefinition-default-value prop)
+        (if (pdefinition-multiple-value prop)
             values
             (car values)))))
 
@@ -344,35 +359,25 @@
     (new-value
      (class component-class)
      (instance component-object)
-     (prop effective-property-definition))
-  (if *initializing-property-slot-p*
-      ;; We are processing the initialization of a slot by a :initform
-      ;; option. If the property is multiple-valued, then we make sure
-      ;; it is a list object.
-      (if (property-definition-multiple-value prop)
-          (setf (initform-value prop) (mklist new-value))
-          (setf (initform-value prop) new-value))
-      ;; Add the property to the property table of the component.
-      ;; IDEA: default parameters by property?
-      (let ((name (slot-definition-name prop)))
-        (delete-property name instance)
-        (add-property instance name new-value))))
+     (prop effective-pdefinition))
+  ;; Add the property to the property table of the component.
+  ;; IDEA: default parameters by property?
+  (let ((name (slot-definition-name prop)))
+    (delete-property name instance)
+    (add-property instance name new-value)))
 
 (defmethod slot-boundp-using-class
     ((class component-class)
      (object component-object)
-     (slotd effective-property-definition))
+     (slotd effective-pdefinition))
   (or (not (zerop (count-property object (slot-definition-name slotd))))
-      ;; Maybe the slot was initialized by the :initform. This value
-      ;; is stored in initform-value slot, so we check if it is bound.
-      (slot-boundp slotd 'initform-value)))
+      (slot-boundp slotd 'default-value)))
 
 (defmethod slot-makunbound-using-class
     ((class component-class)
      (object component-object)
-     (slotd effective-property-definition))
-  (delete-property (slot-definition-name slotd) object)
-  (slot-makunbound slotd 'initform-value))
+     (slotd effective-pdefinition))
+  (delete-property (slot-definition-name slotd) object))
 
 
 ;;; Like `defclass', but the metaclass must be a subclass of
