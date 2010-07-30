@@ -121,7 +121,7 @@
 
 ;;; Return a string which stand for DURSPECS in the format described
 ;;; in the RFC5545 section 3.3.6.
-(defmethod format-value ((dur duration) &rest params &key &allow-other-keys)
+(defmethod format-value ((dur duration) &rest params)
   (declare (ignore params))
   (let ((days       (duration-days dur))
         (hours      (duration-hours dur))
@@ -156,7 +156,7 @@
 
 ;;; Parse a duration according to the format which is described in the
 ;;; RFC5545 section 3.3.6.
-(defmethod parse-value (string (type (eql 'duration)) &rest params &key &allow-other-keys)
+(defmethod parse-value (string (type (eql 'duration)) &rest params)
   (declare (ignore params))
   (with-input-from-string (in string)
     ;; The token1 and token2 variables keep the following token in the

@@ -72,15 +72,15 @@
       (write-string " -- " stream)
       (write-datetime (period-end x) stream))))
 
-(defmethod format-value ((p period-explicit) &rest params &key &allow-other-keys)
+(defmethod format-value ((p period-explicit) &rest params)
   (declare (ignore params))
   (concat (format-value (period-start p)) "/" (format-value (period-end p))))
 
-(defmethod format-value ((p period-start) &rest params &key &allow-other-keys)
+(defmethod format-value ((p period-start) &rest params)
   (declare (ignore params))
   (concat (format-value (period-start p)) "/" (format-value (period-duration p))))
 
-(defmethod parse-value (string (type (eql 'period)) &rest params &key &allow-other-keys)
+(defmethod parse-value (string (type (eql 'period)) &rest params)
   (declare (ignore params))
   (destructuring-bind (start end)
       (split-string string "/")

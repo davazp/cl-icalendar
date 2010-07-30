@@ -48,7 +48,7 @@
   (print-unreadable-object (x stream :type t)
     (write-string (format-value x) stream)))
 
-(defmethod format-value ((x utc-offset) &rest params &key &allow-other-keys)
+(defmethod format-value ((x utc-offset) &rest params)
   (declare (ignore params))
   (format nil "~:[+~;-~]~2,'0d~2,'0d~@[~2,'0d~]"
           (utc-offset-negative-p x)
@@ -57,7 +57,7 @@
           (let ((seconds (utc-offset-second x)))
             (if (zerop seconds) nil seconds))))
 
-(defmethod parse-value (string (type (eql 'utc-offset)) &rest params &key &allow-other-keys)
+(defmethod parse-value (string (type (eql 'utc-offset)) &rest params)
   (declare (ignore params))
   (let* ((sign (elt string 0))
          (hour (parse-unsigned-integer string :start 1 :end 3))

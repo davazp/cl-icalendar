@@ -49,7 +49,7 @@
 (defun lookup-type (string)
   (find-symbol (string-upcase string) :cl-icalendar))
 
-(defmethod parse-value (string (typestring string) &rest params &key &allow-other-keys)
+(defmethod parse-value (string (typestring string) &rest params)
   (let ((type (lookup-type typestring)))
     (if (null type)
         (no-applicable-method 'parse-value string typestring)
@@ -64,7 +64,7 @@
 ;;; so. Otherwise it should be a method for BINARY data type.
 ;;; -- DVP
 
-(defmethod format-value :around (string &rest params &key (encoding :8bit) &allow-other-keys)
+(defmethod format-value :around (string &rest params &key (encoding :8bit))
   (declare (ignore string params))
   (ecase encoding
     (:base64
@@ -72,7 +72,7 @@
     (:8bit
      (call-next-method))))
 
-(defmethod parse-value :around (string type &rest params &key (encoding :8bit) &allow-other-keys)
+(defmethod parse-value :around (string type &rest params &key (encoding :8bit))
   (ecase encoding
     (:base64
      (apply #'call-next-method (base64:base64-string-to-string string) type params))
@@ -82,10 +82,10 @@
 
 ;;; Multiple-value versions
 
-(defmethod parse-values (string (typestring string) &rest params &key &allow-other-keys)
+(defmethod parse-values (string (typestring string) &rest params)
   (apply #'parse-values string (lookup-type typestring) params))
 
-(defmethod parse-values (string (type symbol) &rest params &key &allow-other-keys)
+(defmethod parse-values (string (type symbol) &rest params)
   (labels (;; Find the position of the separator character (,) from
            ;; the character at START position.
            (position-separator (start)
@@ -102,7 +102,7 @@
           collect (apply #'parse-value sub type params)
           while end)))
 
-(defmethod format-values (objects &rest params &key &allow-other-keys)
+(defmethod format-values (objects &rest params)
   (flet ((format-value* (x)
            (apply #'format-value x params)))
     (join-strings (mapcar #'format-value* objects) #\,)))
@@ -112,15 +112,15 @@
 
 (define-predicate-type boolean)
 
-(defmethod format-value ((bool (eql 't)) &rest params &key &allow-other-keys)
+(defmethod format-value ((bool (eql 't)) &rest params)
   (declare (ignore params))
   "TRUE")
 
-(defmethod format-value ((bool (eql 'nil)) &rest params &key &allow-other-keys)
+(defmethod format-value ((bool (eql 'nil)) &rest params)
   (declare (ignore params))
   "FALSE")
 
-(defmethod parse-value (string (type (eql 'boolean)) &rest params &key &allow-other-keys)
+(defmethod parse-value (string (type (eql 'boolean)) &rest params)
   (declare (ignore params))
   (cond
     ((string-ci= string "TRUE")  t)
@@ -131,22 +131,22 @@
 
 ;;;; Integer
 
-(defmethod format-value ((n integer) &rest params &key &allow-other-keys)
+(defmethod format-value ((n integer) &rest params)
   (declare (ignore params))
   (format nil "~a" n))
 
-(defmethod parse-value (string (type (eql 'integer)) &rest params &key &allow-other-keys)
+(defmethod parse-value (string (type (eql 'integer)) &rest params)
   (declare (ignore params))
   (values (parse-integer string)))
 
 
 ;;;; Float
 
-(defmethod format-value ((x float) &rest params &key &allow-other-keys)
+(defmethod format-value ((x float) &rest params)
   (declare (ignore params))
   (format nil "~f" x))
 
-(defmethod parse-value (string (type (eql 'float)) &rest params &key &allow-other-keys)
+(defmethod parse-value (string (type (eql 'float)) &rest params)
   (declare (ignore params))
   (let ((sign 1)                        ; the sign
         (x 0)                           ; integer part

@@ -966,7 +966,7 @@
       (%parse-error "Empty rule part in the recurrence '~a'." string))
     (mapcar #'parse-rule-part parts)))
 
-(defmethod parse-value (string (type (eql 'recur)) &rest params &key &allow-other-keys)
+(defmethod parse-value (string (type (eql 'recur)) &rest params)
   (declare (string string))
   (declare (ignore params))
   (let ((rules (parse-rules string))
@@ -1052,7 +1052,7 @@
       recur)))
 
 
-(defmethod format-value ((recur recur) &rest params &key &allow-other-keys)
+(defmethod format-value ((recur recur) &rest params)
   (declare (ignore params))
   (with-output-to-string (s)
     (format s "FREQ=~a" (car (rassoc (recur-freq recur) *frequency-table*)))

@@ -51,7 +51,7 @@
       (make-instance 'text* :text string :language language)
       string))
 
-(defmethod format-value ((text string) &rest params &key &allow-other-keys)
+(defmethod format-value ((text string) &rest params)
   (declare (ignore params))
   (with-input-from-string (in text)
     (with-output-to-string (out)
@@ -75,12 +75,12 @@
             (write-char ch out)))))))
 
 
-(defmethod format-value ((text text*) &rest params &key &allow-other-keys)
+(defmethod format-value ((text text*) &rest params)
   (declare (ignore params))
   (format-value (text text)))
 
 
-(defmethod parse-value (text (type (eql 'text)) &rest params &key &allow-other-keys)
+(defmethod parse-value (text (type (eql 'text)) &rest params)
   (declare (ignore params))
   (let ((string (text text)))
     (with-input-from-string (in string)
