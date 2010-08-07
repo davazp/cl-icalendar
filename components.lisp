@@ -32,6 +32,7 @@
     :initform nil
     :accessor component-subcomponents)))
 
+
 (defclass property ()
   ((name
     :type string
@@ -165,17 +166,17 @@
 (defclass component-object (component)
   nil)
 
-(defmethod initialize-instance :around ((inst component-object) &rest initargs)
+;;; KLUDGE: Slot initialization order is undefined. However, we need
+;;; to make sure COMPONENT and PROPERTIES slots are initialized before
+;;; property-allocated slots. So, we initialize them with a :before
+;;; initialize-instance method. This should work since :initform
+;;; option are not applied if the slot is bound.
+(defmethod initialize-instance :before ((inst component-object) &rest initargs)
   (declare (ignore initargs))
-  ;; FIXME: slot-value-using-class is called by shared-initialize in
-  ;; order to initialize property-allocated slots. Likewise,
-  ;; slot-value-using-class calls itself recursively to set COMPONENT
-  ;; and PROPERTY slots. Therefore, COMPONENT and PROPERTY slots
-  ;; should be initialized before another slot. SBCL initializes
-  ;; last-specific slot later, but the CLHS does not say
-  ;; anything. CLTL does say slot order initialization is undefined
-  ;; explicitly.
-  (call-next-method))
+  (with-slots (subcomponents properties)
+      inst
+    (nilf subcomponents)
+    (setf properties (make-hash-table :test #'equalp))))
 
 ;;; Metaclass of component classes
 (defclass component-class (standard-class)
