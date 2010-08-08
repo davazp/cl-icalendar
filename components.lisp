@@ -345,11 +345,9 @@
     ((class component-class)
      (instance component-object)
      (prop effective-pdefinition))
-  (let ((values
-         (with-collect
-           (do-property (prop :name (slot-definition-name prop))
-               instance
-             (collect (property-value prop))))))
+  (with-collectors (values)
+    (do-property (prop :name (slot-definition-name prop)) instance
+      (collect-values (property-value prop)))
     (if (null values)
         (pdefinition-default-value prop)
         (if (pdefinition-multiple-value prop)
