@@ -22,6 +22,10 @@
 
 ;;;; Misc macros
 
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (defun symbolize (symbol1 symbol2)
+    (intern (concatenate 'string (string symbol1) (string symbol2)))))
+
 (defmacro while (condition &body code)
   `(do ()
        ((not ,condition))
@@ -44,8 +48,7 @@
         ,(let (,@(loop for n in names for g in gensyms collect `(,n ,g)))
            ,@body)))))
 
-;;; TODO: Generalize with-collect to with-collecting in order to
-;;; support initialization of the collection.
+;;; TODO: Document me!
 (defmacro with-collect (&body code)
   (with-gensyms (collected tail)
     `(let* ((,collected (list '#:collect))
@@ -55,6 +58,34 @@
                 (setf ,tail (cdr ,tail))))
          ,@code)
        (cdr ,collected))))
+
+;;; TODO: Document me!
+(defmacro with-collectors ((&rest names) &body code)
+  (let ((names (mapcar #'mklist names))
+        ;; A list of lists of the form (NAME INITFORM BEGIN END),
+        ;; where BEGIN and END are the gensymed symbols of the first
+        ;; and the end cons of the collector. Note we use a special
+        ;; header cons.
+        (table nil))
+    ;; Fill table variable 
+    (dolist (collector names)
+      (destructuring-bind (name &optional initform) collector
+        (push (list name initform (gensym) (gensym)) table)))
+    (macrolet (;; Map through collectors binding NAME INITFORM BEGIN
+               ;; and END variables, collecting the results in a list.
+               (map* (form)
+                 `(loop for (name initform begin end)
+                        in table
+                        collect ,form)))
+      ;; Macroexpansion
+      `(let ,(map* `(,begin (cons :collector ,initform)))
+         (let ,(map* `(,end (last ,begin)))
+           (symbol-macrolet ,(map* `(,name (cdr ,begin)))
+             (flet ,(map* `(,(symbolize 'collect- name) (value)
+                             (setf (cdr ,end) (list value))
+                             (setf ,end (cdr ,end))))
+               ,@code)))))))
+
 
 ;;; Iteration form is based in Scheme named-let. It bounds NAME to a
 ;;; local function which ARG arguments and body CODE. ARGS is like an
