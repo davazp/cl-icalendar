@@ -64,10 +64,10 @@
   (let ((names (mapcar #'mklist names))
         ;; A list of lists of the form (NAME INITFORM BEGIN END),
         ;; where BEGIN and END are the gensymed symbols of the first
-        ;; and the end cons of the collector. Note we use a special
+        ;; and the last cons of the collector. Note we use a special
         ;; header cons.
         (table nil))
-    ;; Fill table variable 
+    ;; Fill the table 
     (dolist (collector names)
       (destructuring-bind (name &optional initform) collector
         (push (list name initform (gensym) (gensym)) table)))
