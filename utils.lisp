@@ -51,10 +51,10 @@
 ;;; TODO: Document me!
 (defmacro with-collectors ((&rest names) &body code)
   (let ((names (mapcar #'mklist names))
-        ;; A list of lists of the form (NAME INITFORM BEGIN END),
-        ;; where BEGIN and END are the gensymed symbols of the first
-        ;; and the last cons of the collector. Note we use a special
-        ;; header cons.
+        ;; A list of lists of the form (NAME INITFORM BEGIN END
+        ;; FNAME), where BEGIN and END are the gensymed symbols of the
+        ;; first and the last cons of the collector. Note we use a
+        ;; special header cons.
         (table nil))
     ;; Fill the table 
     (dolist (collector names)
@@ -77,7 +77,8 @@
            (symbol-macrolet ,(map* `(,name (cdr ,begin)))
              (flet ,(map* `(,fname (value)
                                    (setf (cdr ,end) (list value))
-                                   (setf ,end (cdr ,end))))
+                                   (setf ,end (cdr ,end))
+                                   (cdr ,begin)))
                ,@code)))))))
 
 ;;; TODO: Document me!
