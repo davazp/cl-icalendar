@@ -49,17 +49,6 @@
            ,@body)))))
 
 ;;; TODO: Document me!
-(defmacro with-collect (&body code)
-  (with-gensyms (collected tail)
-    `(let* ((,collected (list '#:collect))
-            (,tail ,collected))
-       (flet ((collect (x)
-                (setf (cdr ,tail) (list x))
-                (setf ,tail (cdr ,tail))))
-         ,@code)
-       (cdr ,collected))))
-
-;;; TODO: Document me!
 (defmacro with-collectors ((&rest names) &body code)
   (let ((names (mapcar #'mklist names))
         ;; A list of lists of the form (NAME INITFORM BEGIN END),
@@ -69,22 +58,34 @@
         (table nil))
     ;; Fill the table 
     (dolist (collector names)
-      (destructuring-bind (name &optional initform) collector
-        (push (list name initform (gensym) (gensym)) table)))
+      (destructuring-bind (name &optional initform fname) collector
+        (push (list name
+                    initform
+                    (gensym)
+                    (gensym)
+                    (or fname (symbolize 'collect- name)))
+              table)))
     (macrolet (;; Map through collectors binding NAME INITFORM BEGIN
                ;; and END variables, collecting the results in a list.
                (map* (form)
-                 `(loop for (name initform begin end)
+                 `(loop for (name initform begin end fname)
                         in table
                         collect ,form)))
       ;; Macroexpansion
       `(let ,(map* `(,begin (cons :collector ,initform)))
          (let ,(map* `(,end (last ,begin)))
            (symbol-macrolet ,(map* `(,name (cdr ,begin)))
-             (flet ,(map* `(,(symbolize 'collect- name) (value)
-                             (setf (cdr ,end) (list value))
-                             (setf ,end (cdr ,end))))
+             (flet ,(map* `(,fname (value)
+                                   (setf (cdr ,end) (list value))
+                                   (setf ,end (cdr ,end))))
                ,@code)))))))
+
+;;; TODO: Document me!
+(defmacro with-collect (&body code)
+  (with-gensyms (name)
+    `(with-collectors ((,name nil collect))
+       ,@code
+       ,name)))
 
 
 ;;; Iteration form is based in Scheme named-let. It bounds NAME to a
