@@ -46,14 +46,6 @@
 (defgeneric parse-value (string type &rest params &key &allow-other-keys))
 (defgeneric parse-values (string type &rest params &key &allow-other-keys))
 
-(defun lookup-type (string)
-  (find-symbol (string-upcase string) :cl-icalendar))
-
-(defmethod parse-value (string (typestring string) &rest params)
-  (let ((type (lookup-type typestring)))
-    (if (null type)
-        (no-applicable-method 'parse-value string typestring)
-        (apply #'parse-value string type params))))
 
 ;;; Wrapper for both standard as user-defined format-value and
 ;;; parse-value methods. The :around methods are used to implement
@@ -81,9 +73,6 @@
 
 
 ;;; Multiple-value versions
-
-(defmethod parse-values (string (typestring string) &rest params)
-  (apply #'parse-values string (lookup-type typestring) params))
 
 (defmethod parse-values (string (type symbol) &rest params)
   (labels (;; Find the position of the separator character (,) from
