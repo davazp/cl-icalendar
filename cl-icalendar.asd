@@ -35,6 +35,7 @@
    (:file "package")
    (:file "utils")
    (:file "error")
+   (:file "vendor")
    (:file "types")
    (:file "types-binary")
    (:file "types-utc-offset")
