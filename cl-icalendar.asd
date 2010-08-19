@@ -52,4 +52,27 @@
    (:file "components-standard")
    (:file "cl-icalendar")))
 
+(defsystem :cl-icalendar-tests
+  :name "iCalendar library tests"
+  :license "GPLv3+"
+  :depends-on (:cl-icalendar :fiveam)
+  :serial t
+  :components
+  ((:module "tests"
+            :serial t
+            :components
+            ((:file "package")
+             (:file "tsuite")
+             (:static-file "test-types.001")
+             (:file "test-types")
+             (:file "test-types-date")
+             (:file "test-types-recur")))))
+
+(defmethod asdf:perform ((op asdf:test-op) (c (eql (find-system ':cl-icalendar))))
+  (asdf:operate 'asdf:load-op ':cl-icalendar-tests)
+  (asdf:operate 'asdf:test-op ':cl-icalendar-tests))
+
+(defmethod asdf:perform ((op asdf:test-op) (c (eql (find-system ':cl-icalendar-tests))))
+  (funcall (intern "RUN-TESTS" (find-package :cl-icalendar-tests))))
+
 ;; cl-icalendar.asd ends here
