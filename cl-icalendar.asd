@@ -112,6 +112,7 @@
 
 (defun create-tarball (directory output)
   (format t "creating tarball ~a..." output)
+  (finish-output)
   (run-safe-shell-command "tar zcvf '~a' '~a'" output directory)
   (format t "done~%"))
 
