@@ -34,6 +34,7 @@
   :components
   ((:static-file "COPYING")
    (:static-file "README")
+   ;; Source code
    (:file "package")
    (:file "utils")
    (:file "error")
@@ -52,7 +53,15 @@
    (:file "content-line")
    (:file "components")
    (:file "components-standard")
-   (:file "cl-icalendar")))
+   (:file "cl-icalendar")
+   ;; Documentation
+   (:module "doc"
+            :components
+            ((:static-file "Makefile")
+             (:doc-file "cl-icalendar.texi")
+             (:doc-file "fdl.texi")
+             (:doc-file "version.texi")))))
+
 
 (defsystem :cl-icalendar-tests
   :name "iCalendar library tests"
