@@ -105,7 +105,7 @@
 	   :format-args args)))
 
 (defun copy-file (from to)
-  (run-safe-shell-command "install -D '~A' '~A'" from to))
+  (run-safe-shell-command "install -D -m 644 '~A' '~A'" from to))
 
 (defun delete-directory (directory)
   (run-safe-shell-command "rm -rf '~A'" directory))
