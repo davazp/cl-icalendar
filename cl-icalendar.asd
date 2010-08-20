@@ -19,11 +19,11 @@
 ;; along with cl-icalendar.  If not, see <http://www.gnu.org/licenses/>.
 ;;
 
-(defpackage :cl-icalendar-asd
+(defpackage :cl-icalendar-system
   (:use :cl :asdf)
   (:export #:release))
 
-(in-package :cl-icalendar-asd)
+(in-package :cl-icalendar-system)
 
 (defsystem :cl-icalendar
   :name "iCalendar library"
