@@ -32,7 +32,7 @@
 (defun read-params-value (stream)
   (if (char= (peek-char nil stream) #\")
       (prog2 (read-char stream)
-          (read-until stream "#\"" +return-character+)
+          (read-until stream "#\"" #\newline)
         (read-char stream))
       (read-until stream ",;:" #\Newline)))
 
@@ -80,5 +80,6 @@
   (string-right-trim (list #\newline)
                      (with-output-to-string (out)
                        (write-content-line content-line out))))
+
 
 ;; content-line.lisp ends here
