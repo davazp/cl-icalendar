@@ -104,7 +104,7 @@
 
 (defun run-safe-shell-command (format &rest args)
   (unless (zerop (apply #'run-shell-command format args))
-    (error 'shell-command-error 
+    (error 'simple-error
 	   :format-string format
 	   :format-args args)))
 
