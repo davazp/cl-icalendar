@@ -20,134 +20,82 @@
 
 (in-package :cl-icalendar)
 
-;;; Wrapped character streams
+;;; FIXME: flexi-streams requires a binary (or bivalent) stream. We
+;;; would like to avoid this restriction.
 
-;;; Wrapped streams wrappes a stream (sure?), so read and write to a
-;;; stream directly. It is not very useful, but I can inherent new
-;;; streams from it easily. Indeed, wrapped-character-stream keeps
-;;; some useful information.
-
-(defconstant +tab-character+    (code-char #x09))
-(defconstant +return-character+ (code-char #x0D))
+(defconstant +tab-character+ (code-char #x09))
 
 (defconstant +content-line-max-length+ 75)
 
-(defclass wrapped-character-stream (fundamental-character-input-stream
-                                    fundamental-character-output-stream)
-  (
-   ;; FIXME: COLUMN should keep the current number of column, but it
-   ;; counts the number of characters from the last #\newline, i.e, it
-   ;; assumes a character is an octect. The `Flexistreams' library
-   ;; supports a lot of encodings, indeed of several newlines.
-   (column
+;;; We build folding-stream upon flexi-streams. They are supposed to
+;;; implement CRLF end of line style and UTF-8 encoding. Column octets
+;;; counting is implemented by folding-stream.
+(defclass folding-stream (fundamental-character-input-stream
+                          fundamental-character-output-stream)
+  ((column-octets
     :initform 0
-    :accessor wrapped-stream-column)
-   (stream
+    :type fixnum
+    :reader folding-column-octets)
+   (backend-stream
+    :initform (required-arg)
+    :type flex:flexi-stream
     :initarg :stream
-    :reader wrapped-stream)))
+    :reader folding-backend-stream)))
 
-(defmethod stream-read-char ((stream wrapped-character-stream))
-  (let ((character (read-char (wrapped-stream stream) nil :eof)))
-    (cond
-      ((eq character :eof)
-       :eof)
-      (t
-       (incf (wrapped-stream-column stream))
-       (when (char= character #\Newline)
-         (zerof (wrapped-stream-column stream)))
-       character))))
+(defun make-folding-stream (stream)
+  (let ((fs (flex:make-flexi-stream stream :external-format '(:utf-8 :eol-style :crlf))))
+    (make-instance 'folding-stream :stream fs)))
 
-(defmethod stream-unread-char ((stream wrapped-character-stream) character)
-  (prog1 (unread-char character (wrapped-stream stream))
-    (decf (wrapped-stream-column stream))
-    (when (char= character #\Newline)
-      (zerof (wrapped-stream-column stream)))))
-
-(defmethod stream-write-char ((stream wrapped-character-stream) character)
-  (prog1 (write-char character (wrapped-stream stream))
-    (incf (wrapped-stream-column stream))
-    (when (char= character #\Newline)
-      (zerof (wrapped-stream-column stream)))))
-
-(defmethod stream-line-column ((stream wrapped-character-stream))
-  (wrapped-stream-column stream))
-
-(defmethod stream-finish-output ((stream wrapped-character-stream))
-  (finish-output (wrapped-stream stream)))
-
-(defmethod stream-force-output ((stream wrapped-character-stream))
-  (force-output (wrapped-stream stream)))
-
-(defmethod stream-clear-output ((stream wrapped-character-stream))
-  (clear-output (wrapped-stream stream)))
-
-(defmethod close ((stream wrapped-character-stream) &key abort)
-  (close (wrapped-stream stream) :abort abort))
-
-
-;;; CRLF/LF Conversion stream. Convert UNIX type line endings to DOS.
-
-(defclass crlf-stream (wrapped-character-stream)
-  nil)
-
-(defmethod stream-read-char ((stream crlf-stream))
-  (let ((character (call-next-method)))
-    (cond
-      ((eq character :eof)
-       :eof)
-      ((char= character +return-character+)
-       (if (char= (peek-char nil (wrapped-stream stream) nil #\Space) #\Newline)
-           (call-next-method)
-           +return-character+))
-      (t
-       character))))
-
-(defmethod stream-write-char ((stream crlf-stream) character)
-  (when (char= character #\Newline)
-    (call-next-method stream +return-character+))
-  (call-next-method stream character))
-
-
-;;;; Folding/Unfolding stream
-
-;;; This stream implements the folding/unfolding algorithm described
-;;; in the RFC5545 and autochains with a CRLF stream.
-
-(defclass folding-stream (wrapped-character-stream)
-  nil)
+(defmacro with-folding-stream ((var stream) &body code)
+  `(with-open-stream (,var (make-folding-stream ,stream))
+     ,@code))
 
 (defun linear-whitespace-p (character)
-  (or (char= character #\Space)
+  (or (char= character #\space)
       (char= character +tab-character+)))
 
 (defmethod stream-read-char ((stream folding-stream))
-  (let ((character (call-next-method)))
-    (cond
-      ((eq character :eof)
-       :eof)
-      ((and (char= character #\Newline)
-            (linear-whitespace-p (peek-char nil (wrapped-stream stream) nil #\A)))
-       (call-next-method)
-       (call-next-method))
-      (t
-       character))))
+  (with-slots (backend-stream) stream
+    (let ((character (stream-read-char backend-stream)))
+      (cond
+        ((eq character :eof) :eof)
+        ((and (char= character #\newline)
+              (linear-whitespace-p
+               (peek-char nil backend-stream nil #\A)))
+         ;; Skip the newline from folding algorithm and go on.
+         (stream-read-char backend-stream)
+         (stream-read-char backend-stream))
+        (t
+         character)))))
+
+(defmethod stream-unread-char ((stream folding-stream) character)
+  (unread-char character (folding-backend-stream stream)))
 
 (defmethod stream-write-char ((stream folding-stream) character)
-  (when (= (stream-line-column stream) +content-line-max-length+)
-    (call-next-method stream #\Newline)
-    (call-next-method stream #\Space))
-  (call-next-method stream character))
+  (with-slots (column-octets backend-stream) stream
+    (let* ((external-format (flex:flexi-stream-external-format backend-stream))
+           (size (flex:octet-length (string character) :external-format external-format)))
+      (when (>= column-octets +content-line-max-length+)
+        (stream-write-char backend-stream #\newline)
+        (stream-write-char backend-stream #\space)
+        (zerof column-octets))
+      (incf column-octets size)
+      (stream-write-char backend-stream character))))
 
-(defun make-folding-stream (stream)
-  (let ((crlf (make-instance 'crlf-stream :stream stream)))
-    (make-instance 'folding-stream :stream crlf)))
+(defmethod stream-line-column ((stream folding-stream))
+  (stream-line-column (folding-backend-stream stream)))
 
-(defmacro with-folding-stream ((var stream) &body code)
-  (check-type var symbol)
-  `(let ((,var (make-folding-stream ,stream)))
-     (unwind-protect
-          (progn ,@code)
-       (close ,var))))
+(defmethod stream-finish-output ((stream folding-stream))
+  (finish-output (folding-backend-stream stream)))
+
+(defmethod stream-force-output ((stream folding-stream))
+  (force-output (folding-backend-stream stream)))
+
+(defmethod stream-clear-output ((stream folding-stream))
+  (clear-output (folding-backend-stream stream)))
+
+(defmethod close ((stream folding-stream) &key abort)
+  (close (folding-backend-stream stream) :abort abort))
 
 
 ;;; folding.lisp ends here
