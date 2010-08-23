@@ -356,7 +356,7 @@
 (defmacro multiple-setf (value &rest places)
   (once-only (value)
     `(setf ,@(loop for place in places
-                   collect `(,place ,value)))))
+                   append `(,place ,value)))))
 
 ;;; Set PLACES to 0
 (defmacro zerof (&rest places)
