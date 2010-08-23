@@ -44,6 +44,7 @@
    (:script-file "release.lisp")
    ;; Source code
    (:file "package")
+   (:file "dependant")
    (:file "utils")
    (:file "error")
    (:file "vendor")
