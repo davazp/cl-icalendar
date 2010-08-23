@@ -72,33 +72,36 @@
 
 ;; Compositional functions
 
-(defgeneric  adjust-datetime (dt &key day month year hour minute second timezone)
-  (:method ((dt datetime) &key day month year hour minute second timezone)
-    (make-datetime (or day (date-day dt))
-                   (or month (date-month dt))
-                   (or year (date-year dt))
-                   (or hour (time-hour dt))
-                   (or minute (time-minute dt))
-                   (or second (time-second dt))
-                   (or timezone (time-timezone dt))))
-  (:method ((dt date) &key day month year
-            (hour (required-arg))
-            (minute (required-arg))
-            (second (required-arg)) timezone)
-    (make-datetime (or day (date-day dt))
-                   (or month (date-month dt))
-                   (or year (date-year dt))
-                   hour minute second timezone))
-  (:method ((dt time) &key
-            (day (required-arg))
-            (month (required-arg))
-            (year (required-arg))
-            hour minute second timezone)
-    (make-datetime day month year
-                   (or hour (time-hour dt))
-                   (or minute (time-minute dt))
-                   (or second (time-second dt))
-                   (or timezone (time-timezone dt)))))
+(defgeneric adjust-datetime (dt &key day month year hour minute second timezone))
+
+(defmethod adjust-datetime ((dt datetime) &key day month year hour minute second timezone)
+  (make-datetime (or day (date-day dt))
+                 (or month (date-month dt))
+                 (or year (date-year dt))
+                 (or hour (time-hour dt))
+                 (or minute (time-minute dt))
+                 (or second (time-second dt))
+                 (or timezone (time-timezone dt))))
+
+(defmethod adjust-datetime ((dt date) &key day month year
+                            (hour (required-arg))
+                            (minute (required-arg))
+                            (second (required-arg)) timezone)
+  (make-datetime (or day (date-day dt))
+                 (or month (date-month dt))
+                 (or year (date-year dt))
+                 hour minute second timezone))
+
+(defmethod adjust-datetime ((dt time) &key
+                            (day (required-arg))
+                            (month (required-arg))
+                            (year (required-arg))
+                            hour minute second timezone)
+  (make-datetime day month year
+                 (or hour (time-hour dt))
+                 (or minute (time-minute dt))
+                 (or second (time-second dt))
+                 (or timezone (time-timezone dt))))
 
 (defmethod adjust-date ((dt datetime) &key day month year)
   (declare (ignorable day month year))
