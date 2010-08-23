@@ -354,10 +354,9 @@
 ;;; The multiple-setf macro was written by Mario Castelán. It is a
 ;;; beautiful form to support multiple places in zerof and nilf.
 (defmacro multiple-setf (value &rest places)
-  (with-gensyms (tmp)
-    `(let ((,tmp ,value))
-       ,@(loop for place in places
-               collect `(setf ,place ,tmp)))))
+  (once-only (value)
+    `(setf ,@(loop for place in places
+                   collect `(,place ,value)))))
 
 ;;; Set PLACES to 0
 (defmacro zerof (&rest places)
