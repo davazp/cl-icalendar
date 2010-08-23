@@ -19,9 +19,9 @@
 
 (in-package :cl-icalendar)
 
-;;; A vendor identifies a use of the iCalendar library. This is
+;;; A vendor identifies an use of the iCalendar library. This is
 ;;; intended to keep the extensions and deviations from the standard
-;;; that the application use. In particular, the vendor keeps a
+;;; that the client application use. In particular, the vendor keeps a
 ;;; translation table from string to Lisp objects and specify as
 ;;; iCalendar objects are mapped in Lisp ones.
 (defclass vendor ()
@@ -41,7 +41,7 @@
 (defmethod initialize-instance :after ((vendor vendor) &rest initargs)
   (declare (ignore initargs))
   (with-slots (name) vendor
-    (nstring-upcase name)))
+    (string-upcase name)))
 
 (defmethod print-object ((x vendor) stream)
   (print-unreadable-object (x stream :type t)
@@ -54,12 +54,10 @@
 (defun find-vendor (name)
   (values (gethash name *vendors*)))
 
-(create-vendor 'standard-vendor)
-
 ;;; The default vendor. It is the default value of functions which
 ;;; require a vendor argument.
 (defvar *vendor*
-  (find-vendor 'standard-vendor))
+  (create-vendor 'standard-vendor))
 
 
 (defun translate (entity kind)
@@ -77,6 +75,5 @@
 
 (defsetf translate (entity kind) (value)
   `(set-translate ,entity ,kind ,value))
-
 
 ;;; vendor.lisp ends here
