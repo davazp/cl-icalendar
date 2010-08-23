@@ -21,9 +21,12 @@
 
 (defpackage :cl-icalendar-system
   (:use :cl :asdf)
-  (:export #:release))
+  (:export #:script-file))
 
 (in-package :cl-icalendar-system)
+
+(defclass script-file (static-file)
+  nil)
 
 (defsystem :cl-icalendar
   :name "iCalendar library"
@@ -38,6 +41,7 @@
   :components
   ((:static-file "COPYING")
    (:static-file "README")
+   (:script-file "release.lisp")
    ;; Source code
    (:file "package")
    (:file "utils")
@@ -66,7 +70,6 @@
              (:doc-file "fdl.texi")
              (:doc-file "version.texi")))))
 
-
 (defsystem :cl-icalendar-tests
   :name "iCalendar library tests"
   :license "GPLv3+"
@@ -89,62 +92,5 @@
 
 (defmethod perform ((op test-op) (c (eql (find-system :cl-icalendar-tests))))
   (funcall (intern "RUN-TESTS" (find-package :cl-icalendar-tests))))
-
-
-;;;; Release tool
-
-;;; Create a tarball of cl-icalendar. This is inspired by
-;;; asdf-packaging-tools but allow packing of several systems.
-
-(defclass copy-op (operation)
-  ((target-directory
-    :initarg :directory
-    :reader target-directory))
-  (:default-initargs :force t))
-
-(defun run-safe-shell-command (format &rest args)
-  (unless (zerop (apply #'run-shell-command format args))
-    (error 'simple-error
-	   :format-string format
-	   :format-args args)))
-
-(defun copy-file (from to)
-  (run-safe-shell-command "install -D -m 644 '~A' '~A'" from to))
-
-(defun delete-directory (directory)
-  (run-safe-shell-command "rm -rf '~A'" directory))
-
-(defun create-tarball (directory output)
-  (format t "creating tarball ~a..." output)
-  (finish-output)
-  (run-safe-shell-command "tar zcvf '~a' '~a'" output directory)
-  (format t "done~%"))
-
-(defmethod perform ((op copy-op) (c source-file))
-  (let ((source (enough-namestring (component-pathname c)))
-        (target (enough-namestring (component-pathname c))))
-    (copy-file source (format nil "~a~a" (target-directory op) target))))
-
-(defmethod perform ((op copy-op) (c system))
-  (let ((source (enough-namestring (component-pathname c)))
-        (target (enough-namestring (component-pathname c))))
-    (copy-file source (format nil "~a~a" (target-directory op) target))))
-
-(defun package-string (system)
-  (format nil "~a-~a"
-          (component-name system)
-          (component-version system)))
-
-(defun release ()
-  (let* ((system1 (find-system :cl-icalendar))
-         (system2 (find-system :cl-icalendar-tests))
-         (pkgstring (package-string system1))
-         (output (make-pathname :directory (list :relative pkgstring))))
-    (ensure-directories-exist output :verbose t)
-    (oos 'copy-op system1 :directory output)
-    (oos 'copy-op system2 :directory output)
-    (create-tarball output (format nil "~a.tar.gz" pkgstring))
-    (delete-directory output)
-    nil))
 
 ;; cl-icalendar.asd ends here
