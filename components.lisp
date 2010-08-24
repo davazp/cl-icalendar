@@ -444,13 +444,14 @@
            (component (make-uninitialized-component component-class)))
       (setf (component-name component) component-name)
       ;; Read properties and fill the component.
-      (loop for (cl-name cl-params cl-value) = (multiple-value-list (read-content-line stream))
+      (loop for cl = (multiple-value-list (read-content-line stream))
+            for (cl-name cl-params cl-value) = cl
             until (string-ci= cl-name "END")
             if (string-ci= cl-name "BEGIN") do
                (push (read-component-1 cl-value stream vendor)
                      (component-subcomponents component))
             else do
-               (apply #'add-property component cl-name cl-value cl-params)
+               (add-property component cl-name cl-value cl-params)
             finally
             (unless (string-ci= component-name cl-value)
               (%parse-error "...")))
