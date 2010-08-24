@@ -35,14 +35,16 @@
             (collect (read-params-value stream))))))
 
 (defun read-params (stream)
-  (let ((params (make-parameter-table)))
-    (and (char= (peek-char nil stream) #\;)
-         (progn
-           (while (char= (read-char stream) #\;)
-             (let ((name (read-until stream "=" #(#\Newline #\: #\;))))
-               (read-char stream)
-               (setf (parameter name params) (read-params-values stream))))
-           params))))
+  (let ((params (make-parameter-table))
+        (count 0))
+    (while (char= (read-char stream) #\;)
+      (let ((name (read-until stream "=" #(#\Newline #\: #\;))))
+        (read-char stream)
+        (setf (parameter name params) (read-params-values stream))
+        (incf count)))
+    (if (zerop count)
+        nil
+        params)))
 
 (defun read-content-line (stream)
   ;; Skip whitespaces (newlines and spaces) characters.
@@ -53,9 +55,7 @@
         do (read-char stream))
   (values (read-until stream ";:" #\Newline)
           (read-params stream)
-          (progn
-            (read-char stream)          ; skip #\: character
-            (read-line stream))))
+          (read-line stream)))
 
 (defun read-content-line-from-string (string)
   (with-input-from-string (in string)
