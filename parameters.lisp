@@ -25,29 +25,35 @@
     :type (or hash-table null)
     :accessor %parameter-table)))
 
-(defun make-parameter-table ()
-  (make-instance 'parameter-table))
+(defun parameter-table (x)
+  (etypecase x
+    (list
+     (make-parameter-table x))
+    (parameter-table
+     x)))
+
+(defun make-parameter-table (&optional params)
+  (let ((pt (make-instance 'parameter-table)))
+    (loop for (param value) on params by #'cddr
+          do (setf (parameter param pt) value)
+          finally (return pt))))
 
 (defgeneric parameter (parameter parameter-table)
   (:method (param table)
     (let ((param (string param))
           (table (%parameter-table table)))
-      (values (and table (gethash param table))))))
+      (and table (values-list (gethash param table))))))
 
 (defgeneric (setf parameter) (new-value parameter parameter-table)
-  (:method (new-value param table)
-    (let ((param (string param))
-          (table (%parameter-table table))
-          (value (string new-value)))
-      (when (null table)
-        (setf (%parameter-table table) (make-hash-table :test #'equalp)))
-      (setf (gethash param table) value))))
-
-;;; Utility function. Check if the value of PARAM if VALUE in
-;;; PARAM-TABLE. If PARAM-TABLE is NIL, return NIL.
-(defun parameter= (param param-table value)
-  (if (null param-table)
-      nil
-      (string-ci= (parameter param param-table) (string value))))
+  (:method (new-value param parameter-table)
+    (with-slots (table) parameter-table
+      (let ((param (string param))
+            (value
+             (with-collect
+               (dolist (value (mklist new-value))
+                 (collect (string-upcase (string value)))))))
+        (when (null table)
+          (setf table (make-hash-table :test #'equalp)))
+        (setf (gethash param table) value)))))
 
 ;; parameters.lisp ends here

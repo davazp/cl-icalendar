@@ -23,7 +23,11 @@
 ;;; this class is inherited by all them. We implement the property and
 ;;; subcomponents artillery here.
 (defclass component ()
-  ((properties
+  ((name
+    :initarg :name
+    :type string
+    :accessor component-name)
+   (properties
     :type hash-table
     :initform (make-hash-table :test #'equalp)
     :accessor component-properties)
@@ -32,15 +36,18 @@
     :initform nil
     :accessor component-subcomponents)))
 
-
 (defclass property ()
   ((name
     :type string
     :initarg :name
     :initform (required-arg)
     :reader property-name)
+   ;; Parameter table of the property. In order to keep memory, this
+   ;; could be NIL, specifying no parameters are avalaible. Likewise,
+   ;; note NIL is a parameter-table designator accepted by the
+   ;; `parameter-table' function.
    (parameters
-    :type list
+    :type (or parameter-table null)
     :initarg :parameters
     :initform nil
     :accessor property-parameters)
@@ -48,6 +55,7 @@
     :initarg :value
     :type ical-value
     :accessor property-value)
+   ;; Private slots
    (previous
     :type (or null property)
     :accessor %previous-property)
@@ -55,19 +63,21 @@
     :type (or null property)
     :accessor %next-property)))
 
-(defgeneric add-property (component property-name values &rest parameters)
-  (:method ((c component) pname values &rest params)
+(defun make-property (name parameters value)
+  (make-instance 'property
+                 :name name
+                 :parameters parameters
+                 :value value))
+
+(defgeneric add-property (component property-name values &optional parameters)
+  (:method ((c component) pname values &optional params)
     (let ((pname (string pname))
           (ptable (component-properties c))
           (values (mklist values))
-          (strparams (mapcar #'string params)))
+          (params (and params (parameter-table params))))
       (dolist (value values)
         (let* ((next (gethash pname ptable))
-               (property
-                (make-instance 'property
-                               :name pname
-                               :parameters strparams
-                               :value (format-value value))))
+               (property (make-property pname params (format-value value))))
           (nilf (%previous-property property))
           (setf (%next-property property) next)
           (and next (setf (%previous-property next) property))
@@ -123,6 +133,10 @@
       `(%do-property-all (,property) ,component
          ,@code)))
 
+(defmacro do-subcomponents ((subcomponent) component &body code)
+  `(dolist (,subcomponent (component-subcomponents ,component))
+     ,@code))
+
 (defgeneric count-property (component &optional property-name)
   (:method ((component component) &optional pname)
     (let ((count 0))
@@ -136,10 +150,9 @@
 
 ;;;; Compatibility CLOS Layer
 ;;; 
-;;; The component provides a close abstraction to the described
-;;; one in the RFC5545 document about components and properties.
-;;; However, it does not provide a pleasant abstraction to the user in
-;;; order to handle them.
+;;; The component provides a thin abstraction about components and
+;;; properties. However, it does not provide a pleasant abstraction to
+;;; the user in order to handle them.
 ;;;
 ;;; Therefore, in order to provide that abstraction, we build a layer
 ;;; of compatibility upon CLOS, using the Meta-Object Protocol
@@ -165,6 +178,13 @@
 
 (defclass component-object (component)
   nil)
+
+;;; Like make-instance. Return an instance of a class without
+;;; initializing property-allocated slots.
+(defvar *initializing-component* nil)
+(defun make-uninitialized-component (class)
+  (let ((*initializing-component* t))
+    (make-instance class)))
 
 ;;; KLUDGE: Slot initialization order is undefined. However, we need
 ;;; to make sure COMPONENT and PROPERTIES slots are initialized before
@@ -197,13 +217,14 @@
   (print-unreadable-object (class stream :type t)
     (write (class-name class) :stream stream)))
 
+
 ;;; The following couple of routines define the default superclass for
 ;;; the component-class metaclass. They were written by Pascal
 ;;; Costanza and taken from
 ;;; http://www.cliki.net/MOP%20design%20patterns
+
 (defmethod initialize-instance :around
   ((class component-class) &rest initargs &key direct-superclasses)
-  ;(declare (dynamic-extent initargs))
   (if (loop for class in direct-superclasses thereis (subtypep class 'component-object))
       ;; 'component-object is already one of the (indirect) superclasses
       (call-next-method)
@@ -213,7 +234,6 @@
 
 (defmethod reinitialize-instance :around
     ((class component-class) &rest initargs &key (direct-superclasses '() direct-superclasses-p))
-  ;(declare (dynamic-extent initargs))
   (if direct-superclasses-p
       ;; if direct superclasses are explicitly passed this is exactly
       ;; like above
@@ -310,14 +330,14 @@
   nil)
 
 (defmethod direct-slot-definition-class
-    ((x component-class) &rest initargs &key (allocation :property))
+    ((x component-class) &rest initargs &key (allocation :property) &allow-other-keys)
   (declare (ignore initargs))
   (if (eq allocation :property)
       (find-class 'direct-pdefinition)
       (call-next-method)))
 
 (defmethod effective-slot-definition-class
-    ((x component-class) &rest initargs &key (allocation :property))
+    ((x component-class) &rest initargs &key (allocation :property) &allow-other-keys)
   (declare (ignore initargs))
   (if (eq allocation :property)
       (find-class 'effective-pdefinition)
@@ -359,11 +379,12 @@
      (class component-class)
      (instance component-object)
      (prop effective-pdefinition))
-  ;; Add the property to the property table of the component.
-  ;; IDEA: default parameters by property?
-  (let ((name (slot-definition-name prop)))
-    (delete-property name instance)
-    (add-property instance name new-value)))
+  (unless *initializing-component*
+    ;; Add the property to the property table of the component.
+    ;; IDEA: default parameters by property?
+    (let ((name (slot-definition-name prop)))
+      (delete-property name instance)
+      (add-property instance name new-value))))
 
 (defmethod slot-boundp-using-class
     ((class component-class)
@@ -382,19 +403,93 @@
 ;;; Like `defclass', but the metaclass must be a subclass of
 ;;; component-class, which is, indeed, the default metaclass.
 (defmacro defcomponent (name super-components slots &rest options)
+  (check-type name symbol)
+  (check-type super-components list)
+  (check-type slots list)
   (let ((metaclass (second (assoc :metaclass options))))
     (cond
       (metaclass
        (unless (subclassp metaclass 'component-class)
          (error "The :metaclass option must specify a submetaclass of component-class."))
-       `(defclass ,name ,super-components
-          ,slots
-          ,@options))
+       (let ((not-found (gensym))
+             (default-initargs
+              (cdr (find :default-initargs options :key #'first)))
+             (other-options
+              (remove :default-initargs options :key #'first)))
+         ;; If the :name slot is not specified in the default-initargs
+         ;; option, then we add it correctly.
+         (when (eq (getf default-initargs :name not-found) not-found)
+           (setf default-initargs (list* :name (string name) default-initargs)))
+         `(progn
+            (setf (translate ',name :component)
+                  (defclass ,name ,super-components
+                    ,slots
+                    (:default-initargs ,@default-initargs)
+                    ,@other-options)))))
       (t
        `(defcomponent ,name ,super-components
           ,slots
           (:metaclass component-class)
           ,@options)))))
 
+
+;;;; Components' input and ouptut
+
+;;; TODO: More error-checking!
+(defun read-component-1 (component-name stream vendor)
+  (multiple-value-bind (class foundp)
+      (let ((*vendor* vendor))
+        (translate component-name :component))
+    (let* ((component-class (if foundp class (find-class 'component)))
+           (component (make-uninitialized-component component-class)))
+      (setf (component-name component) component-name)
+      ;; Read properties and fill the component.
+      (loop for (cl-name cl-params cl-value) = (multiple-value-list (read-content-line stream))
+            until (string-ci= cl-name "END")
+            if (string-ci= cl-name "BEGIN") do
+               (push (read-component-1 cl-value stream vendor)
+                     (component-subcomponents component))
+            else do
+               (apply #'add-property component cl-name cl-value cl-params)
+            finally
+            (unless (string-ci= component-name cl-value)
+              (%parse-error "...")))
+      component)))
+
+(defun read-component (stream &optional (vendor *vendor*))
+  (multiple-value-bind (begin-mark params component-name)
+      (read-content-line stream)
+    (unless (string-ci= "BEGIN" begin-mark)
+      (%parse-error "A BEGIN:<COMPONENT-NAME> was expected, but '~a' was found."
+                    (write-content-line-to-string begin-mark params component-name)))
+    (read-component-1 component-name stream vendor)))
+
+
+;;; The generic function write-component is the entry-point to a set
+;;; of generic-functions which make up a simple protocol. This allows
+;;; the on-the-fly generation of iCalendar data, without need of keep
+;;; all subcomponents at same time in memory.
+
+(defgeneric write-component (component stream))
+(defgeneric write-component-properties (component stream))
+(defgeneric write-component-subcomponents (component stream))
+
+(defmethod write-component ((component component) stream)
+  (let ((cname (component-name component)))
+    (write-content-line "BEGIN" nil cname stream)
+    (write-component-properties component stream)
+    (write-component-subcomponents component stream)
+    (write-content-line "END" nil cname stream)))
+
+(defmethod write-component-properties ((component component) stream)
+  (do-property (prop) component
+    (write-content-line (property-name prop)
+                        (property-parameters prop)
+                        (property-value prop)
+                        stream)))
+
+(defmethod write-component-subcomponents ((component component) stream)
+  (do-subcomponents (subc) component
+    (write-component subc stream)))
 
 ;;; components.ends here

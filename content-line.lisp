@@ -20,15 +20,6 @@
 
 (in-package :cl-icalendar)
 
-(defstruct content-line
-  name
-  params
-  value)
-
-(defmethod print-object ((object content-line) stream)
-  (print-unreadable-object (object stream :type t)
-    (write-string (write-content-line-to-string object) stream)))
-
 (defun read-params-value (stream)
   (if (char= (peek-char nil stream) #\")
       (prog2 (read-char stream)
@@ -44,11 +35,14 @@
             (collect (read-params-value stream))))))
 
 (defun read-params (stream)
-  (with-collect
-    (while (char= (read-char stream) #\;)
-      (let ((name (read-until stream "=" #(#\Newline #\: #\;))))
-        (read-char stream)
-        (collect (cons name (read-params-values stream)))))))
+  (let ((params (make-parameter-table)))
+    (and (char= (peek-char nil stream) #\;)
+         (progn
+           (while (char= (read-char stream) #\;)
+             (let ((name (read-until stream "=" #(#\Newline #\: #\;))))
+               (read-char stream)
+               (setf (parameter name params) (read-params-values stream))))
+           params))))
 
 (defun read-content-line (stream)
   ;; Skip whitespaces (newlines and spaces) characters.
@@ -57,29 +51,30 @@
                   (char= ch #\space)
                   (char= ch #\tab))
         do (read-char stream))
-  (make-content-line
-   :name (read-until stream ";:" #\Newline)
-   :params (read-params stream)
-   :value (read-line stream)))
+  (values (read-until stream ";:" #\Newline)
+          (read-params stream)
+          (progn
+            (read-char stream)          ; skip #\: character
+            (read-line stream))))
 
 (defun read-content-line-from-string (string)
   (with-input-from-string (in string)
     (read-content-line in)))
 
-(defun write-content-line (content-line stream)
-  (declare (content-line content-line) (stream stream))
+(defun write-content-line (name params value stream)
+  (declare (stream stream))
   (format stream "~a~{;~a=~{~a~}~}:~a~%" 
-          (content-line-name content-line)
+          name
           (with-collect
-            (dolist (entry (content-line-params content-line))
+            (dolist (entry params)
               (collect (car entry))
               (collect (cdr entry))))
-          (content-line-value content-line)))
+          value))
 
-(defun write-content-line-to-string (content-line)
+(defun write-content-line-to-string (name params value)
   (string-right-trim (list #\newline)
                      (with-output-to-string (out)
-                       (write-content-line content-line out))))
+                       (write-content-line name params value out))))
 
 
 ;; content-line.lisp ends here
