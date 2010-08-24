@@ -41,40 +41,13 @@
          (%parse-error "The ~a is not a ~a type." ',place ',type)))))
 
 ;;; Generic functions
-(defgeneric format-value (value &rest params &key &allow-other-keys))
-(defgeneric format-values (values &rest params &key &allow-other-keys))
-(defgeneric parse-value (string type &rest params &key &allow-other-keys))
-(defgeneric parse-values (string type &rest params &key &allow-other-keys))
-
-
-;;; Wrapper for both standard as user-defined format-value and
-;;; parse-value methods. The :around methods are used to implement
-;;; global parameters.
-
-;;; I am not sure if it is allowed by the iCalendar specification to
-;;; use the encoding parameter on all types. I assume it is
-;;; so. Otherwise it should be a method for BINARY data type.
-;;; -- DVP
-
-(defmethod format-value :around (string &rest params &key (encoding :8bit))
-  (declare (ignore string params))
-  (ecase encoding
-    (:base64
-     (base64:string-to-base64-string (call-next-method)))
-    (:8bit
-     (call-next-method))))
-
-(defmethod parse-value :around (string type &rest params &key (encoding :8bit))
-  (ecase encoding
-    (:base64
-     (apply #'call-next-method (base64:base64-string-to-string string) type params))
-    (:8bit
-     (call-next-method))))
-
+(defgeneric format-value (value &optional params))
+(defgeneric parse-value (value type &optional params))
 
 ;;; Multiple-value versions
 
-(defmethod parse-values (string (type symbol) &rest params)
+(defun parse-values (string type &optional params)
+  (declare (symbol type))
   (labels (;; Find the position of the separator character (,) from
            ;; the character at START position.
            (position-separator (start)
@@ -88,28 +61,60 @@
     (loop for start = 0 then (1+ end)
           for end = (position-separator start)
           for sub = (subseq string start end)
-          collect (apply #'parse-value sub type params)
+          collect (parse-value sub type params)
           while end)))
 
-(defmethod format-values (objects &rest params)
-  (flet ((format-value* (x)
-           (apply #'format-value x params)))
+(defun format-values (objects &optional params)
+  (flet ((format-value* (x) (format-value x params)))
     (join-strings (mapcar #'format-value* objects) #\,)))
 
+
+;;; Wrapper for both standard as user-defined format-value and
+;;; parse-value methods. The :around methods are used to implement
+;;; global parameters.
+
+;;; I am not sure if it is allowed by the iCalendar specification to
+;;; use the encoding parameter on all types. I assume it is
+;;; so. Otherwise it should be a method for BINARY data type.
+;;; -- DVP
+
+(defmethod format-value :around (object &optional params)
+  (let ((encoding
+         (if params
+             (parameter :encoding params)
+             "8BIT")))
+    (cond
+      ((string-ci= encoding "BASE64")
+       (base64:string-to-base64-string (call-next-method)))
+      ((string-ci= encoding "8BIT")
+       (call-next-method))
+      (t (error "Unkown encoding.")))))
+
+(defmethod parse-value :around (string type &optional params)
+  (let ((encoding
+         (if params
+             (parameter :encoding params)
+             "8BIT")))
+    (cond
+      ((string-ci= encoding "BASE64")
+       (apply #'call-next-method (base64:base64-string-to-string string) type params))
+      ((string-ci= encoding "8BIT")
+       (call-next-method))
+      (t (error "Unkown encoding.")))))
 
 ;;;; Boolean
 
 (define-predicate-type boolean)
 
-(defmethod format-value ((bool (eql 't)) &rest params)
+(defmethod format-value ((bool (eql 't)) &optional params)
   (declare (ignore params))
   "TRUE")
 
-(defmethod format-value ((bool (eql 'nil)) &rest params)
+(defmethod format-value ((bool (eql 'nil)) &optional params)
   (declare (ignore params))
   "FALSE")
 
-(defmethod parse-value (string (type (eql 'boolean)) &rest params)
+(defmethod parse-value (string (type (eql 'boolean)) &optional params)
   (declare (ignore params))
   (cond
     ((string-ci= string "TRUE")  t)
@@ -120,22 +125,22 @@
 
 ;;;; Integer
 
-(defmethod format-value ((n integer) &rest params)
+(defmethod format-value ((n integer) &optional params)
   (declare (ignore params))
   (format nil "~a" n))
 
-(defmethod parse-value (string (type (eql 'integer)) &rest params)
+(defmethod parse-value (string (type (eql 'integer)) &optional params)
   (declare (ignore params))
   (values (parse-integer string)))
 
 
 ;;;; Float
 
-(defmethod format-value ((x float) &rest params)
+(defmethod format-value ((x float) &optional params)
   (declare (ignore params))
   (format nil "~f" x))
 
-(defmethod parse-value (string (type (eql 'float)) &rest params)
+(defmethod parse-value (string (type (eql 'float)) &optional params)
   (declare (ignore params))
   (let ((sign 1)                        ; the sign
         (x 0)                           ; integer part
@@ -180,6 +185,13 @@
   (declare (string uri))
   (make-instance 'uri :uri uri))
 
+(defmethod format-value ((x uri) &optional params)
+  (declare (ignore params))
+  (uri x))
+
+(defmethod parse-value (string (type (eql 'uri)) &optional params)
+  (declare (ignore params))
+  (make-instance 'uri :uri string))
 
 ;;;; Cal-address
 
@@ -191,6 +203,10 @@
 (defun make-cal-address (uri)
   (declare (string uri))
   (make-instance 'cal-address :uri uri))
+
+(defmethod parse-value (string (type (eql 'cal-address)) &optional params)
+  (declare (ignore params))
+  (make-instance 'cal-address :uri string))
 
 
 ;; User-defined iCalendar data types

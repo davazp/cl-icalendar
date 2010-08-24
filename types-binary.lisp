@@ -72,16 +72,16 @@
 
 (progn
   ;; The binary data value must be written as a base64-encoded
-  ;; sequence. Therefore, the ENCODING=BAS64 parameter should be
+  ;; sequence. Therefore, the ENCODING=BASE64 parameter should be
   ;; present. We don't check this here; indeed, we trust in the caller
   ;; (property code basically) will do the right thing.
-  (defmethod format-value ((x binary) &rest params &key encoding)
-    (declare (ignore params encoding))
+  (defmethod format-value ((x binary) &optional params)
+    (declare (ignore params))
     (let ((bytes (binary-content x)))
       (base64:usb8-array-to-base64-string bytes)))
 
-  (defmethod parse-value (string (type (eql 'binary)) &rest params &key encoding)
-    (declare (ignore params encoding))
+  (defmethod parse-value (string (type (eql 'binary)) &optional params)
+    (declare (ignore params))
     (make-instance 'binary :content (base64:base64-string-to-usb8-array string))))
 
 

@@ -98,14 +98,14 @@
                (or minute (time-minute time))
                (or second (time-second time)))))
 
-(defmethod format-value ((time time) &rest params)
+(defmethod format-value ((time time) &optional params)
   (declare (ignore params))
   (format nil "~2,'0d~2,'0d~2,'0d"
           (time-hour   time)
           (time-minute time)
           (time-second time)))
 
-(defmethod parse-value (string (type (eql 'time)) &rest params)
+(defmethod parse-value (string (type (eql 'time)) &optional params)
  (declare (ignore params))
   (unless (or (= (length string) 6)
               (= (length string) 7))

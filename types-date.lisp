@@ -183,13 +183,13 @@
 
 ;;; Parse
 
-(defmethod format-value ((date date) &rest params)
+(defmethod format-value ((date date) &optional params)
   (declare (ignore params))
   (multiple-value-bind (day month year)
       (%decode-date date)
     (format nil "~4,'0d~2,'0d~2,'0d" year month day)))
 
-(defmethod parse-value (string (type (eql 'date)) &rest params)
+(defmethod parse-value (string (type (eql 'date)) &optional params)
   (declare (ignore params))
   (unless (= (length string) 8)
     (%parse-error "parse error."))

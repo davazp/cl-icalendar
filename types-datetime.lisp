@@ -171,7 +171,7 @@
 
 ;;; Parser
 
-(defmethod format-value ((dt datetime) &rest params)
+(defmethod format-value ((dt datetime) &optional params)
   (declare (ignore params))
   (format nil "~4,'0d~2,'0d~2,'0dT~2,'0d~2,'0d~2,'0d"
           (date-year dt)
@@ -181,7 +181,7 @@
           (time-minute dt)
           (time-second dt)))
 
-(defmethod parse-value (string (type (eql 'datetime)) &rest params)
+(defmethod parse-value (string (type (eql 'datetime)) &optional params)
   (declare (ignore params))
   ;; TODO: Handling timezones
   (flet ((ill-formed () (%parse-error "Bad datetime format.")))
