@@ -21,11 +21,14 @@
 
 (defpackage :cl-icalendar-system
   (:use :cl :asdf)
-  (:export #:script-file))
+  (:export #:script-file #:test-file))
 
 (in-package :cl-icalendar-system)
 
 (defclass script-file (static-file)
+  nil)
+
+(defclass test-file (static-file)
   nil)
 
 (defsystem :cl-icalendar
@@ -81,9 +84,15 @@
   ((:module "tests"
             :serial t
             :components
-            ((:file "package")
+            ((:test-file "test-types.001")
+             (:test-file "test-icalendar.001")
+             (:test-file "test-icalendar.002")
+             (:test-file "test-icalendar.003")
+             (:test-file "test-icalendar.004")
+             (:test-file "test-icalendar.005")
+             (:test-file "test-icalendar.006")             
+             (:file "package")
              (:file "tsuite")
-             (:static-file "test-types.001")
              (:file "test-types")
              (:file "test-types-date")
              (:file "test-types-recur")))))
