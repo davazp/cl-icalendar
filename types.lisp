@@ -193,6 +193,7 @@
   (declare (ignore params))
   (make-instance 'uri :uri string))
 
+
 ;;;; Cal-address
 
 (defclass cal-address (uri)
@@ -209,10 +210,28 @@
   (make-instance 'cal-address :uri string))
 
 
-;; User-defined iCalendar data types
 
+;;; Unknown type. This is a pseudo-type. This is used to keep the
+;;; value of non-defined property' values.
+(defclass unknown-value ()
+  ((string
+    :initarg :string
+    :type string
+    :reader unknown-value-string)))
+
+(define-predicate-type unknown-value unknown-value-p)
+
+(defun make-unknown-value (str)
+  (declare (string str))
+  (make-instance 'unknown-value :string str))
+
+(defmethod print-object ((x unknown-value) stream)
+  (print-unreadable-object (x stream :type t)
+    (prin1 (unknown-value-string x) stream)))
+
+
+;; User-defined iCalendar data types
 (defclass x-ical-value ()
   nil)
-
 
 ;;; types.lisp ends here
