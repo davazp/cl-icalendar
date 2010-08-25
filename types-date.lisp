@@ -22,7 +22,7 @@
 
 (deftype day   () '(integer 1 31))
 (deftype month () '(integer 1 12))
-(deftype year  () `(integer 1900 ,most-positive-fixnum))
+(deftype year  () 'fixnum)
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (defvar *weekday*
@@ -35,7 +35,8 @@
   `(member ,@(coerce *weekday* 'list)))
 
 (defclass date ()
-  ((day-from-1900
+  (;; 1 at 1900-01-01
+   (day-from-1900
     :type fixnum
     :initarg :day-from-1900
     :reader day-from-1900)))
@@ -88,7 +89,7 @@
   (let ((stamp (day-from-1900 date)))
     (let (year month day rem)
       ;; Year
-      (loop for t1 from (truncate stamp 365) downto 0
+      (loop for t1 downfrom (truncate stamp 365)
             for t2 = (+ (* 365 t1) (leap-years-before (+ 1900 t1)))
             for t3 = (- stamp t2)
             while (<= t3 0)
@@ -115,7 +116,6 @@
 (defgeneric date-year (x)
   (:method ((x date))
     (nth-value 2 (%decode-date x))))
-
 
 (defun date-day-of-week (x &optional (wkst :monday))
   (declare (weekday wkst))
