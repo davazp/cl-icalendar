@@ -102,8 +102,15 @@
        (call-next-method))
       (t (error "Unkown encoding.")))))
 
+
+;;; Register a iCalendar data type in the standard vendor.
+(defun register-ical-value (symbol &optional (name (string symbol)))
+  (let ((*vendor* *standard-vendor*))
+    (setf (translate name :type) symbol)))
+
 ;;;; Boolean
 
+(register-ical-value 'boolean)
 (define-predicate-type boolean)
 
 (defmethod format-value ((bool (eql 't)) &optional params)
@@ -125,6 +132,8 @@
 
 ;;;; Integer
 
+(register-ical-value 'integer)
+
 (defmethod format-value ((n integer) &optional params)
   (declare (ignore params))
   (format nil "~a" n))
@@ -135,6 +144,8 @@
 
 
 ;;;; Float
+
+(register-ical-value 'float)
 
 (defmethod format-value ((x float) &optional params)
   (declare (ignore params))
@@ -179,6 +190,7 @@
     :initarg :uri
     :reader uri)))
 
+(register-ical-value 'uri)
 (define-predicate-type uri)
 
 (defun make-uri (uri)
@@ -199,6 +211,7 @@
 (defclass cal-address (uri)
   nil)
 
+(register-ical-value 'cal-address)
 (define-predicate-type cal-address)
 
 (defun make-cal-address (uri)

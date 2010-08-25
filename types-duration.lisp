@@ -30,6 +30,7 @@
     :initform 0
     :reader %duration-seconds)))
 
+(register-ical-value 'duration)
 (define-predicate-type duration)
 
 (defun make-duration (&key (days 0) (hours 0) (minutes 0) (seconds 0) backward-p)

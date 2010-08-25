@@ -54,10 +54,12 @@
 (defun find-vendor (name)
   (values (gethash name *vendors*)))
 
+(defvar *standard-vendor*
+  (create-vendor 'standard-vendor))
+
 ;;; The default vendor. It is the default value of functions which
 ;;; require a vendor argument.
-(defvar *vendor*
-  (create-vendor 'standard-vendor))
+(defvar *vendor* *standard-vendor*)
 
 
 (defun translate (entity kind)

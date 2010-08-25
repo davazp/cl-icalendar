@@ -20,11 +20,10 @@
 
 (in-package :cl-icalendar)
 
-(deftype date-time () 'datetime)
-
 (defclass datetime (date time)
   nil)
 
+(register-ical-value 'datetime "DATE-TIME")
 (define-predicate-type datetime)
 
 ;;; TODO: The TZONE argument will be implemented when the module

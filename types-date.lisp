@@ -40,6 +40,7 @@
     :initarg :day-from-1900
     :reader day-from-1900)))
 
+(register-ical-value 'date)
 (define-predicate-type date)
 
 (defmethod print-object ((x date) stream)

@@ -20,36 +20,10 @@
 
 (in-package :cl-icalendar)
 
-(defclass text* ()
-  ((language
-    :initarg :language
-    :initform nil
-    :reader text-language)
-   (string
-    :initarg :text
-    :reader text)))
+(deftype text () 'string)
 
-(deftype text ()
-  '(or string text*))
-
+(register-ical-value 'text)
 (define-predicate-type text)
-
-(defmethod print-object ((x text*) stream)
-  (print-unreadable-object (x stream)
-    (format stream "TEXT :LANG ~a ~w"
-            (text-language x)
-            (text x))))
-
-(defmethod text ((x string))
-  x)
-
-(defmethod text-language ((x string))
-  nil)
-
-(defun make-text (string &optional language)
-  (if language
-      (make-instance 'text* :text string :language language)
-      string))
 
 (defmethod format-value ((text string) &optional params)
   (declare (ignore params))
@@ -73,11 +47,6 @@
             (write-char #\; out))
            (t
             (write-char ch out)))))))
-
-
-(defmethod format-value ((text text*) &optional params)
-  (declare (ignore params))
-  (format-value (text text)))
 
 (defmethod parse-value (text (type (eql 'text)) &optional params)
   (declare (ignore params))

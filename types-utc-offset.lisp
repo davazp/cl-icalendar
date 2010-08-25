@@ -26,6 +26,7 @@
     :initarg :offset
     :reader %utc-offset)))
 
+(register-ical-value 'utc-offset)
 (define-predicate-type utc-offset utc-offset-p)
 
 (defgeneric utc-offset-hour (utc-offset)
