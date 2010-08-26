@@ -50,7 +50,7 @@
 
 (defmethod parse-value (text (type (eql 'text)) &optional params)
   (declare (ignore params))
-  (let ((string (text text)))
+  (let ((string text))
     (with-input-from-string (in string)
       (with-output-to-string (out)
         (loop for ch = (read-char in nil)
@@ -58,12 +58,11 @@
               do
            (write-char (if (char/= ch #\\)
                            ch
-                           (ecase (read-char in nil)
-                             (#\\ #\\)
-                             (#\; #\;)
-                             (#\, #\,)
-                             (#\N #\newline)
-                             (#\n #\newline)))
+                           (let ((ch (read-char in nil)))
+                             (case ch
+                               (#\N #\newline)
+                               (#\n #\newline)
+                               (otherwise ch))))
                  out))))))
 
 ;;; types-text.lisp ends here
