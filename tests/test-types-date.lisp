@@ -43,10 +43,8 @@
 
 (test make-date-002
   "Check wrong dates."
-  (signals error (make-date  01  01  1001))
   (signals error (make-date -01  01  2000))
-  (signals error (make-date  01 -01  2000))
-  (signals error (make-date  01 -01 -2000)))
+  (signals error (make-date  01 -01  2000)))
 
 (test date-week-of-year-001
   (is (= (date-week-of-year (make-date 01 1 2010)) 0))
