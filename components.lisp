@@ -27,14 +27,18 @@
     :initarg :name
     :type string
     :accessor component-name)
-   (properties
+   (%properties
     :type hash-table
     :initform (make-hash-table :test #'equalp)
     :accessor component-properties)
-   (subcomponents
+   (%subcomponents
     :type list
     :initform nil
     :accessor component-subcomponents)))
+
+;;; Class for undefined components.
+(defclass unknown-component (component)
+  nil)
 
 (defclass property ()
   ((name
@@ -69,40 +73,46 @@
                  :parameters parameters
                  :value value))
 
-(defgeneric add-property (component property-name values &optional parameters)
-  (:method ((c component) pname values &optional params)
-    (let ((pname (string pname))
-          (ptable (component-properties c))
-          (values (mklist values))
-          (params (and params (parameter-table params))))
-      (dolist (value values)
-        (let* ((next (gethash pname ptable))
-               (property (make-property pname params (format-value value))))
-          (nilf (%previous-property property))
-          (setf (%next-property property) next)
-          (and next (setf (%previous-property next) property))
-          (setf (gethash pname ptable) property))))))
 
-(defgeneric find-property (property-name component)
-  (:method (pname (c component))
-    (values (gethash (string pname) (component-properties c)))))
+;;;; Generic-function component interface
 
-(defgeneric delete-property (property component)
-  (:method ((property symbol) (component component))
-    (remhash (string property) (component-properties component)))
-  (:method ((property property) (component component))
-    (with-slots (name previous next) property
-      (cond
-        (previous
-         (setf (%next-property previous) next)
-         (setf (%previous-property next) previous))
-        (t
-         (let ((ptable (component-properties component)))
-           (when next
-             (nilf (%previous-property next)))
-           (setf (gethash name ptable) next))))
-      (nilf previous next)
-      (values))))
+(defgeneric add-property (component property-name values &optional parameters))
+(defgeneric find-property (property-name component))
+(defgeneric delete-property (property component))
+(defgeneric count-property (component &optional property-name))
+
+(defmethod add-property ((c component) pname values &optional params)
+  (let ((pname (string pname))
+        (ptable (component-properties c))
+        (values (mklist values))
+        (params (and params (parameter-table params))))
+    (dolist (value values)
+      (let* ((next (gethash pname ptable))
+             (property (make-property pname params value)))
+        (nilf (%previous-property property))
+        (setf (%next-property property) next)
+        (and next (setf (%previous-property next) property))
+        (setf (gethash pname ptable) property)))))
+
+(defmethod find-property (pname (c component))
+  (values (gethash (string pname) (component-properties c))))
+
+(defmethod delete-property (property (component component))
+  (remhash (string property) (component-properties component)))
+
+(defmethod delete-property ((property property) (component component))
+  (with-slots (name previous next) property
+    (cond
+      (previous
+       (setf (%next-property previous) next)
+       (setf (%previous-property next) previous))
+      (t
+       (let ((ptable (component-properties component)))
+         (when next
+           (nilf (%previous-property next)))
+         (setf (gethash name ptable) next))))
+    (nilf previous next)
+    (values)))
 
 (defmacro %do-property-1 ((property &key name) component &body code)
   (once-only (name component)
@@ -137,15 +147,14 @@
   `(dolist (,subcomponent (component-subcomponents ,component))
      ,@code))
 
-(defgeneric count-property (component &optional property-name)
-  (:method ((component component) &optional pname)
-    (let ((count 0))
-      (if pname
-          (do-property (property :name pname) component
-            (incf count))
-          (do-property (property) component
-            (incf count)))
-      count)))
+(defmethod count-property ((component component) &optional pname)
+  (let ((count 0))
+    (if pname
+        (do-property (property :name pname) component
+          (incf count))
+        (do-property (property) component
+          (incf count)))
+    count))
 
 
 ;;;; Compatibility CLOS Layer
@@ -193,14 +202,21 @@
 ;;; option are not applied if the slot is bound.
 (defmethod initialize-instance :before ((inst component-object) &rest initargs)
   (declare (ignore initargs))
-  (with-slots (subcomponents properties)
+  (with-slots (%subcomponents %properties)
       inst
-    (nilf subcomponents)
-    (setf properties (make-hash-table :test #'equalp))))
+    (nilf %subcomponents)
+    (setf %properties (make-hash-table :test #'equalp))))
 
 ;;; Metaclass of component classes
 (defclass component-class (standard-class)
-  ((subcomponents
+  (;; A hashtable mapping iCalendar slot strings to effective
+   ;; pdefinition objects.
+   (property-allocated-slots
+    :initform (make-hash-table :test #'equalp)
+    :type hash-table
+    :reader %property-allocated-slots)
+   ;; Components which are allowed to appear as subcomponents.
+   (subcomponents
     :initarg :subcomponents
     :type list
     :initform nil
@@ -246,8 +262,14 @@
       (call-next-method)))
 
 (defmethod finalize-inheritance :after ((class component-class))
-  (with-slots (subcomponents) class
-    (setf subcomponents (compute-subcomponents class))))
+  (flet ((slot-string-name (x)
+           (string (slot-definition-name x))))
+    (with-slots ((table property-allocated-slots) subcomponents) class
+      (setf subcomponents (compute-subcomponents class))
+      ;; Initialize property-allocated-slots.
+      (dolist (slot (class-slots class))
+        (when (typep slot 'effective-pdefinition)
+          (setf (gethash (slot-string-name slot) table) slot))))))
 
 (defmethod compute-subcomponents ((class component-class))
   ;; Compute the effective list of subcomponents allowed by the class.
@@ -303,6 +325,10 @@
 (defmethod initialize-instance :after
     ((pdefinition pdefinition) &rest initargs &key (type nil typep))
   (declare (ignore initargs type))
+  ;; Default-type is the effective type by default.
+  (unless (slot-boundp pdefinition 'default-type)
+    (setf (slot-value pdefinition 'default-type)
+          (slot-definition-type pdefinition)))
   ;; Do some error-checking in order to validate the property definition.
   (unless typep
     (error "The :type option must be specified for the slot ~a."
@@ -435,12 +461,43 @@
 
 ;;;; Components' input and ouptut
 
+(defun find-effective-pdefinition (name component)
+  (let ((component (class-of component)))
+    (when (typep component 'component-class)
+      (with-slots (property-allocated-slots) component
+        (gethash name property-allocated-slots)))))
+
+(defun parse-property-value (string parameters property component)
+  (let* ((unknown-component-p (typep component 'unknown-component))
+         (pdefinition (find-effective-pdefinition property component)))
+    (if (or unknown-component-p (not pdefinition))
+        (make-unknown-value string)
+        (let ((type (slot-definition-type pdefinition))
+              (default-type (pdefinition-default-type pdefinition))
+              (explicit-type
+               (and parameters
+                    (aif (parameter "VALUE" parameters)
+                         (translate it :type)
+                         nil))))
+          (when (and explicit-type (not (subtypep explicit-type type)))
+            (%parse-error "explicit type is not a subtype of the type."))
+          (let ((effective-type (or explicit-type default-type)))
+            (parse-value string effective-type parameters))))))
+
+(defun read-component-header (stream)
+  (multiple-value-bind (begin-mark params component-name)
+      (read-content-line stream)
+    (unless (string-ci= "BEGIN" begin-mark)
+      (%parse-error "A BEGIN:<COMPONENT-NAME> was expected, but '~a' was found."
+                    (write-content-line-to-string begin-mark params component-name)))
+    component-name))
+
 ;;; TODO: More error-checking!
 (defun read-component-1 (component-name stream vendor)
   (multiple-value-bind (class foundp)
       (let ((*vendor* vendor))
         (translate component-name :component))
-    (let* ((component-class (if foundp class (find-class 'component)))
+    (let* ((component-class (if foundp class (find-class 'unknown-component)))
            (component (make-uninitialized-component component-class)))
       (setf (component-name component) component-name)
       ;; Read properties and fill the component.
@@ -451,19 +508,16 @@
                (push (read-component-1 cl-value stream vendor)
                      (component-subcomponents component))
             else do
-               (add-property component cl-name cl-value cl-params)
+               (let ((value (parse-property-value cl-value cl-params cl-name component)))
+                 (add-property component cl-name value cl-params))
             finally
-            (unless (string-ci= component-name cl-value)
-              (%parse-error "...")))
+               (unless (string-ci= component-name cl-value)
+                 (%parse-error "...")))
       component)))
 
 (defun read-component (stream &optional (vendor *vendor*))
-  (multiple-value-bind (begin-mark params component-name)
-      (read-content-line stream)
-    (unless (string-ci= "BEGIN" begin-mark)
-      (%parse-error "A BEGIN:<COMPONENT-NAME> was expected, but '~a' was found."
-                    (write-content-line-to-string begin-mark params component-name)))
-    (read-component-1 component-name stream vendor)))
+  (let ((cname (read-component-header stream)))
+    (read-component-1 cname stream vendor)))
 
 
 ;;; The generic function write-component is the entry-point to a set
@@ -486,7 +540,8 @@
   (do-property (prop) component
     (write-content-line (property-name prop)
                         (property-parameters prop)
-                        (property-value prop)
+                        (format-value (property-value prop)
+                                      (property-parameters prop))
                         stream)))
 
 (defmethod write-component-subcomponents ((component component) stream)
