@@ -31,7 +31,7 @@
 
 (deftype ical-value ()
   '(or boolean integer float text binary uri cal-address utc-offset date
-    time date-time duration period recur x-ical-value))
+    time datetime duration period recur x-ical-value unknown-value))
 
 ;;; Like `check-type' but it signals an error with %parse-error.
 (defmacro check-ical-type (place type)
@@ -80,8 +80,7 @@
 
 (defmethod format-value :around (object &optional params)
   (let ((encoding
-         (if params
-             (parameter :encoding params)
+         (or (and params (parameter :encoding params))
              "8BIT")))
     (cond
       ((string-ci= encoding "BASE64")
@@ -92,8 +91,7 @@
 
 (defmethod parse-value :around (string type &optional params)
   (let ((encoding
-         (if params
-             (parameter :encoding params)
+         (or (and params (parameter :encoding params))
              "8BIT")))
     (cond
       ((string-ci= encoding "BASE64")
@@ -237,6 +235,10 @@
 (defun make-unknown-value (str)
   (declare (string str))
   (make-instance 'unknown-value :string str))
+
+(defmethod format-value ((x unknown-value) &optional params)
+  (declare (ignore params))
+  (write-string (unknown-value-string x)))
 
 (defmethod print-object ((x unknown-value) stream)
   (print-unreadable-object (x stream :type t)
