@@ -19,13 +19,13 @@
 
 (in-package :cl-icalendar)
 
-(defclass standard-component-object () nil
+(defclass standard-component () nil
   (:metaclass component-class))
 
-(defclass x-component-object () nil
+(defclass x-component () nil
   (:metaclass component-class))
 
-(defcomponent vcalendar ()
+(defcomponent vcalendar (standard-component)
   ((prodid
     :initarg :prodid
     :type text)
@@ -41,13 +41,13 @@
     :type text))
   (:subcomponents vtodo vjournal))
 
-(defcomponent vtodo ()
+(defcomponent vtodo (standard-component)
   ((dtstamp
-    ;:required t
+    ;;:required t
     :initarg :dtstamp
     :type datetime)
    (uid
-    ;:required t
+    ;;:required t
     :initarg :uid
     :type text)
    (class
@@ -65,7 +65,7 @@
    (dtstart
     :initarg :dtstart
     :type (or datetime date)
-    :default-type datetime )
+    :default-type datetime)
    (geo
     :initarg :geo
     :type float)
@@ -80,18 +80,18 @@
     :type cal-address)
    (percent-complete
     :initarg :percent-complete
-    :type (integer 0 100))
+    :type integer)
    (priority
     :initarg :priority
     :default-value 0
-    :type (integer 0 9))
+    :type integer)
    (recurrence-id
     :initarg :recurrence-id
     :type (or datetime date)
     :default-type datetime)
    (sequence
     :initarg :sequence
-    :type (integer 0 *))
+    :type integer)
    (status
     :initarg :status
     :type text)
@@ -148,8 +148,104 @@
   (:subcomponents valarm))
 
 
-(defcomponent vjournal (standard-component-object)
-  nil)
+(defcomponent vevent ()
+  ((dtstamp
+    ;;:required t
+    :initarg :dtstamp
+    :type datetime)
+   (uid
+    ;;:required t
+    :initarg :uid
+    :type text)
+   (dtstart
+    :initarg :dtstart
+    :type (or datetime date)
+    :default-type datetime)
+   (class
+    :initarg :class
+    :type text)
+   (created
+    :initarg :created
+    :type datetime)
+   (description
+    :initarg :description
+    :type text)
+   (geo
+    :initarg :geo
+    :type float)
+   (last-modified
+    :initarg :last-modified
+    :type datetime)
+   (location
+    :initarg :location
+    :type text)
+   (organizer
+    :initarg :organizer
+    :type cal-address)
+   (priority
+    :initarg :priority
+    :default-value 0
+    :type integer)
+   (sequence
+    :initarg :sequence
+    :type integer)
+   (status
+    :initarg :status
+    :type text)
+   (summary
+    :initarg :summary
+    :type text)
+   (transp
+    :initarg :transp
+    :type text) 
+   (url
+    :initarg :url
+    :type uri)
+   (recurrence-id
+    :initarg :recurrence-id
+    :type (or datetime date)
+    :default-type datetime)
+   (dtend
+    :initarg :dtend
+    :default-type datetime
+    :type (or datetime date)) 
+   (duration
+    :initarg :duration
+    :type duration)
+   (attach
+    :initarg :attach
+    :type (or binary uri)
+    :default-type uri)
+   (attendee
+    :initarg :attendee
+    :type cal-address)
+   (categories
+    :initarg :categories
+    :type text)
+   (comment
+    :initarg :comment
+    :type text)
+   (contact
+    :initarg :contact
+    :type text)
+   (exdate
+    :initarg :exdate
+    :type (or datetime date)
+    :default-type datetime)
+   (request-status
+    :initarg :request-status
+    :type text)
+   (related-to
+    :initarg :related-to
+    :type text)
+   (resources
+    :initarg :resources
+    :type text)
+   (rdate
+    :initarg :rdate
+    :type (or datetime date period)
+    :default-type datetime))
+  (:subcomponents valarm))
 
 
 ;;; components-standard.lisp ends here
