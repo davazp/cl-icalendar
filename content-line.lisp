@@ -38,7 +38,7 @@
   (let ((params (make-parameter-table))
         (count 0))
     (while (char= (read-char stream) #\;)
-      (let ((name (read-until stream "=" #(#\Newline #\: #\;))))
+      (let ((name (read-until stream "=" (coerce #(#\Newline #\: #\;) 'string))))
         (read-char stream)
         (setf (parameter name params) (read-params-values stream))
         (incf count)))
