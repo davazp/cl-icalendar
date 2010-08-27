@@ -1,8 +1,8 @@
 #!/usr/local/bin/sbcl --script
 ;;                                                              -*- Lisp -*-
-;; 
+;;
 ;; release.lisp --- Create a tarball of the cl-icalendar library
-;; 
+;;
 ;; Copyrigth (C) 2010 David Vázquez
 ;;
 ;; This file is part of cl-icalendar.
@@ -85,11 +85,13 @@
 (defun release ()
   (let* ((system1 (find-system :cl-icalendar))
          (system2 (find-system :cl-icalendar-tests))
+         (system3 (find-system :cl-icalendar-iterate))
          (pkgstring (package-string system1))
          (output (make-pathname :directory (list :relative pkgstring))))
     (ensure-directories-exist output :verbose t)
     (oos 'copy-op system1 :directory output)
     (oos 'copy-op system2 :directory output)
+    (oos 'copy-op system3 :directory output)
     (create-tarball output (format nil "~a.tar.gz" pkgstring))
     (delete-directory output)
     nil))

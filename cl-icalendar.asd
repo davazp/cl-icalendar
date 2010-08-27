@@ -28,9 +28,6 @@
 (defclass script-file (static-file)
   nil)
 
-(defclass test-file (static-file)
-  nil)
-
 (defsystem :cl-icalendar
   :name "iCalendar library"
   :license "GPLv3+"
@@ -75,6 +72,11 @@
              (:doc-file "fdl.texi")
              (:doc-file "version.texi")))))
 
+
+
+(defclass test-file (static-file)
+  nil)
+
 (defsystem :cl-icalendar-tests
   :name "iCalendar library tests"
   :license "GPLv3+"
@@ -90,7 +92,7 @@
              (:test-file "test-icalendar.003")
              (:test-file "test-icalendar.004")
              (:test-file "test-icalendar.005")
-             (:test-file "test-icalendar.006")             
+             (:test-file "test-icalendar.006")
              (:file "package")
              (:file "tsuite")
              (:file "test-types")
@@ -103,5 +105,18 @@
 
 (defmethod perform ((op test-op) (c (eql (find-system :cl-icalendar-tests))))
   (funcall (intern "RUN-TESTS" (find-package :cl-icalendar-tests))))
+
+
+
+(defsystem :cl-icalendar-iterate
+  :name "iCalendar library iterate integration"
+  :license "GPLv3+"
+  :depends-on (:cl-icalendar :iterate)
+  :serial t
+  :components
+  ((:module "iterate"
+            :serial t
+            :components ((:file "ical-iterate")))))
+
 
 ;; cl-icalendar.asd ends here

@@ -117,6 +117,7 @@ The document was typeset with
 * Components::
 * High level abstractions::
 * Conditions and error handling::
+* Iterate::
 * GNU Free Documentation License::
 * Index::
 @end menu
@@ -510,6 +511,10 @@ error, t
 @end table
 TODO: To be implemented.
 @end deftp
+
+@node Iterate
+@appendix Iterate
+
 
 
 @node GNU Free Documentation License
