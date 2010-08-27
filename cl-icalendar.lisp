@@ -20,6 +20,15 @@
 
 (in-package :cl-icalendar)
 
+(defun read-vcalendar (stream &optional (vendor *vendor*))
+  (let ((name (read-component-header stream)))
+    (unless (string-ci= name "VCALENDAR")
+      (error "A ~a component was found, when VCALENDAR was expected." name)))
+  (read-component-1 "VCALENDAR" stream vendor))
 
+(defun open-vcalendar (pathname)
+  (with-open-file (infile pathname :element-type '(unsigned-byte 8))
+    (with-folding-stream (in infile)
+      (read-vcalendar in))))
 
 ;; cl-icalendar.lisp ends here

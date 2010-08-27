@@ -158,7 +158,7 @@
 
 
 ;;;; Compatibility CLOS Layer
-;;; 
+;;;
 ;;; The component provides a thin abstraction about components and
 ;;; properties. However, it does not provide a pleasant abstraction to
 ;;; the user in order to handle them.
@@ -168,7 +168,7 @@
 ;;; (MOP). The main result is the component-class metaobject, which is
 ;;; an extension to the default standard-class, that could be extended
 ;;; by the user too.
-;;; 
+;;;
 ;;; The classes which are instances of component-class are always
 ;;; subclasses of component-object. A new allocation method named
 ;;; :property is avalaible for the slots; in fact, this is the default
@@ -209,13 +209,7 @@
 
 ;;; Metaclass of component classes
 (defclass component-class (standard-class)
-  (;; A hashtable mapping iCalendar slot strings to effective
-   ;; pdefinition objects.
-   (property-allocated-slots
-    :initform (make-hash-table :test #'equalp)
-    :type hash-table
-    :reader %property-allocated-slots)
-   ;; Components which are allowed to appear as subcomponents.
+  (;; Components which are allowed to appear as subcomponents.
    (subcomponents
     :initarg :subcomponents
     :type list
@@ -262,14 +256,8 @@
       (call-next-method)))
 
 (defmethod finalize-inheritance :after ((class component-class))
-  (flet ((slot-string-name (x)
-           (string (slot-definition-name x))))
-    (with-slots ((table property-allocated-slots) subcomponents) class
-      (setf subcomponents (compute-subcomponents class))
-      ;; Initialize property-allocated-slots.
-      (dolist (slot (class-slots class))
-        (when (typep slot 'effective-pdefinition)
-          (setf (gethash (slot-string-name slot) table) slot))))))
+  (with-slots (table subcomponents) class
+    (setf subcomponents (compute-subcomponents class))))
 
 (defmethod compute-subcomponents ((class component-class))
   ;; Compute the effective list of subcomponents allowed by the class.
@@ -461,28 +449,11 @@
 
 ;;;; Components' input and ouptut
 
-(defun find-effective-pdefinition (name component)
-  (let ((component (class-of component)))
-    (when (typep component 'component-class)
-      (with-slots (property-allocated-slots) component
-        (gethash name property-allocated-slots)))))
-
-(defun parse-property-value (string parameters property component)
-  (let* ((unknown-component-p (typep component 'unknown-component))
-         (pdefinition (find-effective-pdefinition property component)))
-    (if (or unknown-component-p (not pdefinition))
-        (make-unknown-value string)
-        (let ((type (slot-definition-type pdefinition))
-              (default-type (pdefinition-default-type pdefinition))
-              (explicit-type
-               (and parameters
-                    (aif (parameter "VALUE" parameters)
-                         (translate it :type)
-                         nil))))
-          (when (and explicit-type (not (subtypep explicit-type type)))
-            (%parse-error "explicit type is not a subtype of the type."))
-          (let ((effective-type (or explicit-type default-type)))
-            (parse-value string effective-type parameters))))))
+(defmacro do-property-slot ((slot class) &body body)
+  (check-type slot symbol)
+  `(dolist (,slot (class-slots ,class))
+     (when (typep ,slot 'effective-pdefinition)
+       ,@body)))
 
 (defun read-component-header (stream)
   (multiple-value-bind (begin-mark params component-name)
@@ -491,6 +462,26 @@
       (%parse-error "A BEGIN:<COMPONENT-NAME> was expected, but '~a' was found."
                     (write-content-line-to-string begin-mark params component-name)))
     component-name))
+
+(defun finalize-read-component (component)
+  (do-property-slot (slot (class-of component))
+    (let ((slot-name (slot-definition-name slot))
+          (slot-type (slot-definition-type slot))
+          (default-type (pdefinition-default-type slot)))
+      (do-property (prop :name slot-name) component
+        (with-slots ((params parameters) value) prop
+          (let (explicit-type
+                effective-type)
+            (when (typep value 'unknown-value)
+              (when params
+                (aif (parameter "VALUE" params)
+                     (setf explicit-type (translate it :type))
+                     (setf explicit-type nil)))
+              (when (and explicit-type (not (subtypep explicit-type slot-type)))
+                (%parse-error "explicit type is not a subtype of the type."))
+              (setf effective-type (or explicit-type default-type))
+              (let* ((literal (unknown-value-string value)))
+                (setf value (parse-value literal effective-type params))))))))))
 
 ;;; TODO: More error-checking!
 (defun read-component-1 (component-name stream vendor)
@@ -503,16 +494,18 @@
       ;; Read properties and fill the component.
       (loop for cl = (multiple-value-list (read-content-line stream))
             for (cl-name cl-params cl-value) = cl
+            for value = (make-unknown-value cl-value)
             until (string-ci= cl-name "END")
             if (string-ci= cl-name "BEGIN") do
                (push (read-component-1 cl-value stream vendor)
                      (component-subcomponents component))
             else do
-               (let ((value (parse-property-value cl-value cl-params cl-name component)))
-                 (add-property component cl-name value cl-params))
+               (add-property component cl-name value cl-params)
             finally
-               (unless (string-ci= component-name cl-value)
-                 (%parse-error "...")))
+            (unless (string-ci= component-name cl-value)
+              (%parse-error "...")))
+      ;; Parse property-allocated slot values.
+      (finalize-read-component component)
       component)))
 
 (defun read-component (stream &optional (vendor *vendor*))
@@ -538,11 +531,8 @@
 
 (defmethod write-component-properties ((component component) stream)
   (do-property (prop) component
-    (write-content-line (property-name prop)
-                        (property-parameters prop)
-                        (format-value (property-value prop)
-                                      (property-parameters prop))
-                        stream)))
+    (with-slots (name parameters value) prop
+      (write-content-line name parameters (format-value value parameters) stream))))
 
 (defmethod write-component-subcomponents ((component component) stream)
   (do-subcomponents (subc) component

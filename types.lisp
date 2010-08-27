@@ -195,6 +195,10 @@
   (declare (string uri))
   (make-instance 'uri :uri uri))
 
+(defmethod print-object ((x uri) stream)
+  (print-unreadable-object (x stream :type t)
+    (write-string (uri x) stream)))
+
 (defmethod format-value ((x uri) &optional params)
   (declare (ignore params))
   (uri x))
