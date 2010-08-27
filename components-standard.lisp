@@ -25,7 +25,10 @@
 (defclass x-component () nil
   (:metaclass component-class))
 
-(defcomponent vcalendar (standard-component)
+;;; We use abstract classes here in order to reduce the redundant of
+;;; common properties between components.
+
+(defcomponent vcalendar ()
   ((prodid
     :initarg :prodid
     :type text)
@@ -39,179 +42,161 @@
    (method
     :initarg :method
     :type text))
-  (:subcomponents vtodo vjournal))
+  (:subcomponents vtodo vjournal vevent vfreebusy vtimezone))
 
-(defcomponent vtodo (standard-component)
-  ((dtstamp
-    ;;:required t
+;;; Recurrence components
+(defclass recurrence-base ()
+  ((exdate
+    :initarg :exdate
+    :type (or datetime date)
+    :default-type datetime)
+   (rdate
+    :initarg :rdate
+    :type (or datetime date period)
+    :default-type datetime)
+   (rrule
+    :initarg :rrule
+    :type recur))
+  (:metaclass component-class))
+
+;;; Commentable components
+(defclass comment-base ()
+  ((comment
+    :initarg :comment
+    :type text))
+  (:metaclass component-class))
+
+;;; Common properties to TODOs, EVENTs, JOURNALs and FREEBUSYs.
+(defclass item-base ()
+  ((attendee
+    :initarg :attendee
+    :type cal-address)
+   (contact
+    :initarg :contact
+    :type text)
+   (dtstamp
     :initarg :dtstamp
     :type datetime)
+   (organizer
+    :initarg :organizer
+    :type cal-address)
+   (url
+    :initarg :url
+    :type uri)
    (uid
     ;;:required t
     :initarg :uid
+    :type text))
+  (:metaclass component-class))
+
+;;; Common properties between EVENTs, TODOs and JOURNALs.
+(defclass etj-item-base (comment-base)
+  ((attach
+    :initarg :attach
+    :type (or binary uri)
+    :default-type uri)
+   (categories
+    :initarg :categories
     :type text)
    (class
     :initarg :class
     :type text)
-   (completed
-    :initarg :completed
-    :type datetime)
    (created
     :initarg :created
-    :type datetime)
-   (description
-    :initarg :description
-    :type text)
+    :type datetime
+    :initform (now))
    (dtstart
     :initarg :dtstart
     :type (or datetime date)
     :default-type datetime)
-   (geo
-    :initarg :geo
-    :type float)
    (last-modified
     :initarg :last-modified
     :type datetime)
-   (location
-    :initarg :location
-    :type text)
-   (organizer
-    :initarg :organizer
-    :type cal-address)
-   (percent-complete
-    :initarg :percent-complete
-    :type integer)
-   (priority
-    :initarg :priority
-    :default-value 0
-    :type integer)
    (recurrence-id
     :initarg :recurrence-id
     :type (or datetime date)
     :default-type datetime)
-   (sequence
-    :initarg :sequence
-    :type integer)
+   (related-to
+    :initarg :related-to
+    :type text)
    (status
     :initarg :status
     :type text)
    (summary
     :initarg :summary
+    :type text))
+  (:metaclass component-class))
+
+;;; Common properties between EVENTs and TODOs.
+(defclass et-item-base (etj-item-base)
+  ((description
+    :initarg :description
     :type text)
-   (url
-    :initarg :url
-    :type uri)
-   (rrule
-    :initarg :rrule
-    :type recur)
+   (duration
+    :initarg :duration
+    :type duration)
+   (geo
+    :initarg :geo
+    :type float)
+   (location
+    :initarg :location
+    :type text)
+   (priority
+    :initarg :priority
+    :default-value 0
+    :type integer)
+   (resources
+    :initarg :resources
+    :type text)
+   (sequence
+    :initarg :sequence
+    :type integer))
+  (:metaclass component-class))
+
+(defcomponent vevent (et-item-base)
+  ((transp
+    :initarg :transp
+    :type text)))
+
+(defcomponent vtodo (et-item-base)
+  ((completed
+    :initarg :completed
+    :type datetime)
    (due
     :initarg :due
     :type (or datetime date)
     :default-type datetime)
-   (duration
-    :initarg :duration
-    :type duration)
-   (attach
-    :initarg :attach
-    :type (or binary uri)
-    :default-type uri)
-   (attendee
-    :initarg :attendee
-    :type cal-address)
-   (categories
-    :initarg :categories
-    :type text)
-   (comment
-    :initarg :comment
-    :type text)
-   (contact
-    :initarg :contact
-    :type text)
-   (exdate
-    :initarg :exdate
-    :type (or datetime date)
-    :default-type datetime)
-   (request-status
-    :initarg :request-status
-    :type text)
-   (related-to
-    :initarg :related-to
-    :type text)
-   (resources
-    :initarg :resources
-    :type text)
-   (rdate
-    :initarg :rdate
-    :type (or datetime date period)
-    :default-type datetime))
-  ;; Options
-  (:subcomponents valarm))
+   (percent-complete
+    :initarg :percent-complete
+    :type integer)))
 
+(defcomponent vjournal (etj-item-base)
+  (;; TODO: Multiple times
+   (description
+    :initarg :description
+    :type text)))
 
-(defcomponent vevent ()
-  ((dtstamp
-    ;;:required t
-    :initarg :dtstamp
-    :type datetime)
-   (uid
-    ;;:required t
-    :initarg :uid
-    :type text)
-   (dtstart
+(defcomponent vfreebusy (comment-base)
+  ((dtstart
     :initarg :dtstart
     :type (or datetime date)
     :default-type datetime)
-   (class
-    :initarg :class
+   (freebusy
+    :initarg :freebusy
+    :type period)))
+
+(defcomponent valarm ()
+  ((action
+    :initarg :action
     :type text)
-   (created
-    :initarg :created
-    :type datetime)
-   (description
-    :initarg :description
-    :type text)
-   (geo
-    :initarg :geo
-    :type float)
-   (last-modified
-    :initarg :last-modified
-    :type datetime)
-   (location
-    :initarg :location
-    :type text)
-   (organizer
-    :initarg :organizer
-    :type cal-address)
-   (priority
-    :initarg :priority
-    :default-value 0
+   (repeat
+    :initarg :repeat
     :type integer)
-   (sequence
-    :initarg :sequence
-    :type integer)
-   (status
-    :initarg :status
-    :type text)
-   (summary
-    :initarg :summary
-    :type text)
-   (transp
-    :initarg :transp
-    :type text) 
-   (url
-    :initarg :url
-    :type uri)
-   (recurrence-id
-    :initarg :recurrence-id
-    :type (or datetime date)
-    :default-type datetime)
-   (dtend
-    :initarg :dtend
-    :default-type datetime
-    :type (or datetime date)) 
-   (duration
-    :initarg :duration
-    :type duration)
+   (trigger
+    :initarg :trigger
+    :type (or duration datetime)
+    :default-type duration)
+   ;; TODO: Once
    (attach
     :initarg :attach
     :type (or binary uri)
@@ -219,33 +204,45 @@
    (attendee
     :initarg :attendee
     :type cal-address)
-   (categories
-    :initarg :categories
+   (description
+    :initarg :description
     :type text)
-   (comment
-    :initarg :comment
-    :type text)
-   (contact
-    :initarg :contact
-    :type text)
-   (exdate
-    :initarg :exdate
+   (duration
+    :initarg :duration
+    :type duration)
+   (summary
+    :initarg :summary
+    :type text)))
+
+(defclass ds-base (recurrence-base comment-base)
+  ((dtstart
+    :initarg :dtstart
     :type (or datetime date)
     :default-type datetime)
-   (request-status
-    :initarg :request-status
+   (tzname
+    :initarg :tzname
     :type text)
-   (related-to
-    :initarg :related-to
+   (tzoffsetfrom
+    :initarg :tzoffsetfrom
+    :type utc-offset)
+   (tzoffsetto
+    :initarg :tzoffsetto
+    :type utc-offset))
+  (:metaclass component-class))
+
+(defcomponent daylight (ds-base) nil)
+(defcomponent standard (ds-base) nil)
+
+(defcomponent vtimezone ()
+  ((last-modified
+    :initarg :last-modified
+    :type datetime)
+   (tzid
+    :initarg :tzid
     :type text)
-   (resources
-    :initarg :resources
-    :type text)
-   (rdate
-    :initarg :rdate
-    :type (or datetime date period)
-    :default-type datetime))
-  (:subcomponents valarm))
+   (tzurl
+    :initarg :tzurl
+    :type uri)))
 
 
 ;;; components-standard.lisp ends here
