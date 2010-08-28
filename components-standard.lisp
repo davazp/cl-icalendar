@@ -90,7 +90,7 @@
   (:metaclass component-class))
 
 ;;; Common properties between EVENTs, TODOs and JOURNALs.
-(defclass etj-item-base (item-base)
+(defclass etj-item-base (item-base recurrence-base)
   ((attach
     :initarg :attach
     :type (or binary uri)
