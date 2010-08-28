@@ -67,7 +67,7 @@
   (:metaclass component-class))
 
 ;;; Common properties to TODOs, EVENTs, JOURNALs and FREEBUSYs.
-(defclass item-base ()
+(defclass item-base (comment-base)
   ((attendee
     :initarg :attendee
     :type cal-address)
@@ -90,7 +90,7 @@
   (:metaclass component-class))
 
 ;;; Common properties between EVENTs, TODOs and JOURNALs.
-(defclass etj-item-base (comment-base)
+(defclass etj-item-base (item-base)
   ((attach
     :initarg :attach
     :type (or binary uri)
@@ -176,7 +176,7 @@
     :initarg :description
     :type text)))
 
-(defcomponent vfreebusy (comment-base)
+(defcomponent vfreebusy (item-base)
   ((dtstart
     :initarg :dtstart
     :type (or datetime date)
