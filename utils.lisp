@@ -56,7 +56,7 @@
         ;; first and the last cons of the collector. Note we use a
         ;; special header cons.
         (table nil))
-    ;; Fill the table 
+    ;; Fill the table
     (dolist (collector names)
       (destructuring-bind (name &optional initform fname) collector
         (push (list name
@@ -88,34 +88,6 @@
        ,@code
        ,name)))
 
-
-;;; Iteration form is based in Scheme named-let. It bounds NAME to a
-;;; local function which ARG arguments and body CODE. ARGS is like an
-;;; ordinary lambda form, but the required arguments are specified as
-;;; a two-list, where the first element is the variable name and the
-;;; second is the initial value.
-(defmacro iteration (name args &body code)
-  (let* ((required-args-count
-          ;; Number of required arguments
-          (loop for keyword in lambda-list-keywords
-                for pos = (position keyword args)
-                when pos
-                minimizing pos into aux
-                finally (return (if (null pos) (length args) aux))))
-         ;; List of required arguments
-         (required-args (subseq args 0 required-args-count))
-         ;; List of optional arguments
-         (non-required  (nthcdr required-args-count args)))
-    ;; Check extended lambda form is well formed.
-    (dolist (arg required-args)
-      (unless (= (length arg) 2)
-        (error "Iterate form ill-formed.")))
-    (let* ((required-args-names (mapcar #'first required-args))
-           (initial-arg-values (mapcar #'second required-args))
-           (function-lambda (append required-args-names non-required)))
-      `(labels ((,name ,function-lambda
-                  (block nil ,@code)))
-         (,name ,@initial-arg-values)))))
 
 ;;;; Declarations and definitions facilities
 
@@ -148,7 +120,7 @@
 ;;; Mark a function as deprecated. When FUNCTION is called, it signals
 ;;; a simple warning. If REPLACEMENT is given, it will recommend to
 ;;; use REPLACEMENT indeed.
-;;; 
+;;;
 ;;; FUNCTION and REPLACEMENT are symbols.
 (defmacro deprecate-function (function &body ignore &key replacement)
   (declare (ignore ignore))
@@ -200,8 +172,8 @@
 ;;; Make sure that ITEM is an element of LIST, otherwise this function
 ;;; signals an simple-error condtion.
 (defmacro check-member (item list &key (test #'eql))
-  `(if (not (position ,item ',list :test ,test))
-       (error "Not a member of the specified list")))
+  `(unless (find ,item ',list :test ,test)
+     (error "Not a member of the specified list")))
 
 ;;; Like `some', but it works on bound sequences
 (defun some* (predicate sequence &key (start 0) end (key #'identity))
@@ -250,23 +222,6 @@
              thereis (find a b :key key :test test))
        t))
 
-;;; Return the list of elements which appear in preorder in a tree. If
-;;; LIMIT is non-nil, it is a non-negative integer which specify the
-;;; deepest level in the tree. Otherwise, it falls until atom
-;;; elements.
-(defun flatten (tree &optional limit)
-  (declare (list tree) (type (or unsigned-byte null) limit))
-  (iteration looping ((x tree) (k limit))
-    (cond
-      ((null x) '())
-      ((atom x) (list x))
-      ((consp x)
-       (if (and limit (zerop k))
-           x
-           (append (looping (car x) (and limit (1- k)))
-                   (looping (cdr x) k)))))))
-
-
 ;;; Return a list with the nth element of list removed.
 (defun remove-nth (n list)
   (let* ((result (cons nil nil))
@@ -280,7 +235,7 @@
       (setf tail (cdr tail)))))
 
 ;;; delete-nth is as remove-nth but it could modify the list.
-;;; 
+;;;
 ;;; NOTE: if you want delete the nth element of the value of a
 ;;; variable V, you should use '(setf v (delete-nth n v))', indeed of
 ;;; '(delete-nth n v)', just as the standard delete function.
