@@ -223,10 +223,8 @@
     ((c component-class) (superclass standard-class))
   t)
 
-(defmethod print-object ((class component-class) stream)
-  (print-unreadable-object (class stream :type t)
-    (write (class-name class) :stream stream)))
-
+(defprinter (class component-class)
+  (prin1 (class-name class)))
 
 ;;; The following couple of routines define the default superclass for
 ;;; the component-class metaclass. They were written by Pascal

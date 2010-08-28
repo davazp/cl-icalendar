@@ -195,9 +195,8 @@
   (declare (string uri))
   (make-instance 'uri :uri uri))
 
-(defmethod print-object ((x uri) stream)
-  (print-unreadable-object (x stream :type t)
-    (write-string (uri x) stream)))
+(defprinter (x uri)
+  (write-string (uri x)))
 
 (defmethod format-value ((x uri) &optional params)
   (declare (ignore params))
@@ -244,9 +243,8 @@
   (declare (ignore params))
   (write-string (unknown-value-string x)))
 
-(defmethod print-object ((x unknown-value) stream)
-  (print-unreadable-object (x stream :type t)
-    (prin1 (unknown-value-string x) stream)))
+(defprinter (x unknown-value)
+  (prin1 (unknown-value-string x)))
 
 
 ;; User-defined iCalendar data types

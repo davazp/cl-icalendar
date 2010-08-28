@@ -35,12 +35,11 @@
 (register-ical-value 'time)
 (define-predicate-type time)
 
-(defmethod print-object ((x time) stream)
-  (print-unreadable-object (x stream :type t)
-    (format stream "~2,'0d:~2,'0d:~2,'0d"
-            (time-hour   x)
-            (time-minute x)
-            (time-second x))))
+(defprinter (x time)
+  (format t "~2,'0d:~2,'0d:~2,'0d"
+          (time-hour   x)
+          (time-minute x)
+          (time-second x)))
 
 (defgeneric time-hour (x)
   (:method ((x time))

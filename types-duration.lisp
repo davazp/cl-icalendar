@@ -94,30 +94,28 @@
 ;;; Printer
 (defvar *print-duration-abbrev* nil)
 
-(defmethod print-object ((x duration) stream)
-  (print-unreadable-object (x stream :type t)
-    (let* ((component-names
-            (if *print-duration-abbrev*
-                '("d"   "h"    "m"      "s")
-                '("day" "hour" "minute" "second")))
-           (output
-            (loop for c in component-names
-                  for n in (list (duration-days    x)
-                                 (duration-hours   x)
-                                 (duration-minutes x)
-                                 (duration-seconds x))
-                  unless (zerop n)
-                    collect n and collect c)))
-      (cond
-        ((null output)
-         (format stream "empty duration"))
-        (*print-duration-abbrev*
-         (format stream "~{~d~a~^ ~}" output))
-        (t
-         (format stream "~{~d ~a~2:*~p~*~#[~;~; and ~:;, ~]~}" output)))
-
-      (when (duration-backward-p x)
-        (format stream " to BACKWARD")))))
+(defprinter (x duration)
+  (let* ((component-names
+          (if *print-duration-abbrev*
+              '("d"   "h"    "m"      "s")
+              '("day" "hour" "minute" "second")))
+         (output
+          (loop for c in component-names
+                for n in (list (duration-days    x)
+                               (duration-hours   x)
+                               (duration-minutes x)
+                               (duration-seconds x))
+                unless (zerop n)
+                collect n and collect c)))
+    (cond
+      ((null output)
+       (format t "empty duration"))
+      (*print-duration-abbrev*
+       (format t "~{~d~a~^ ~}" output))
+      (t
+       (format t "~{~d ~a~2:*~p~*~#[~;~; and ~:;, ~]~}" output)))
+    (when (duration-backward-p x)
+      (format t " to BACKWARD"))))
 
 
 ;;; Return a string which stand for DURSPECS in the format described

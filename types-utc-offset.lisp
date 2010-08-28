@@ -45,9 +45,8 @@
   (:method ((x utc-offset))
     (< (%utc-offset x) 0)))
 
-(defmethod print-object ((x utc-offset) stream)
-  (print-unreadable-object (x stream :type t)
-    (write-string (format-value x) stream)))
+(defprinter (x utc-offset)
+  (write-string (format-value x)))
 
 (defmethod format-value ((x utc-offset) &optional params)
   (declare (ignore params))

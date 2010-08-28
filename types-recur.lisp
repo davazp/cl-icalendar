@@ -159,9 +159,8 @@
 (define-predicate-type recur)
 
 ;;; Useful for debugging.
-(defmethod print-object ((obj recur) stream)
-  (print-unreadable-object (obj stream :type t)
-    (write-string (format-value obj) stream)))
+(defprinter (obj recur)
+  (write-string (format-value obj)))
 
 ;;; Check the consistency of RECUR. This function makes sure the type of
 ;;; slot's values in the recur instance are valid. This is not redundant with
@@ -298,7 +297,7 @@
 ;;; Return the last day of the month of DT.
 (defun end-of-month (dt)
   (let* ((year (date-year dt))
-         (monthdays 
+         (monthdays
           (if (leap-year-p year)
               #(0 31 29 31 30 31 30 31 31 30 31 30 31)
               #(0 31 28 31 30 31 30 31 31 30 31 30 31))))
@@ -355,7 +354,7 @@
 ;;;      (condition2
 ;;;        ...body2...)
 ;;;      ...)
-;;; 
+;;;
 ;;; First, INITIAL-FORM is evaluated and VARIABLE is bound to its value. Then,
 ;;; for each iteration the conditions are evaluated in order, until one is not
 ;;; verified. In that case, the associated body is run and the we repeat the
@@ -461,7 +460,7 @@
 ;;; recur without BYSETPOS either COUNT rules are handled here, because it is
 ;;; not needed to iterate.
 (defun %simple-recur-instance-p (start recur datetime)
-  (with-recur-slots recur 
+  (with-recur-slots recur
     ;; (assert (not bysetpos))
     ;; (assert (not count))
     (and
@@ -477,7 +476,7 @@
        (:yearly   (divisiblep (years-between   start datetime) interval)))
 
      (typecase until
-       (null t) 
+       (null t)
        (datetime
         (check-ical-type datetime datetime)
         (datetime<= start datetime))
@@ -994,27 +993,27 @@
                        (parse-value value 'datetime)
                      (icalendar-parse-error ()
                        (parse-value value 'date)))))
-            
+
             ((string-ci= key "COUNT")
              (setf (slot-value recur 'count)
                    (parse-unsigned-integer value)))
-            
+
             ((string-ci= key "INTERVAL")
              (setf (slot-value recur 'interval)
                    (parse-unsigned-integer value)))
-            
+
             ((string-ci= key "BYSECOND")
              (setf (slot-value recur 'bysecond)
                    (sort (parse-unsigned-integer-list value) #'<)))
-            
+
             ((string-ci= key "BYMINUTE")
              (setf (slot-value recur 'byminute)
                    (sort (parse-unsigned-integer-list value) #'<)))
-            
+
             ((string-ci= key "BYHOUR")
              (setf (slot-value recur 'byhour)
                    (sort (parse-unsigned-integer-list value) #'<)))
-            
+
             ((string-ci= key "BYDAY")
              (setf (slot-value recur 'byday)
                    (mapcar #'parse-byday-value (split-string value ","))))
@@ -1022,23 +1021,23 @@
             ((string-ci= key "BYMONTH")
              (setf (slot-value recur 'bymonth)
                    (sort (parse-integer-list value) #'<)))
-            
+
             ((string-ci= key "BYMONTHDAY")
              (setf (slot-value recur 'bymonthday)
                    (parse-integer-list value)))
-            
+
             ((string-ci= key "BYYEARDAY")
              (setf (slot-value recur 'byyearday)
                    (parse-integer-list value)))
-            
+
             ((string-ci= key "BYWEEKNO")
              (setf (slot-value recur 'byweekno)
                    (parse-integer-list value)))
-            
+
             ((string-ci= key "BYSETPOS")
              (setf (slot-value recur 'bysetpos)
                    (sort (parse-integer-list value) #'<)))
-            
+
             ((string-ci= key "WKST")
              (setf (slot-value recur 'wkst)
                    (let ((nday (position value *weekday-names* :test #'string-ci=)))

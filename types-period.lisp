@@ -61,16 +61,15 @@
     (duration (make-instance 'period-start    :start start :duration duration-or-end))
     (datetime (make-instance 'period-explicit :start start :end duration-or-end))))
 
-(defmethod print-object ((x period) stream)
-  (print-unreadable-object (x stream)
-    (flet ((write-datetime (dt stream)
-             (format stream "~2,'0d-~2,'0d-~4,'0d ~2,'0d:~2,'0d:~2,'0d"
-                     (date-day  dt) (date-month  dt) (date-year dt)
-                     (time-hour dt) (time-minute dt) (time-hour dt))))
-      (write-string "PERIOD " stream)
-      (write-datetime (period-start x) stream)
-      (write-string " -- " stream)
-      (write-datetime (period-end x) stream))))
+(defprinter (x period)
+  (flet ((write-datetime (dt)
+           (format t "~2,'0d-~2,'0d-~4,'0d ~2,'0d:~2,'0d:~2,'0d"
+                   (date-day  dt) (date-month  dt) (date-year dt)
+                   (time-hour dt) (time-minute dt) (time-hour dt))))
+    (write-string "PERIOD ")
+    (write-datetime (period-start x))
+    (write-string " -- ")
+    (write-datetime (period-end x))))
 
 (defmethod format-value ((p period-explicit) &optional params)
   (declare (ignore params))

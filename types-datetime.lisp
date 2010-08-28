@@ -36,15 +36,14 @@
                  :seconds-from-midnight
                  (seconds-from-midnight (make-time hour minute second))))
 
-(defmethod print-object ((x datetime) stream)
-  (print-unreadable-object (x stream :type t)
-    (format stream "~2,'0d-~2,'0d-~4,'0d ~2,'0d:~2,'0d:~2,'0d"
-            (date-day x)
-            (date-month x)
-            (date-year x)
-            (time-hour x)
-            (time-minute x)
-            (time-second x))))
+(defprinter (x datetime)
+  (format t "~2,'0d-~2,'0d-~4,'0d ~2,'0d:~2,'0d:~2,'0d"
+          (date-day x)
+          (date-month x)
+          (date-year x)
+          (time-hour x)
+          (time-minute x)
+          (time-second x)))
 
 (defgeneric seconds-from-1900 (dt)
   (:method ((dt datetime))

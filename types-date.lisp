@@ -44,11 +44,10 @@
 (register-ical-value 'date)
 (define-predicate-type date)
 
-(defmethod print-object ((x date) stream)
-  (print-unreadable-object (x stream :type t)
-    (multiple-value-bind (day month year)
-        (%decode-date x)
-      (format stream "~2,'0d-~2,'0d-~4,'0d" day month year))))
+(defprinter (x date)
+  (multiple-value-bind (day month year)
+      (%decode-date x)
+    (format t "~2,'0d-~2,'0d-~4,'0d" day month year)))
 
 (defun leap-years-before (year)
   (declare (year year))

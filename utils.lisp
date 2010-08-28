@@ -131,6 +131,15 @@
            ',function ',replacement)
      form))
 
+;;; Define a printer for a object of class CLASS, bound to VAR. The
+;;; body of the macro is supposed to write to the standard output
+;;; stream.
+(defmacro defprinter ((var class) &body code)
+  (with-gensyms (stream)
+    `(defmethod print-object ((,var ,class) ,stream)
+       (print-unreadable-object (,var ,stream :type t)
+         (let ((*standard-output* ,stream))
+           ,@code)))))
 
 ;;;; Sequences
 

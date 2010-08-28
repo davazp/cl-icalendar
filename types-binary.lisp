@@ -34,9 +34,8 @@
 (register-ical-value 'binary)
 (define-predicate-type binary)
 
-(defmethod print-object ((object binary) stream)
-    (print-unreadable-object (object stream :type t :identity t)
-      (format stream ":SIZE ~a BYTES" (length (binary-content object)))))
+(defprinter (object binary)
+  (format t ":SIZE ~a BYTES" (length (binary-content object))))
 
 (defun read-binary-from-stream (stream)
   (let ((buffer (make-array 1024 :element-type '(unsigned-byte 8)))

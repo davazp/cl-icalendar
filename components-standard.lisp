@@ -153,6 +153,11 @@
     :type integer))
   (:metaclass component-class))
 
+(defprinter (c etj-item-base)
+  (if (slot-boundp c 'summary)
+      (prin1 (slot-value c 'summary))
+      (princ "no summary")))
+
 (defcomponent vevent (et-item-base)
   ((transp
     :initarg :transp

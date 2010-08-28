@@ -43,9 +43,8 @@
   (with-slots (name) vendor
     (string-upcase name)))
 
-(defmethod print-object ((x vendor) stream)
-  (print-unreadable-object (x stream :type t)
-    (write-string (vendor-name x) stream)))
+(defprinter (x vendor)
+  (write-string (vendor-name x)))
 
 (defun create-vendor (name)
   (setf (gethash name *vendors*)
