@@ -288,18 +288,18 @@
    (default-type
     :initarg :default-type
     :reader pdefinition-default-type)
-   ;; Describe the number of values that a property can take. If it is
-   ;; NIL, a unique value is allowed. If it is T, then multiple-value
-   ;; is allowed. If it is an integer, then it is the exactly the
-   ;; number of values that the property must take.
-   (multiple-value
-    :type (or boolean (integer 0 *))
-    :initform nil
-    :reader pdefinition-multiple-value)
-   ;; Can multiple-values be inlined in the same property?
-   (inline-multiple-value-p
+   ;; If it is T, then multiple-value is allowed. Otherwise, a error
+   ;; is signaled if multiple values are set to the property.
+   (multiple-value-p
+    :initarg :multiple-value-p
     :type boolean
     :initform nil
+    :reader pdefinition-multiple-value-p)
+   ;; Can multiple-values be inlined in the same property?
+   (inline-multiple-value-p
+    :initarg :inline-multiple-value-p
+    :type boolean
+    :initform t
     :reader pdefinition-inline-multiple-value-p)
    ;; The default value if no property is specified.
    (default-value
@@ -365,7 +365,7 @@
                  (setf (slot-value eslot slot)
                        (slot-value dslot slot)))))
         (copy-slot 'default-type)
-        (copy-slot 'multiple-value)
+        (copy-slot 'multiple-value-p)
         (copy-slot 'inline-multiple-value-p)
         (copy-slot 'default-value)))
     eslot))
@@ -382,7 +382,7 @@
       (collect-values (property-value prop)))
     (if (null values)
         (pdefinition-default-value prop)
-        (if (pdefinition-multiple-value prop)
+        (if (pdefinition-multiple-value-p prop)
             values
             (car values)))))
 
@@ -528,9 +528,30 @@
     (write-content-line "END" nil cname stream)))
 
 (defmethod write-component-properties ((component component) stream)
-  (do-property (prop) component
-    (with-slots (name parameters value) prop
-      (write-content-line name parameters (format-value value parameters) stream))))
+  (let ((written (make-hash-table :test #'eq)))
+    (flet (;; Mark a property as written.
+           (mark (x) (setf (gethash x written) t))
+           ;; Test if a property has been written.
+           (writtenp (x) (values (gethash x written))))
+      ;; Write some special known properties.
+      (do-property-slot (slot (class-of component))
+        (when (and (pdefinition-multiple-value-p slot)
+                   (pdefinition-inline-multiple-value-p slot))
+          (with-collectors (values)
+            (do-property (prop :name (slot-definition-name slot)) component
+              (when (null (property-parameters prop))
+                (mark prop)
+                (collect-values (property-value prop))))
+            (unless (null values)
+              (let ((name (slot-definition-name slot))
+                    (value (format-values values)))
+                (write-content-line name nil value stream))))))
+      ;; Write the rest of properties
+      (do-property (prop) component
+        (with-slots (name parameters value) prop
+          (unless (writtenp prop)
+            (let ((value (format-value value parameters)))
+              (write-content-line name parameters value stream))))))))
 
 (defmethod write-component-subcomponents ((component component) stream)
   (do-subcomponents (subc) component

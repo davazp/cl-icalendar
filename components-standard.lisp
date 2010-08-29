@@ -49,11 +49,13 @@
   ((exdate
     :initarg :exdate
     :type (or datetime date)
-    :default-type datetime)
+    :default-type datetime
+    :multiple-value-p t)
    (rdate
     :initarg :rdate
     :type (or datetime date period)
-    :default-type datetime)
+    :default-type datetime
+    :multiple-value-p t)
    (rrule
     :initarg :rrule
     :type recur))
@@ -63,23 +65,30 @@
 (defclass comment-base ()
   ((comment
     :initarg :comment
-    :type text))
+    :type text
+    :multiple-value-p t))
   (:metaclass component-class))
 
 ;;; Common properties to TODOs, EVENTs, JOURNALs and FREEBUSYs.
 (defclass item-base (comment-base)
   ((attendee
     :initarg :attendee
-    :type cal-address)
+    :type cal-address
+    :multiple-value-p t)
    (contact
     :initarg :contact
-    :type text)
+    :type text
+    :multiple-value-p t)
    (dtstamp
     :initarg :dtstamp
     :type datetime)
    (organizer
     :initarg :organizer
     :type cal-address)
+   (request-status
+    :initarg :request-status
+    :type text
+    :multiple-value-p t)
    (url
     :initarg :url
     :type uri)
@@ -94,10 +103,12 @@
   ((attach
     :initarg :attach
     :type (or binary uri)
-    :default-type uri)
+    :default-type uri
+    :multiple-value-p t)
    (categories
     :initarg :categories
-    :type text)
+    :type text
+    :multiple-value-p t)
    (class
     :initarg :class
     :type text)
@@ -118,7 +129,8 @@
     :default-type datetime)
    (related-to
     :initarg :related-to
-    :type text)
+    :type text
+    :multiple-value-p t)
    (status
     :initarg :status
     :type text)
@@ -147,7 +159,8 @@
     :type integer)
    (resources
     :initarg :resources
-    :type text)
+    :type text
+    :multiple-value-p t)
    (sequence
     :initarg :sequence
     :type integer))
