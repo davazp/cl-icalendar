@@ -134,11 +134,7 @@
     :reader recur-wkst)))
 
 ;;; Return a new recur value.
-(defun make-recur (freq &rest args &key until count interval bysecond byminute
-                   byhour byday bymonthday byyearday byweekno bymonth bysetpos wkst)
-  (declare (ignorable until count interval bysecond byminute
-                      byhour byday bymonthday byyearday
-                      byweekno bymonth bysetpos wkst))
+(defun make-recur (freq &rest args)
   (apply #'make-instance 'recur :freq freq args))
 
 ;;; Bind the symbols FREQ, UNTIL, COUNT, INTERVAL, BYSECOND, BYMINUTE, BYHOUR,
@@ -150,6 +146,10 @@
                      byday bymonthday byyearday byweekno bymonth
                      bysetposwkst wkst bysetpos)
        ,recur
+     (declare (ignorable
+               freq until count interval bysecond byminute byhour
+               byday bymonthday byyearday byweekno bymonth
+               bysetposwkst wkst bysetpos))
      ,@code))
 
 (register-ical-value 'recur)
@@ -188,7 +188,7 @@
                   (eq freq :yearly))
         (dolist (bydayrule byday)
           (when (cdr bydayrule)
-            (%parse-error "prefix weekday specified in a no weekly or monthly recur."))))
+            (%parse-error "prefix weekday cannot be specified in a other monthly or yearly recurs."))))
       (check-type-list bysecond   (integer 0 60))
       (check-type-list byminute   (integer 0 59))
       (check-type-list byhour     (integer 0 23))
@@ -446,12 +446,12 @@
   (let* ((day-of-week (date-day-of-week datetime))
          (first-day (next-weekday start day-of-week))
          (last-day  (previous-weekday end day-of-week))
-         (total-weeks (weeks-between first-day last-day)))
+         (total-weeks (1+ (weeks-between first-day last-day))))
     (and value
          (loop for (weekday . n) in value thereis
               (when (eq day-of-week weekday)
                 (or (null n)
-                    (let* ((weeks (weeks-between first-day datetime)))
+                    (let* ((weeks (1+ (weeks-between first-day datetime))))
                       (and (< 0 weeks)
                            (= (mod* n total-weeks) (mod* weeks total-weeks))))))))))
 
@@ -818,8 +818,6 @@
   (delete-duplicates (sort list #'datetime<) :test #'datetime=))
 
 (defun recur-iterator-new (recur datetime)
-  (unless (%simple-recur-instance-p datetime recur datetime)
-    (error "The recur and DTSTART must be synchronized."))
   (let ((recur (%complete-recur recur datetime)))
     (let* ((first-instances
             (case (recur-freq recur)
@@ -918,6 +916,8 @@
 
 ;; Check if DATETIME is a valid ocurrence in RECUR.
 (defun recur-instance-p (start recur datetime)
+  (unless (%simple-recur-instance-p start recur start)
+    (error "The recur and DTSTART must be synchronized."))
   (let ((complete-recur (%complete-recur recur start)))
     (with-recur-slots complete-recur
         (cond
@@ -931,6 +931,8 @@
 
 ;; List the instances of a bound RECUR.
 (defun recur-list-instances (start recur)
+  (unless (%simple-recur-instance-p start recur start)
+    (error "The recur and DTSTART must be synchronized."))
   (let ((complete-recur (%complete-recur recur start)))
     (with-recur-slots complete-recur
       (when (and (not count) (not until))

@@ -98,7 +98,7 @@
 (test recur-parser-complex-p-001
   "Check parser for some complex recurrency values and other errors"
   (is (not (recur-instance-p (make-datetime 01 01 2000 00 00 00)
-                             (parse-value "FREQ=DAILY;UNTIL=20121212T230000;BYDAY=MO,TH;BYMONTH=1,3,5,7,9,11" 'recur)
+                             (parse-value "FREQ=DAILY;UNTIL=20121212T230000;BYDAY=MO,TH,SA;BYMONTH=1,3,5,7,9,11" 'recur)
                              (make-datetime 12 12 2012 00 00 00))))
   (signals error (parse-value "FREQ=MONTHLY;COUNT=20 ;UNTIL=20240812T230000;BYDAY=FR" 'recur))
   (signals error (parse-value "FREQ=DAILY;INTERVAL=4;?UNTIL=20121212T000000" 'recur))
@@ -113,13 +113,13 @@
 
 (test recur-complex-sign-p-001
   "Check dates with signs"
-  (is (recur-instance-p (make-datetime 11 06 2010 00 00 00)
+  (is (recur-instance-p (make-datetime 28 06 2010 00 00 00)
                         (parse-value "FREQ=MONTHLY;INTERVAL=2;BYDAY=-1MO" 'recur)
                         (make-datetime 30 8 2010 00 00 00)))
   (is (recur-instance-p (make-datetime 11 06 2010 00 00 00)
                         (parse-value "FREQ=MONTHLY;BYDAY=-1MO,-2TH,-3FR" 'recur)
                         (make-datetime 17 06 2010 00 00 00)))
-  (is (recur-instance-p (make-datetime 11 06 2010 00 00 00)
+  (is (recur-instance-p (make-datetime 31 12 2010 00 00 00)
                         (parse-value "FREQ=YEARLY;BYDAY=-1MO,-1FR" 'recur)
                         (make-datetime 29 12 2014 00 00 00))))
 
