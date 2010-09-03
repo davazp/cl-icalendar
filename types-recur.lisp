@@ -1043,7 +1043,7 @@
                    (let ((nday (position value *weekday-names* :test #'string-ci=)))
                      (when (null nday)
                        (%parse-error "~a is not a weekday." value))
-                     (nth *weekday* nday))))
+                     (svref *weekday* nday))))
             (t
              (%parse-error "Unknown recurrence component ~a" key)))))
 
