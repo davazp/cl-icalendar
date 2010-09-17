@@ -261,6 +261,18 @@
   (if (listp x)
       x
       (list x)))
+
+;;; Check if X is a list of an element.
+(defun singlep (x)
+  (and (consp x) (null (cdr x))))
+
+;;; If X is a single list, it returns the element. Otherwise, return
+;;; the list itself.
+(defun unlist (x)
+  (if (singlep x)
+      (car x)
+      x))
+
 
 ;;;; Streams
 ;;; Read characters from STREAM until it finds a char of CHAR-BAG. If
@@ -403,5 +415,15 @@
 (defun superclassp (class1 class2)
   (subclassp class2 class1))
 
+;;; Iterate across entries in a hash table.
+(defmacro do-hash-table ((key value) hash-table &body code)
+  (with-gensyms (iter morep)
+    `(with-hash-table-iterator (,iter ,hash-table)
+       (loop
+        (multiple-value-bind (,morep ,key ,value)
+            (,iter)
+          (declare (ignorable ,key ,value))
+          (unless ,morep (return))
+          ((lambda () ,@code)))))))
 
 ;;; utils.lisp ends here
