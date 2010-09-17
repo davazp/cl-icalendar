@@ -38,20 +38,27 @@
           do (setf (parameter param pt) value)
           finally (return pt))))
 
+(defun list-parameters (parameter-table)
+  (with-collect
+    (do-hash-table (key value)
+        (%parameter-table parameter-table)
+      (collect (cons key value)))))
+
 (defgeneric parameter (parameter parameter-table)
   (:method (param table)
     (let ((param (string param))
           (table (%parameter-table table)))
-      (and table (values-list (gethash param table))))))
+      (and table (values (gethash param table))))))
 
-(defgeneric (setf parameter) (new-value parameter parameter-table)
+(defun parameter-values (parameter parameter-table)
+  (values-list (parameter parameter parameter-table)))
+
+(defgeneric (setf parameter)
+    (new-value parameter parameter-table)
   (:method (new-value param parameter-table)
     (with-slots (table) parameter-table
       (let ((param (string param))
-            (value
-             (with-collect
-               (dolist (value (mklist new-value))
-                 (collect (string-upcase (string value)))))))
+            (value (mklist new-value)))
         (when (null table)
           (setf table (make-hash-table :test #'equalp)))
         (setf (gethash param table) value)))))

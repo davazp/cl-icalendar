@@ -61,14 +61,26 @@
   (with-input-from-string (in string)
     (read-content-line in)))
 
+(defun quote-param-value (value)
+  (with-output-to-string (stream)
+    (let ((quoted
+           (or (find #\: value)
+               (find #\; value)
+               (find #\, value))))
+      (when quoted
+        (write-char #\" stream))
+      (write-string value stream)
+      (when quoted
+        (write-char #\" stream)))))
+
 (defun write-content-line (name params value stream)
   (declare (stream stream))
-  (format stream "~a~{;~a=~{~a~}~}:~a~%" 
+  (format stream "~a~{;~a=~{~a~^,~}~}:~a~%" 
           name
           (with-collect
-            (dolist (entry params)
-              (collect (car entry))
-              (collect (cdr entry))))
+            (dolist (param (list-parameters (parameter-table params)))
+              (collect (car param))
+              (collect (mapcar #'quote-param-value (cdr param)))))
           value))
 
 (defun write-content-line-to-string (name params value)

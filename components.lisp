@@ -123,17 +123,14 @@
        ,@code)))
 
 (defmacro %do-property-all ((property) component &body code)
-  (with-gensyms (iterator morep key)
+  (with-gensyms (key value)
     (once-only (component)
       `(let ((,component ,component))
-         (with-hash-table-iterator (,iterator (component-properties ,component))
-           (loop
-            (multiple-value-bind (,morep ,key)
-                (,iterator)
-              (unless ,morep (return))
-              (do-property (,property :name ,key)
-                  ,component
-                ,@code))))))))
+         (do-hash-table (,key ,value)
+             (component-properties ,component)
+           (do-property (,property :name ,key)
+               ,component
+             ,@code))))))
 
 (defmacro do-property ((property &key (name nil namep)) component &body code)
   (check-type property symbol)
