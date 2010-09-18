@@ -21,10 +21,7 @@
 (in-package :cl-icalendar)
 
 (defun read-vcalendar (stream &optional (vendor *vendor*))
-  (let ((name (read-component-header stream)))
-    (unless (string-ci= name "VCALENDAR")
-      (error "A ~a component was found, when VCALENDAR was expected." name)))
-  (read-component-1 "VCALENDAR" stream vendor))
+  (read-component-class 'vcalendar stream vendor))
 
 (defun open-vcalendar (pathname)
   (with-open-file (infile pathname :element-type '(unsigned-byte 8))
