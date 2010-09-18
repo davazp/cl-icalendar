@@ -469,7 +469,7 @@
                 effective-type)
             (when (typep value 'unknown-value)
               (when params
-                (aif (parameter "VALUE" params)
+                (aif (parameter-values "VALUE" params)
                      (setf explicit-type (translate it :type))
                      (setf explicit-type nil)))
               (when (and explicit-type (not (subtypep explicit-type slot-type)))
