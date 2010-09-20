@@ -389,8 +389,10 @@
      (instance component-object)
      (prop effective-pdefinition))
   (unless *initializing-component*
-    ;; Add the property to the property table of the component.
-    ;; IDEA: default parameters by property?
+    (unless (typep new-value (slot-definition-type prop))
+      (error 'type-error
+             :datum new-value
+             :expected-type (slot-definition-type prop)))
     (let ((name (slot-definition-name prop)))
       (delete-property name instance)
       (if (typep new-value (pdefinition-default-type prop))
