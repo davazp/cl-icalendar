@@ -152,7 +152,7 @@
                bysetposwkst wkst bysetpos))
      ,@code))
 
-(register-ical-value 'recur)
+(register-ical-value recur)
 
 ;;; The predicate function in order to check if an arbitrary object is a
 ;;; recurrence value.

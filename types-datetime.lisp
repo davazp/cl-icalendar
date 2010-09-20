@@ -23,7 +23,7 @@
 (defclass datetime (date time)
   nil)
 
-(register-ical-value 'datetime "DATE-TIME")
+(register-ical-value datetime :name "DATE-TIME")
 (define-predicate-type datetime)
 
 ;;; TODO: The TZONE argument will be implemented when the module

@@ -22,7 +22,7 @@
 
 (deftype text () 'string)
 
-(register-ical-value 'text)
+(register-ical-value text :specializer string)
 (define-predicate-type text)
 
 (defmethod format-value ((text string) &optional params)

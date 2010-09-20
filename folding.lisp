@@ -75,11 +75,13 @@
   (with-slots (column-octets backend-stream) stream
     (let* ((external-format (flex:flexi-stream-external-format backend-stream))
            (size (flex:octet-length (string character) :external-format external-format)))
-      (when (>= column-octets size +content-line-max-length+)
+      (when (> (+ column-octets size) +content-line-max-length+)
         (stream-write-char backend-stream #\newline)
         (stream-write-char backend-stream #\space)
         (zerof column-octets))
-      (incf column-octets size)
+      (if (char= character #\newline)
+          (zerof column-octets)
+          (incf column-octets size))
       (stream-write-char backend-stream character))))
 
 (defmethod stream-line-column ((stream folding-stream))

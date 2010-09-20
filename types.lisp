@@ -43,6 +43,7 @@
 ;;; Generic functions
 (defgeneric format-value (value &optional params))
 (defgeneric parse-value (value type &optional params))
+(defgeneric value-typeof (value))
 
 ;;; Multiple-value versions
 
@@ -102,13 +103,19 @@
 
 
 ;;; Register a iCalendar data type in the standard vendor.
-(defun register-ical-value (symbol &optional (name (string symbol)))
-  (let ((*vendor* *standard-vendor*))
-    (setf (translate name :type) symbol)))
+(defmacro register-ical-value (symbol &key (name (string symbol)) (specializer symbol))
+  (check-type symbol symbol)
+  (check-type name string)
+  `(progn
+     (let ((*vendor* *standard-vendor*))
+       (setf (translate ,name :type) ',symbol))
+     (defmethod value-typeof ((data ,specializer))
+       ,name)))
 
 ;;;; Boolean
 
-(register-ical-value 'boolean)
+(register-ical-value boolean :specializer (eql 't))
+(register-ical-value boolean :specializer (eql 'nil))
 (define-predicate-type boolean)
 
 (defmethod format-value ((bool (eql 't)) &optional params)
@@ -130,7 +137,7 @@
 
 ;;;; Integer
 
-(register-ical-value 'integer)
+(register-ical-value integer)
 
 (defmethod format-value ((n integer) &optional params)
   (declare (ignore params))
@@ -143,7 +150,7 @@
 
 ;;;; Float
 
-(register-ical-value 'float)
+(register-ical-value float)
 
 (defmethod format-value ((x float) &optional params)
   (declare (ignore params))
@@ -188,7 +195,7 @@
     :initarg :uri
     :reader uri)))
 
-(register-ical-value 'uri)
+(register-ical-value uri)
 (define-predicate-type uri)
 
 (defun make-uri (uri)
@@ -212,7 +219,7 @@
 (defclass cal-address (uri)
   nil)
 
-(register-ical-value 'cal-address)
+(register-ical-value cal-address)
 (define-predicate-type cal-address)
 
 (defun make-cal-address (uri)
@@ -241,7 +248,7 @@
 
 (defmethod format-value ((x unknown-value) &optional params)
   (declare (ignore params))
-  (write-string (unknown-value-string x)))
+  (unknown-value-string x))
 
 (defprinter (x unknown-value)
   (prin1 (unknown-value-string x)))

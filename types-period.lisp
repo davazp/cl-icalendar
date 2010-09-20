@@ -27,7 +27,7 @@
     :type datetime
     :reader period-start)))
 
-(register-ical-value 'period)
+(register-ical-value period)
 (define-predicate-type period)
 
 ;;; Period between two explicit datetimes.

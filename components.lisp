@@ -395,9 +395,7 @@
       (delete-property name instance)
       (if (typep new-value (pdefinition-default-type prop))
           (add-property instance name new-value)
-          ;; TODO: Implement me!
-          ;;(add-property instance name new-value `(:value ,))
-          ))))
+          (add-property instance name new-value `(:value ,(value-typeof new-value)))))))
 
 (defmethod slot-boundp-using-class
     ((class component-class)

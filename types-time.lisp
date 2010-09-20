@@ -32,7 +32,7 @@
 (defun make-time (hour minute second)
   (make-instance 'time :seconds-from-midnight (+ (* hour 3600) (* minute 60) second)))
 
-(register-ical-value 'time)
+(register-ical-value time)
 (define-predicate-type time)
 
 (defprinter (x time)

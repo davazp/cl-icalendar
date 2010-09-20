@@ -41,7 +41,7 @@
     :initarg :day-from-1900
     :reader day-from-1900)))
 
-(register-ical-value 'date)
+(register-ical-value date)
 (define-predicate-type date)
 
 (defprinter (x date)

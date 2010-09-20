@@ -31,7 +31,7 @@
     :initarg :content
     :accessor binary-content)))
 
-(register-ical-value 'binary)
+(register-ical-value binary)
 (define-predicate-type binary)
 
 (defprinter (object binary)
