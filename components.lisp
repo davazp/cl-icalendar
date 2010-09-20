@@ -393,7 +393,11 @@
     ;; IDEA: default parameters by property?
     (let ((name (slot-definition-name prop)))
       (delete-property name instance)
-      (add-property instance name new-value))))
+      (if (typep new-value (pdefinition-default-type prop))
+          (add-property instance name new-value)
+          ;; TODO: Implement me!
+          ;;(add-property instance name new-value `(:value ,))
+          ))))
 
 (defmethod slot-boundp-using-class
     ((class component-class)
@@ -444,19 +448,48 @@
 
 ;;;; Components' input and ouptut
 
+(defgeneric read-component-body (component stream vendor))
+
 (defmacro do-property-slot ((slot class) &body body)
   (check-type slot symbol)
   `(dolist (,slot (class-slots ,class))
      (when (typep ,slot 'effective-pdefinition)
        ,@body)))
 
-(defun read-component-header (stream)
+(defun create-empty-component (component-name vendor)
+  (multiple-value-bind (class foundp)
+      (let ((*vendor* vendor))
+        (translate component-name :component))
+    (let* ((component-class (if foundp class (find-class 'unknown-component)))
+           (component (make-uninitialized-component component-class)))
+      component)))
+
+(defun read-component-header (stream vendor)
   (multiple-value-bind (begin-mark params component-name)
       (read-content-line stream)
     (unless (string-ci= "BEGIN" begin-mark)
       (%parse-error "A BEGIN:<COMPONENT-NAME> was expected, but '~a' was found."
                     (write-content-line-to-string begin-mark params component-name)))
-    component-name))
+    (create-empty-component component-name vendor)))
+
+;;; TODO: More error-checking!
+(defmethod read-component-body ((component component) stream vendor)
+  ;; Read properties, subcomponents and fill the component.
+  (loop for cl = (multiple-value-list (read-content-line stream))
+        for (cl-name cl-params cl-value) = cl
+        for value = (make-unknown-value cl-value)
+        until (string-ci= cl-name "END")
+        if (string-ci= cl-name "BEGIN")
+        do
+        (let ((subcomp (create-empty-component cl-value vendor)))
+          (read-component-body subcomp stream vendor)
+          (push subcomp (component-subcomponents component)))
+        else do
+        (add-property component cl-name value cl-params)
+        finally
+        (unless (string-ci= (component-name component) cl-value)
+          (%parse-error "...")))
+  (finalize-read-component component))
 
 (defun finalize-read-component (component)
   (do-property-slot (slot (class-of component))
@@ -469,7 +502,7 @@
                 effective-type)
             (when (typep value 'unknown-value)
               (when params
-                (aif (parameter "VALUE" params)
+                (aif (parameter-values "VALUE" params)
                      (setf explicit-type (translate it :type))
                      (setf explicit-type nil)))
               (when (and explicit-type (not (subtypep explicit-type slot-type)))
@@ -478,34 +511,15 @@
               (let* ((literal (unknown-value-string value)))
                 (setf value (parse-value literal effective-type params))))))))))
 
-;;; TODO: More error-checking!
-(defun read-component-1 (component-name stream vendor)
-  (multiple-value-bind (class foundp)
-      (let ((*vendor* vendor))
-        (translate component-name :component))
-    (let* ((component-class (if foundp class (find-class 'unknown-component)))
-           (component (make-uninitialized-component component-class)))
-      (setf (component-name component) component-name)
-      ;; Read properties and fill the component.
-      (loop for cl = (multiple-value-list (read-content-line stream))
-            for (cl-name cl-params cl-value) = cl
-            for value = (make-unknown-value cl-value)
-            until (string-ci= cl-name "END")
-            if (string-ci= cl-name "BEGIN") do
-               (push (read-component-1 cl-value stream vendor)
-                     (component-subcomponents component))
-            else do
-               (add-property component cl-name value cl-params)
-            finally
-            (unless (string-ci= component-name cl-value)
-              (%parse-error "...")))
-      ;; Parse property-allocated slot values.
-      (finalize-read-component component)
-      component)))
+(defun read-component-class (type stream &optional (vendor *vendor*))
+  (let ((component (read-component-header stream vendor)))
+    (unless (typep component type)
+      (error "A ~a component was expected." type))
+    (read-component-body component stream vendor)
+    component))
 
 (defun read-component (stream &optional (vendor *vendor*))
-  (let ((cname (read-component-header stream)))
-    (read-component-1 cname stream vendor)))
+  (read-component-class t stream vendor))
 
 
 ;;; The generic function write-component is the entry-point to a set

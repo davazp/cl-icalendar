@@ -40,9 +40,12 @@
 
 (defun list-parameters (parameter-table)
   (with-collect
-    (do-hash-table (key value)
-        (%parameter-table parameter-table)
-      (collect (cons key value)))))
+    (let ((table (%parameter-table parameter-table)))
+      (if (hash-table-p table)
+          (do-hash-table (key value)
+              table
+            (collect (cons key value)))
+          nil))))
 
 (defgeneric parameter (parameter parameter-table)
   (:method (param table)
