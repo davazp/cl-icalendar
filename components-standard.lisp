@@ -28,7 +28,7 @@
 ;;; We use abstract classes here in order to reduce the redundant of
 ;;; common properties between components.
 
-(defcomponent vcalendar ()
+(define-standard-component vcalendar ()
   ((prodid
     :initarg :prodid
     :type text)
@@ -45,7 +45,7 @@
   (:subcomponents vtodo vjournal vevent vfreebusy vtimezone))
 
 ;;; Recurrence components
-(defclass recurrence-base ()
+(define-abstract-component recurrence-base ()
   ((exdate
     :initarg :exdate
     :type (or datetime date)
@@ -58,19 +58,17 @@
     :multiple-value-p t)
    (rrule
     :initarg :rrule
-    :type recur))
-  (:metaclass component-class))
+    :type recur)))
 
 ;;; Commentable components
-(defclass comment-base ()
+(define-abstract-component comment-base ()
   ((comment
     :initarg :comment
     :type text
-    :multiple-value-p t))
-  (:metaclass component-class))
+    :multiple-value-p t)))
 
 ;;; Common properties to TODOs, EVENTs, JOURNALs and FREEBUSYs.
-(defclass item-base (comment-base)
+(define-abstract-component item-base (comment-base)
   ((attendee
     :initarg :attendee
     :type cal-address
@@ -95,11 +93,10 @@
    (uid
     ;;:required t
     :initarg :uid
-    :type text))
-  (:metaclass component-class))
+    :type text)))
 
 ;;; Common properties between EVENTs, TODOs and JOURNALs.
-(defclass etj-item-base (item-base recurrence-base)
+(define-abstract-component etj-item-base (item-base recurrence-base)
   ((attach
     :initarg :attach
     :type (or binary uri)
@@ -136,11 +133,10 @@
     :type text)
    (summary
     :initarg :summary
-    :type text))
-  (:metaclass component-class))
+    :type text)))
 
 ;;; Common properties between EVENTs and TODOs.
-(defclass et-item-base (etj-item-base)
+(define-abstract-component et-item-base (etj-item-base)
   ((description
     :initarg :description
     :type text)
@@ -163,20 +159,19 @@
     :multiple-value-p t)
    (sequence
     :initarg :sequence
-    :type integer))
-  (:metaclass component-class))
+    :type integer)))
 
 (defprinter (c etj-item-base)
   (if (slot-boundp c 'summary)
       (prin1 (slot-value c 'summary))
       (princ "no summary")))
 
-(defcomponent vevent (et-item-base)
+(define-standard-component vevent (et-item-base)
   ((transp
     :initarg :transp
     :type text)))
 
-(defcomponent vtodo (et-item-base)
+(define-standard-component vtodo (et-item-base)
   ((completed
     :initarg :completed
     :type datetime)
@@ -188,13 +183,13 @@
     :initarg :percent-complete
     :type integer)))
 
-(defcomponent vjournal (etj-item-base)
+(define-standard-component vjournal (etj-item-base)
   (;; TODO: Multiple times
    (description
     :initarg :description
     :type text)))
 
-(defcomponent vfreebusy (item-base)
+(define-standard-component vfreebusy (item-base)
   ((dtstart
     :initarg :dtstart
     :type (or datetime date)
@@ -203,7 +198,7 @@
     :initarg :freebusy
     :type period)))
 
-(defcomponent valarm ()
+(define-standard-component valarm ()
   ((action
     :initarg :action
     :type text)
@@ -232,7 +227,7 @@
     :initarg :summary
     :type text)))
 
-(defclass ds-base (recurrence-base comment-base)
+(define-abstract-component ds-base (recurrence-base comment-base)
   ((dtstart
     :initarg :dtstart
     :type (or datetime date)
@@ -245,13 +240,12 @@
     :type utc-offset)
    (tzoffsetto
     :initarg :tzoffsetto
-    :type utc-offset))
-  (:metaclass component-class))
+    :type utc-offset)))
 
-(defcomponent daylight (ds-base) nil)
-(defcomponent standard (ds-base) nil)
+(define-standard-component daylight (ds-base) nil)
+(define-standard-component standard (ds-base) nil)
 
-(defcomponent vtimezone ()
+(define-standard-component vtimezone ()
   ((last-modified
     :initarg :last-modified
     :type datetime)
@@ -261,6 +255,5 @@
    (tzurl
     :initarg :tzurl
     :type uri)))
-
 
 ;;; components-standard.lisp ends here

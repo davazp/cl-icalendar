@@ -35,16 +35,17 @@
             (collect (read-params-value stream))))))
 
 (defun read-params (stream)
-  (let ((params (make-parameter-table))
+  (let ((plist nil)
         (count 0))
     (while (char= (read-char stream) #\;)
       (let ((name (read-until stream "=" (coerce #(#\Newline #\: #\;) 'string))))
         (read-char stream)
-        (setf (parameter name params) (read-params-values stream))
+        (push (read-params-values stream) plist)
+        (push name plist)
         (incf count)))
-    (if (zerop count)
+    (if (null plist)
         nil
-        params)))
+        (parameter-table plist))))
 
 (defun read-content-line (stream)
   ;; Skip whitespaces (newlines and spaces) characters.
@@ -77,10 +78,10 @@
   (declare (stream stream))
   (format stream "~a~{;~a=~{~a~^,~}~}:~a~%" 
           name
-          (with-collect
-            (dolist (param (list-parameters (parameter-table params)))
-              (collect (car param))
-              (collect (mapcar #'quote-param-value (cdr param)))))
+          (loop for (param values)
+                on (list-parameters (parameter-table params)) by #'cddr
+                collect param
+                collect (mapcar #'quote-param-value values))
           value))
 
 (defun write-content-line-to-string (name params value)
