@@ -25,6 +25,23 @@
     :type (or hash-table null)
     :accessor %parameter-table)))
 
+(defun set-parameter (parameter parameter-table new-value)
+  (with-slots (table) parameter-table
+    (let ((param (string parameter))
+          (value (mklist new-value)))
+      (when (null table)
+        (setf table (make-hash-table :test #'equalp)))
+      (setf (gethash param table) value))))
+
+(defun make-parameter-table (&optional params)
+  (let ((pt (make-instance 'parameter-table)))
+    (loop for (param value) on params by #'cddr
+          do (set-parameter param pt value)
+          finally (return pt))))
+
+
+;;; Public functions
+
 (defun parameter-table (x)
   (etypecase x
     (list
@@ -32,38 +49,31 @@
     (parameter-table
      x)))
 
-(defun make-parameter-table (&optional params)
-  (let ((pt (make-instance 'parameter-table)))
-    (loop for (param value) on params by #'cddr
-          do (setf (parameter param pt) value)
-          finally (return pt))))
+(defun parameter-table-p (x)
+  (typep x 'parameter-table))
 
-(defun list-parameters (parameter-table)
-  (with-collect
-    (let ((table (%parameter-table parameter-table)))
-      (if (hash-table-p table)
-          (do-hash-table (key value)
-              table
-            (collect (cons key value)))
-          nil))))
+(defun list-parameters (object)
+  (declare (type ptable-designator object))
+  (let ((parameter-table (parameter-table object)))
+    (if (null parameter-table)
+        nil
+        (with-collect
+          (let ((table (%parameter-table parameter-table)))
+            (if (hash-table-p table)
+                (do-hash-table (key value)
+                    table
+                  (collect key)
+                  (collect value))
+                nil))))))
 
-(defgeneric parameter (parameter parameter-table)
-  (:method (param table)
-    (let ((param (string param))
-          (table (%parameter-table table)))
-      (and table (values (gethash param table))))))
+(defun parameter (parameter x)
+  (let ((parameter-table (parameter-table x)))
+    (let ((parameter (string parameter))
+          (table (%parameter-table parameter-table)))
+      (and table (values (gethash parameter table))))))
 
 (defun parameter-values (parameter parameter-table)
   (values-list (parameter parameter parameter-table)))
 
-(defgeneric (setf parameter)
-    (new-value parameter parameter-table)
-  (:method (new-value param parameter-table)
-    (with-slots (table) parameter-table
-      (let ((param (string param))
-            (value (mklist new-value)))
-        (when (null table)
-          (setf table (make-hash-table :test #'equalp)))
-        (setf (gethash param table) value)))))
 
 ;; parameters.lisp ends here

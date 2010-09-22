@@ -415,35 +415,44 @@
 
 ;;; Like `defclass', but the metaclass must be a subclass of
 ;;; component-class, which is, indeed, the default metaclass.
-(defmacro defcomponent (name super-components slots &rest options)
+(defmacro define-abstract-component (name super-components slots &rest options)
   (check-type name symbol)
   (check-type super-components list)
   (check-type slots list)
-  (let ((metaclass (second (assoc :metaclass options))))
+    (let ((metaclass (second (assoc :metaclass options))))
     (cond
       (metaclass
        (unless (subclassp metaclass 'component-class)
          (error "The :metaclass option must specify a submetaclass of component-class."))
-       (let ((not-found (gensym))
-             (default-initargs
-              (cdr (find :default-initargs options :key #'first)))
-             (other-options
-              (remove :default-initargs options :key #'first)))
-         ;; If the :name slot is not specified in the default-initargs
-         ;; option, then we add it correctly.
-         (when (eq (getf default-initargs :name not-found) not-found)
-           (setf default-initargs (list* :name (string name) default-initargs)))
-         `(progn
-            (setf (translate ',name :component)
-                  (defclass ,name ,super-components
-                    ,slots
-                    (:default-initargs ,@default-initargs)
-                    ,@other-options)))))
+       `(defclass ,name ,super-components
+          ,slots
+          ,@options))
       (t
-       `(defcomponent ,name ,super-components
+       `(define-abstract-component ,name ,super-components
           ,slots
           (:metaclass component-class)
           ,@options)))))
+
+;;; Like `define-abstract-component' but it register the component in
+;;; the current vendor in order to it can be parsed.
+(defmacro define-standard-component (name super-components slots &rest options)
+  (check-type name symbol)
+  (check-type super-components list)
+  (check-type slots list)
+  (let ((not-found (gensym))
+        (default-initargs
+         (cdr (find :default-initargs options :key #'first)))
+        (other-options
+         (remove :default-initargs options :key #'first)))
+    ;; If the :name slot is not specified in the default-initargs
+    ;; option, then we add it correctly.
+    (when (eq (getf default-initargs :name not-found) not-found)
+      (setf default-initargs (list* :name (string name) default-initargs)))
+    `(setf (translate ',name :component)
+           (define-abstract-component ,name ,super-components
+             ,slots
+             (:default-initargs ,@default-initargs)
+             ,@other-options))))
 
 
 ;;;; Components' input and ouptut

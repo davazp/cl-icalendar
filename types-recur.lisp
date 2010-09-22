@@ -1056,29 +1056,30 @@
 
 (defmethod format-value ((recur recur) &optional params)
   (declare (ignore params))
-  (with-output-to-string (s)
-    (format s "FREQ=~a" (car (rassoc (recur-freq recur) *frequency-table*)))
-    ;; Print optional recur slots.
-    (format s "~[~;~;~:;;INTERVAL=~:*~d~]"  (recur-interval recur))
-    (format s "~@[;COUNT=~a~]"              (recur-count recur))
-    (format s "~@[;UNTIL=~a~]"              (recur-until recur))
-    (format s "~@[;BYSECOND=~{~A~^,~}~]"    (recur-bysecond recur))
-    (format s "~@[;BYMINUTE=~{~A~^,~}~]"    (recur-byminute recur))
-    (format s "~@[;BYHOUR=~{~A~^,~}~]"      (recur-byhour recur))
-    (format s "~@[;BYDAY=~{~@[~d~]~a~^,~}~]"
-            (with-collect
-              (dolist (day (recur-byday recur))
-                (destructuring-bind (wday . n) day
-                  (collect n)
-                  (collect (svref *weekday-names* (position wday *weekday*)))))))
-    (format s "~@[;BYMONTH=~{~A~^,~}~]"    (recur-bymonth recur))
-    (format s "~@[;BYMONTHDAY=~{~A~^,~}~]" (recur-bymonthday recur))
-    (format s "~@[;BYYEARDAY=~{~A~^,~}~]"  (recur-byyearday recur))
-    (format s "~@[;BYWEEKNO=~{~A~^,~}~]"   (recur-byweekno recur))
-    (format s "~@[;BYSETPOS=~{~A~^,~}~]"   (recur-bysetpos recur))
-    (unless (eq (recur-wkst recur) :monday)
-      (let ((nwkst (position (recur-wkst recur) *weekday*)))
-        (format s ";WKST=~a" (svref *weekday-names* nwkst))))))
+  (with-recur-slots recur
+    (with-output-to-string (s)
+      (format s "FREQ=~a" (car (rassoc freq *frequency-table*)))
+      ;; Print optional recur slots.
+      (format s "~[~;~;~:;;INTERVAL=~:*~d~]" interval)
+      (format s "~@[;COUNT=~a~]" count)
+      (format s "~:[~;;UNTIL=~a~]" until (format-value until))
+      (format s "~@[;BYSECOND=~{~A~^,~}~]" bysecond)
+      (format s "~@[;BYMINUTE=~{~A~^,~}~]" byminute)
+      (format s "~@[;BYHOUR=~{~A~^,~}~]" byhour)
+      (format s "~@[;BYDAY=~{~@[~d~]~a~^,~}~]"
+              (with-collect
+                (dolist (day byday)
+                  (destructuring-bind (wday . n) day
+                    (collect n)
+                    (collect (svref *weekday-names* (position wday *weekday*)))))))
+      (format s "~@[;BYMONTH=~{~A~^,~}~]" bymonth)
+      (format s "~@[;BYMONTHDAY=~{~A~^,~}~]" bymonthday)
+      (format s "~@[;BYYEARDAY=~{~A~^,~}~]" byyearday)
+      (format s "~@[;BYWEEKNO=~{~A~^,~}~]" byweekno)
+      (format s "~@[;BYSETPOS=~{~A~^,~}~]" bysetpos)
+      (unless (eq wkst :monday)
+        (let ((nwkst (position (recur-wkst recur) *weekday*)))
+          (format s ";WKST=~a" (svref *weekday-names* nwkst)))))))
 
 
 ;;; Local variables:
