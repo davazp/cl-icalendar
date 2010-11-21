@@ -53,7 +53,6 @@
   (typep x 'parameter-table))
 
 (defun list-parameters (object)
-  (declare (type ptable-designator object))
   (let ((parameter-table (parameter-table object)))
     (if (null parameter-table)
         nil

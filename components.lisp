@@ -23,7 +23,7 @@
 ;;; this class is inherited by all them. We implement the property and
 ;;; subcomponents artillery here.
 (defclass component ()
-  ((name
+  ((%name
     :initarg :name
     :type string
     :accessor component-name)

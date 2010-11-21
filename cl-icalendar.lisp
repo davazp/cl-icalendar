@@ -20,14 +20,6 @@
 
 (in-package :cl-icalendar)
 
-(define-standard-component calendar (vcalendar)
-  nil
-  (:default-initargs :name "VCALENDAR"))
-
-(defclass calendar (vcalendar)
-  nil
-  (:metaclass component-class))
-
 (defun read-vcalendar (stream &optional (vendor *vendor*))
   (read-component-class 'vcalendar stream vendor))
 
