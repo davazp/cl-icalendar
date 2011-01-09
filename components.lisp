@@ -419,7 +419,7 @@
   (check-type name symbol)
   (check-type super-components list)
   (check-type slots list)
-    (let ((metaclass (second (assoc :metaclass options))))
+  (let ((metaclass (second (assoc :metaclass options))))
     (cond
       (metaclass
        (unless (subclassp metaclass 'component-class)
