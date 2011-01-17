@@ -30,8 +30,8 @@
 ;;; objects to strings and vice versa.
 
 (deftype ical-value ()
-  '(or boolean integer float text binary uri cal-address utc-offset date
-    time datetime duration period recur x-ical-value unknown-value))
+  '(or boolean integer float text binary uri geo cal-address utc-offset
+    date time datetime duration period recur x-ical-value unknown-value))
 
 ;;; Like `check-type' but it signals an error with %parse-error.
 (defmacro check-ical-type (place type)
@@ -213,6 +213,40 @@
   (declare (ignore params))
   (make-instance 'uri :uri string))
 
+
+;;;; Geo
+
+(defclass geo ()
+  ((latitude
+    :type float
+    :initarg :latitude
+    :reader latitude)
+   (longitude
+    :type float
+    :initarg :longitude
+    :reader longitude)))
+
+(register-ical-value geo)
+(define-predicate-type geo)
+
+(defun make-geo (latitude longitude)
+  (make-instance 'geo :latitude latitude :longitude longitude))
+
+(defprinter (x geo)
+  (format t "~d;~d" (latitude x) (longitude x)))
+
+(defmethod format-value ((x geo) &optional params)
+  (declare (ignore params))
+  (format nil "~d;~d" (latitude x) (longitude x)))
+
+(defmethod parse-value (string (type (eql 'geo)) &optional params)
+  (declare (ignore params))
+  (let* ((parts (split-string string #\;))
+         (length (length parts)))
+    (unless (= 2 length)
+      (%parse-error "Bad formed geo. 2 parts expected ~d found." length))
+    (make-geo (parse-value (first parts) 'float)
+              (parse-value (second parts) 'float))))
 
 ;;;; Cal-address
 
