@@ -145,7 +145,7 @@
     :type duration)
    (geo
     :initarg :geo
-    :type float)
+    :type geo)
    (location
     :initarg :location
     :type text)
