@@ -43,7 +43,7 @@
    (:file "dependant")
    (:file "utils")
    (:file "error")
-   (:file "vendor")
+   (:file "translate")
    (:file "parameters")
    (:file "types")
    (:file "types-binary")

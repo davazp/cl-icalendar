@@ -20,6 +20,7 @@
 
 (in-package :cl-icalendar)
 
+(defvar *vendor* "CL-ICALENDAR")
 
 
 ;; cl-icalendar.lisp ends here

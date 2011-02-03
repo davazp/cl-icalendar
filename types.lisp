@@ -107,8 +107,7 @@
   (check-type symbol symbol)
   (check-type name string)
   `(progn
-     (let ((*vendor* *standard-vendor*))
-       (setf (translate ,name :type) ',symbol))
+     (setf (translate ,name :type) ',symbol)
      (defmethod value-typeof ((data ,specializer))
        ,name)))
 
