@@ -1,7 +1,7 @@
 ;; cl-icalendar.lisp
 ;;
 ;; Copyrigth (C) 2009, 2010 Mario Castelán Castro <marioxcc>
-;; Copyrigth (C) 2009, 2010 David Vázquez
+;; Copyrigth (C) 2009,2010,2011 David Vázquez
 ;;
 ;; This file is part of cl-icalendar.
 ;;
@@ -20,24 +20,6 @@
 
 (in-package :cl-icalendar)
 
-(defun read-vcalendar (stream &optional (vendor *vendor*))
-  (read-component-class 'vcalendar stream vendor))
 
-(defun write-vcalendar (component stream)
-  (write-component component stream))
-
-(defun open-vcalendar (pathname)
-  (with-open-file (infile pathname :element-type '(unsigned-byte 8))
-    (with-folding-stream (in infile)
-      (read-vcalendar in))))
-
-(defun save-vcalendar (vcalendar pathname &key if-exists)
-  (declare (type vcalendar vcalendar))
-  (with-open-file (outfile
-                   pathname
-                   :element-type '(unsigned-byte 8)
-                   :direction :output :if-exists if-exists)
-    (with-folding-stream (out outfile)
-      (write-vcalendar vcalendar out))))
 
 ;; cl-icalendar.lisp ends here
