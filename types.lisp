@@ -43,7 +43,31 @@
 ;;; Generic functions
 (defgeneric format-value (value &optional params))
 (defgeneric parse-value (value type &optional params))
+
+;;; This is as the `type-of' ANSI Common Lisp function, but return the
+;;; most specific type of VALUE which _is registered as iCalendar type_.
 (defgeneric value-typeof (value))
+
+;;; Translation between Lisp and iCalendar type names.
+(defvar *translate-type-table*
+  (make-translate-table))
+
+(defun register-translation-type (symbol name)
+  (register-translation symbol name *translate-type-table*))
+
+(defun translate-to-ical-type (x)
+  (translate-to-ical x *translate-type-table*))
+
+(defun translate-to-lisp-type (x)
+  (translate-to-lisp x *translate-type-table*))
+
+(defmacro register-ical-value (symbol &key (name (string symbol)) (specializer symbol))
+  (check-type symbol symbol)
+  (check-type name string)
+  `(progn
+     (register-translation-type ',symbol ,name)
+     (defmethod value-typeof ((data ,specializer))
+       ',symbol)))
 
 ;;; Multiple-value versions
 
@@ -98,20 +122,16 @@
       (t (error "Unkown encoding.")))))
 
 
-;;; Register a iCalendar data type in the standard vendor.
-(defmacro register-ical-value (symbol &key (name (string symbol)) (specializer symbol))
-  (check-type symbol symbol)
-  (check-type name string)
-  `(progn
-     (setf (translate ,name :type) ',symbol)
-     (defmethod value-typeof ((data ,specializer))
-       ,name)))
-
 ;;;; Boolean
 
-(register-ical-value boolean :specializer (eql 't))
-(register-ical-value boolean :specializer (eql 'nil))
+(register-translation-type 'boolean "BOOLEAN")
 (define-predicate-type boolean)
+
+(defmethod value-typeof ((x (eql 't)))
+  'boolean)
+
+(defmethod value-typeof ((x (eql 'nil)))
+  'boolean)
 
 (defmethod format-value ((bool (eql 't)) &optional params)
   (declare (ignore params))
@@ -269,7 +289,7 @@
     :type string
     :reader unknown-value-string)))
 
-(define-predicate-type unknown-value unknown-value-p)
+(define-predicate-type unknown-value)
 
 (defun make-unknown-value (str)
   (declare (string str))

@@ -1,4 +1,4 @@
-;; translate.lisp --- Dictionary between iCalendar names and Lisp symbols
+;; translate.lisp --- Dictionary between iCalendar names and Lisp objects
 ;;
 ;; Copyrigth (C) 2010,2011 David Vázquez
 ;;
@@ -19,23 +19,32 @@
 
 (in-package :cl-icalendar)
 
-(defvar *translate-table* (make-hash-table))
+;;; Translate-table is a couple of syncronized hashtables essentially,
+;;; providing a bidirectional indexing.
+(defclass translate-table ()
+  ((ical-to-lisp-table
+    :initform (make-hash-table :test #'equal)
+    :reader %ical-to-lisp-table)
+   (lisp-to-ical-table
+    :initform (make-hash-table)
+    :reader %lisp-to-ical-table)))
 
-(defun translate (entity kind)
-  (let ((kindtable (gethash kind *translate-table*)))
-    (if kindtable
-        (gethash (string-upcase entity) kindtable)
-        (values nil nil))))
+(defun make-translate-table ()
+  (make-instance 'translate-table))
 
-(defun set-translate (entity kind value)
-  (let ((table *translate-table*))
-    (let ((kindtable (gethash kind table)))
-      (when (null kindtable)
-        (setf kindtable (make-hash-table :test #'equal))
-        (setf (gethash kind table) kindtable))
-      (setf (gethash (string-upcase entity) kindtable) value))))
+(define-predicate-type translate-table)
 
-(defsetf translate (entity kind) (value)
-  `(set-translate ,entity ,kind ,value))
+(defun register-translation (object icalname translate-table)
+  (let ((icalname (string-upcase icalname)))
+    (setf (gethash icalname (%ical-to-lisp-table translate-table)) object)
+    (setf (gethash object (%lisp-to-ical-table translate-table)) icalname)
+    (values)))
+
+(defun translate-to-lisp (icalname translate-table)
+  (values (gethash icalname (%ical-to-lisp-table translate-table))))
+
+(defun translate-to-ical (object translate-table)
+  (values (gethash object (%lisp-to-ical-table translate-table))))
+
 
 ;;; translate.lisp ends here

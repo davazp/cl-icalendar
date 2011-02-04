@@ -109,13 +109,32 @@
              (block nil
                ((lambda () ,@body)))))))
 
+
 ;;; Define a predicate named NAME in order to check if the type of an
-;;; object is TYPE. If NAME is omitted, NAMEP is used.
+;;; object is TYPE.
+;;;
+;;; If type is a symbol, then NAME could be omitted. In this case,
+;;; NAME is computed appending 'P' to type, or '-P' if the symbol name
+;;; contains the character '-' already.
+;;;
+;;; Examples:
+;;;   o If type is FOO, NAME will be FOOP
+;;;   o If type is FOO-BAR, NAME wil be FOO-BAR-P
+;;;
 (defmacro define-predicate-type (type &optional name)
   (declare (type (or symbol null) name))
-  (let ((fname (or name (intern (format nil "~aP" type)))))
+  (let ((fname name))
+    ;; If NAME is ommited and TYPE is a symbol, then compute the
+    ;; default value.
+    (when (and (symbolp type) (not fname))
+      (if (find #\- (string type))
+          (setf fname (symbolize type "-P"))
+          (setf fname (symbolize type "P"))))
+    (when (null fname)
+      (error "The argument NAME must be specified."))
     `(defun ,fname (x)
        (typep x ',type))))
+
 
 ;;; Mark a function as deprecated. When FUNCTION is called, it signals
 ;;; a simple warning. If REPLACEMENT is given, it will recommend to
