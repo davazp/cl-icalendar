@@ -68,40 +68,9 @@
              (:doc-file "fdl.texi")
              (:doc-file "version.texi")))))
 
-
-
-(defclass test-file (static-file)
-  nil)
-
-(defsystem :cl-icalendar-tests
-  :name "iCalendar library tests"
-  :license "GPLv3+"
-  :depends-on (:cl-icalendar :fiveam)
-  :serial t
-  :components
-  ((:module "tests"
-            :serial t
-            :components
-            ((:test-file "test-types.001")
-             (:test-file "test-icalendar.001")
-             (:test-file "test-icalendar.002")
-             (:test-file "test-icalendar.003")
-             (:test-file "test-icalendar.004")
-             (:test-file "test-icalendar.005")
-             (:test-file "test-icalendar.006")
-             (:file "package")
-             (:file "tsuite")
-             (:file "test-types")
-             (:file "test-types-date")
-             (:file "test-types-recur")))))
-
 (defmethod perform ((op test-op) (c (eql (find-system :cl-icalendar))))
   (operate 'load-op ':cl-icalendar-tests)
   (operate 'test-op ':cl-icalendar-tests))
-
-(defmethod perform ((op test-op) (c (eql (find-system :cl-icalendar-tests))))
-  (funcall (intern "RUN-TESTS" (find-package :cl-icalendar-tests))))
-
 
 
 (defsystem :cl-icalendar-iterate

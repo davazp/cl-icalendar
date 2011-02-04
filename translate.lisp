@@ -19,7 +19,8 @@
 
 (in-package :cl-icalendar)
 
-(defvar *translate-table* *standard-vendor*)
+(defvar *translate-table*
+  (make-hash-table :test #'equalp))
 
 (defun translate (entity kind)
   (let ((kindtable (gethash kind *translate-table*)))
