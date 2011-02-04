@@ -80,9 +80,7 @@
 ;;; -- DVP
 
 (defmethod format-value :around (object &optional params)
-  (let ((encoding
-         (or (and params (parameter :encoding params))
-             "8BIT")))
+  (let ((encoding (or (parameter :encoding params) "8BIT")))
     (cond
       ((string-ci= encoding "BASE64")
        (base64:string-to-base64-string (call-next-method)))
@@ -91,9 +89,7 @@
       (t (error "Unkown encoding.")))))
 
 (defmethod parse-value :around (string type &optional params)
-  (let ((encoding
-         (or (and params (parameter :encoding params))
-             "8BIT")))
+  (let ((encoding (or (parameter :encoding params) "8BIT")))
     (cond
       ((string-ci= encoding "BASE64")
        (apply #'call-next-method (base64:base64-string-to-string string) type params))

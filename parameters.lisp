@@ -1,6 +1,6 @@
-;; parameters.lisp -- Handle property and value's parameters
+;; parameters.lisp -- Parameter's table
 ;;
-;; Copyrigth (C) 2010 David Vázquez
+;; Copyrigth (C) 2010,2011 David Vázquez
 ;;
 ;; This file is part of cl-icalendar.
 ;;
@@ -19,19 +19,18 @@
 
 (in-package :cl-icalendar)
 
+;;; Parameter-table class. Indeed, we provide the ability of use lists
+;;; as parameter-table designators.
 (defclass parameter-table ()
   ((table
-    :initform nil
-    :type (or hash-table null)
-    :accessor %parameter-table)))
+    :initform (make-hash-table :test #'equalp)
+    :reader %parameter-table)))
 
 (defun set-parameter (parameter parameter-table new-value)
-  (with-slots (table) parameter-table
-    (let ((param (string parameter))
-          (value (mklist new-value)))
-      (when (null table)
-        (setf table (make-hash-table :test #'equalp)))
-      (setf (gethash param table) value))))
+  (let ((param (string parameter))
+        (value (mklist new-value))
+        (table (%parameter-table parameter-table)))
+    (setf (gethash param table) value)))
 
 (defun make-parameter-table (&optional params)
   (let ((pt (make-instance 'parameter-table)))
@@ -42,6 +41,7 @@
 
 ;;; Public functions
 
+;;; Return the parameter-table designated by X.
 (defun parameter-table (x)
   (etypecase x
     (list
@@ -49,6 +49,7 @@
     (parameter-table
      x)))
 
+;;; Check if X is a parameter table object.
 (defun parameter-table-p (x)
   (typep x 'parameter-table))
 
@@ -65,14 +66,12 @@
                   (collect value))
                 nil))))))
 
+;;; Return as multiple values the list of values of PARAMETER in the
+;;; parameter-table designated by the object X.
 (defun parameter (parameter x)
   (let ((parameter-table (parameter-table x)))
     (let ((parameter (string parameter))
           (table (%parameter-table parameter-table)))
-      (and table (values (gethash parameter table))))))
-
-(defun parameter-values (parameter parameter-table)
-  (values-list (parameter parameter parameter-table)))
-
+      (values-list (gethash parameter table)))))
 
 ;; parameters.lisp ends here

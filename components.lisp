@@ -1,4 +1,4 @@
-;; components.lisp --- iCalendar's component functionality
+;; components.lisp --- iCalendar's component
 ;;
 ;; Copyrigth (C) 2010,2011 David Vázquez
 ;;
