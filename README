@@ -27,6 +27,6 @@ The following libraries are required in order to use cl-icalendar:
     http://www.cliki.net/uuid
 
   o flexi-streams
-    http://www.cliki.net/Flexi-streams  
+    http://www.cliki.net/Flexi-streams
 
-You can get all them using asdf-install.
+You can get all them using Quicklisp or asdf-install.
