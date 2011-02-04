@@ -19,8 +19,7 @@
 
 (in-package :cl-icalendar)
 
-(defvar *translate-table*
-  (make-hash-table :test #'equalp))
+(defvar *translate-table* (make-hash-table))
 
 (defun translate (entity kind)
   (let ((kindtable (gethash kind *translate-table*)))
@@ -30,9 +29,10 @@
 
 (defun set-translate (entity kind value)
   (let ((table *translate-table*))
-    (let ((kindtable
-           (or (gethash kind table)
-               (setf (gethash kind table) (make-hash-table :test #'equal)))))
+    (let ((kindtable (gethash kind table)))
+      (when (null kindtable)
+        (setf kindtable (make-hash-table :test #'equal))
+        (setf (gethash kind table) kindtable))
       (setf (gethash (string-upcase entity) kindtable) value))))
 
 (defsetf translate (entity kind) (value)
