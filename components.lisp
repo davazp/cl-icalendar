@@ -19,6 +19,8 @@
 
 (in-package :cl-icalendar)
 
-
+(defclass component ()
+  ((%properties)
+   (%subcomponents)))
 
 ;;; components.ends here

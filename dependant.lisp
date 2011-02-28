@@ -1,4 +1,4 @@
-;; dependant.lisp --- Code plataform-or-implementation dependant
+;; dependant.lisp --- Code implementation dependant
 ;;
 ;; Copyrigth (C) 2010 David Vázquez
 ;;

@@ -31,7 +31,7 @@
 
 (deftype ical-value ()
   '(or boolean integer float text binary uri geo cal-address utc-offset
-    date time datetime duration period recur x-ical-value unknown-value))
+    date time datetime duration period recur x-ical-value))
 
 ;;; Like `check-type' but it signals an error with %parse-error.
 (defmacro check-ical-type (place type)
@@ -280,28 +280,6 @@
   (make-instance 'cal-address :uri string))
 
 
-
-;;; Unknown type. This is a pseudo-type. This is used to keep the
-;;; value of non-defined property' values.
-(defclass unknown-value ()
-  ((string
-    :initarg :string
-    :type string
-    :reader unknown-value-string)))
-
-(define-predicate-type unknown-value)
-
-(defun make-unknown-value (str)
-  (declare (string str))
-  (make-instance 'unknown-value :string str))
-
-(defmethod format-value ((x unknown-value) &optional params)
-  (declare (ignore params))
-  (unknown-value-string x))
-
-(defprinter (x unknown-value)
-  (prin1 (unknown-value-string x)))
-
 
 ;; User-defined iCalendar data types
 (defclass x-ical-value ()
