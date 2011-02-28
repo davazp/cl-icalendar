@@ -19,8 +19,24 @@
 
 (in-package :cl-icalendar)
 
-(defclass component ()
-  ((%properties)
-   (%subcomponents)))
+;;; Special anonymous iCalendar type to keep values of unknown type.
+(defclass unknown-value ()
+  ((value
+    :initarg :value
+    :initform (required-arg)
+    :type string
+    :reader unknown-value)))
+
+(defmethod parse-value (value (type (eql nil)) &optional params)
+  (declare (ignore params))
+  (make-instance 'unknown-value :value value))
+
+(defmethod format-value ((x unknown-value) &optional params)
+  (declare (ignore params))
+  (unknown-value x))
+
+(defprinter (x unknown-value)
+  (write (unknown-value x)))
+
 
 ;;; components.ends here
