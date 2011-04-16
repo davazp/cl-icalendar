@@ -119,4 +119,15 @@
   (is (periodp (parse-value "19970101T180000Z/19970102T070000Z" 'period))))
 
 
+;;; Disjoint types
+(test disjoint-types-001
+  "Test every cl-icalendar types are disjoint."
+  (let ((types '(boolean integer float text binary uri geo cal-address utc-offset
+                 date time datetime duration period recur x-ical-value)))
+    (dolist (type1 types)
+      (dolist (type2 types)
+        (unless (eq type1 type2)
+          (is-false (subtypep type1 type2)))))))
+
 ;;; test-types.lisp ends here
+

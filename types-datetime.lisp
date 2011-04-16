@@ -20,7 +20,7 @@
 
 (in-package :cl-icalendar)
 
-(defclass datetime (date time)
+(defclass datetime (%date %time)
   nil)
 
 (register-ical-value datetime :name "DATE-TIME")

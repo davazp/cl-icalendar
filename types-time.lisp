@@ -20,7 +20,8 @@
 
 (in-package :cl-icalendar)
 
-(defclass time ()
+;;; Internal representation for time data type.
+(defclass %time ()
   ((timestamp
     :initarg :seconds-from-midnight
     :reader seconds-from-midnight)
@@ -28,6 +29,9 @@
     :initarg :timezone
     :initform nil
     :reader time-timezone)))
+
+;;; Time data type. So time, date and datetime are disjoint.
+(defclass time (%time) nil)
 
 (defun make-time (hour minute second)
   (make-instance 'time :seconds-from-midnight (+ (* hour 3600) (* minute 60) second)))
@@ -42,15 +46,15 @@
           (time-second x)))
 
 (defgeneric time-hour (x)
-  (:method ((x time))
+  (:method ((x %time))
     (truncate (seconds-from-midnight x) 3600)))
 
 (defgeneric time-minute (x)
-  (:method ((x time))
+  (:method ((x %time))
     (mod (truncate (seconds-from-midnight x) 60) 60)))
 
 (defgeneric time-second (x)
-  (:method ((x time))
+  (:method ((x %time))
     (mod (seconds-from-midnight x) 60)))
 
 (define-transitive-relation time= (x y)
@@ -93,7 +97,7 @@
                    (if (< tstamp 0) 1 0)))))))
 
 (defgeneric adjust-time (time &key second minute hour)
-  (:method ((time time) &key second minute hour)
+  (:method ((time %time) &key second minute hour)
     (make-time (or hour (time-hour time))
                (or minute (time-minute time))
                (or second (time-second time)))))

@@ -34,12 +34,16 @@
 (deftype weekday ()
   `(member ,@(coerce *weekday* 'list)))
 
-(defclass date ()
+;;; Internal representation for date type.
+(defclass %date ()
   (;; 1 at 1900-01-01
    (day-from-1900
     :type fixnum
     :initarg :day-from-1900
     :reader day-from-1900)))
+
+;;; External data type. Time and datetime are disjoint.
+(defclass date (%date) nil)
 
 (register-ical-value date)
 (define-predicate-type date)
@@ -105,15 +109,15 @@
       (values day month year))))
 
 (defgeneric date-day (x)
-  (:method ((x date))
+  (:method ((x %date))
     (nth-value 0 (%decode-date x))))
 
 (defgeneric date-month (x)
-  (:method ((x date))
+  (:method ((x %date))
     (nth-value 1 (%decode-date x))))
 
 (defgeneric date-year (x)
-  (:method ((x date))
+  (:method ((x %date))
     (nth-value 2 (%decode-date x))))
 
 (defun date-day-of-week (x &optional (wkst :monday))
@@ -158,7 +162,7 @@
   (>= (day-from-1900 x) (day-from-1900 y)))
 
 (defgeneric date+ (date durspec)
-  (:method ((date date) durspec)
+  (:method ((date %date) durspec)
            (let* ((dur (duration durspec))
                   (days (%duration-days dur))
                   (secs (%duration-seconds dur)))
@@ -167,7 +171,7 @@
              (make-instance 'date :day-from-1900 (+ (day-from-1900 date) days)))))
 
 (defgeneric date- (date durspec)
-  (:method ((date date) durspec)
+  (:method ((date %date) durspec)
     (let* ((dur (duration durspec))
            (days (%duration-days dur))
            (secs (%duration-seconds dur)))
@@ -176,7 +180,7 @@
       (make-instance 'date :day-from-1900 (- (day-from-1900 date) days)))))
 
 (defgeneric adjust-date (date &key day month year)
-  (:method ((date date) &key day month year)
+  (:method ((date %date) &key day month year)
     (make-date (or day (date-day date))
                (or month (date-month date))
                (or year (date-year date)))))
