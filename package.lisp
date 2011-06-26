@@ -30,6 +30,10 @@
   (:export #:make-folding-stream
            #:with-folding-stream
            ;; Data types
+           #:ical-value
+           #:x-ical-value
+           #:uri
+           #:utc-offset
            #:format-value
            #:parse-value
            ;; Boolean

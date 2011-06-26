@@ -20,24 +20,19 @@
 ;;
 
 (defpackage :cl-icalendar-system
-  (:use :cl :asdf)
-  (:export #:script-file #:test-file))
+  (:use :cl :asdf))
 
 (in-package :cl-icalendar-system)
-
-(defclass script-file (static-file)
-  nil)
 
 (defsystem :cl-icalendar
   :name "iCalendar library"
   :license "GPLv3+"
   :version "0.0"
-  :depends-on (:trivial-gray-streams :cl-base64 :uuid :closer-mop :flexi-streams)
+  :depends-on (:trivial-gray-streams :cl-base64 :uuid :closer-mop :flexi-streams :local-time)
   :serial t
   :components
   ((:static-file "COPYING")
    (:static-file "README")
-   (:script-file "release.lisp")
    ;; Source code
    (:file "package")
    (:file "dependant")
