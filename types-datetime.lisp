@@ -90,10 +90,9 @@
 (defvar +timestamp-1900+
   (local-time:encode-timestamp 0 0 0 0 1 1 1900))
 
-(defgeneric day-from-1900 (dt)
-  (:method ((dt datetime))
-    (1+ (- (local-time:day-of (datetime-timestamp dt))
-           (local-time:day-of +timestamp-1900+)))))
+(defmethod day-from-1900 ((dt datetime))
+  (1+ (- (local-time:day-of (datetime-timestamp dt))
+         (local-time:day-of +timestamp-1900+))))
 
 (defgeneric seconds-from-1900 (dt)
   (:method ((dt datetime))

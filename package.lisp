@@ -98,6 +98,24 @@
            #:binary-length
            ;; Recur
            #:recur
-           #:recur-instance-p))
+           #:recur-instance-p
+           ;; Components
+           #:open-vcalendar
+           #:save-vcalendar
+           #:read-vcalendar
+           #:write-vcalendar
+           #:component-name
+           #:component-subcomponents
+           #:do-subcomponents
+           #:do-property
+           #:vcalendar
+           #:vevent
+           #:vtodo
+           #:vjournal
+           #:vfreebusy
+           #:valarm
+           #:vdaylight
+           #:vstandard
+           #:vtimezone))
 
 ;;; package.lisp ends here

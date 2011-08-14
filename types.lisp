@@ -31,7 +31,7 @@
 
 (deftype ical-value ()
   '(or boolean integer float text binary uri geo cal-address utc-offset
-    date time datetime duration period recur x-ical-value))
+    date time datetime duration period recur x-ical-value unknown-value))
 
 ;;; Like `check-type' but it signals an error with %parse-error.
 (defmacro check-ical-type (place type)
@@ -43,31 +43,7 @@
 ;;; Generic functions
 (defgeneric format-value (value &optional params))
 (defgeneric parse-value (value type &optional params))
-
-;;; This is as the `type-of' ANSI Common Lisp function, but return the
-;;; most specific type of VALUE which _is registered as iCalendar type_.
 (defgeneric value-typeof (value))
-
-;;; Translation between Lisp and iCalendar type names.
-(defvar *translate-type-table*
-  (make-translate-table))
-
-(defun register-translation-type (symbol name)
-  (register-translation symbol name *translate-type-table*))
-
-(defun translate-to-ical-type (x)
-  (translate-to-ical x *translate-type-table*))
-
-(defun translate-to-lisp-type (x)
-  (translate-to-lisp x *translate-type-table*))
-
-(defmacro register-ical-value (symbol &key (name (string symbol)) (specializer symbol))
-  (check-type symbol symbol)
-  (check-type name string)
-  `(progn
-     (register-translation-type ',symbol ,name)
-     (defmethod value-typeof ((data ,specializer))
-       ',symbol)))
 
 ;;; Multiple-value versions
 
@@ -122,16 +98,20 @@
       (t (error "Unkown encoding.")))))
 
 
+;;; Register a iCalendar data type in the standard vendor.
+(defmacro register-ical-value (symbol &key (name (string symbol)) (specializer symbol))
+  (check-type symbol symbol)
+  (check-type name string)
+  `(progn
+     (setf (translate ,name :type) ',symbol)
+     (defmethod value-typeof ((data ,specializer))
+       ,name)))
+
 ;;;; Boolean
 
-(register-translation-type 'boolean "BOOLEAN")
+(register-ical-value boolean :specializer (eql 't))
+(register-ical-value boolean :specializer (eql 'nil))
 (define-predicate-type boolean)
-
-(defmethod value-typeof ((x (eql 't)))
-  'boolean)
-
-(defmethod value-typeof ((x (eql 'nil)))
-  'boolean)
 
 (defmethod format-value ((bool (eql 't)) &optional params)
   (declare (ignore params))
@@ -280,6 +260,27 @@
   (make-instance 'cal-address :uri string))
 
 
+
+;;; Unknown type. This is a pseudo-type. This is used to keep the
+;;; value of non-defined property' values.
+(defclass unknown-value ()
+  ((string
+    :initarg :string
+    :type string
+    :reader unknown-value-string)))
+
+(define-predicate-type unknown-value unknown-value-p)
+
+(defun make-unknown-value (str)
+  (declare (string str))
+  (make-instance 'unknown-value :string str))
+
+(defmethod format-value ((x unknown-value) &optional params)
+  (declare (ignore params))
+  (unknown-value-string x))
+
+(defprinter (x unknown-value)
+  (prin1 (unknown-value-string x)))
 
 ;; User-defined iCalendar data types
 (defclass x-ical-value ()
