@@ -77,6 +77,10 @@
     :initarg :contact
     :type text
     :multiple-value-p t)
+   (dtend
+    :initarg :dtend
+    :type (or datetime date)
+    :default-type datetime)
    (dtstamp
     :initarg :dtstamp
     :type datetime)
