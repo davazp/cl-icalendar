@@ -77,10 +77,6 @@
     :initarg :contact
     :type text
     :multiple-value-p t)
-   (dtend
-    :initarg :dtend
-    :type (or datetime date)
-    :default-type datetime)
    (dtstamp
     :initarg :dtstamp
     :type datetime)
@@ -173,7 +169,11 @@
 (define-standard-component vevent (et-item-base)
   ((transp
     :initarg :transp
-    :type text)))
+    :type text)
+   (dtend
+    :initarg :dtend
+    :type (or datetime date)
+    :default-type datetime)))
 
 (define-standard-component vtodo (et-item-base)
   ((completed
@@ -196,6 +196,10 @@
 (define-standard-component vfreebusy (item-base)
   ((dtstart
     :initarg :dtstart
+    :type (or datetime date)
+    :default-type datetime)
+   (dtend
+    :initarg :dtend
     :type (or datetime date)
     :default-type datetime)
    (freebusy
