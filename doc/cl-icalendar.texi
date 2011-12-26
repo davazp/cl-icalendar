@@ -4,58 +4,7 @@
 @setfilename cl-icalendar.info
 @settitle cl-icalendar
 @c %**end of header
-
 @include version.texi
-
-@ignore
-@c ---------------
-@deffn {Generic function} name arg1 arg2 ... @result{} result
-@table @strong
-
-@c Parameters and values
-@item Arguments and values
-@table @var
-@item arg1
-...
-@item arg2
-...
-@item result
-...
-@end table
-
-@c Description
-@item Description
-...
-
-@c Exceptional situations
-@item Exceptional situations
-...
-
-@c Examples
-@item Examples
-@lisp
-...
-@end lisp
-
-@c Affected by
-@item Affected by
-@c ...
-
-@c Side effects
-@item Side effects
-@c ...
-
-@c See also
-@item See also
-@c ...
-
-@c Notes
-@item Notes
-@c ...
-@end table
-@end deffn
-@end ignore
-
 
 @c Copy the type, variable and function indexes to the cp one.
 @syncodeindex tp cp
@@ -63,12 +12,12 @@
 @syncodeindex fn cp
 
 @copying
-This is the @cite{Common Lisp iCalendar Library Reference} updated for
+This is the @cite{Common Lisp iCalendar Library} updated for
 the version @cite{@value{VERSION}}.
 
 Copyright @copyright{} 2010  Mario Castel@'an Castro
 
-Copyright @copyright{} 2010  David V@'azquez P@'ua
+Copyright @copyright{} 2010,2011  David V@'azquez P@'ua
 
 @quotation
 Permission is granted to copy, distribute and/or modify this document
@@ -87,7 +36,6 @@ The document was typeset with
 
 @end copying
 
-
 @titlepage
 @title Common Lisp iCalendar Library
 @subtitle An implementation of the iCalendar specification
@@ -104,381 +52,103 @@ The document was typeset with
 
 @ifnottex
 @node Top
-@top Common Lisp iCalendar Library Reference
-
+@top Common Lisp iCalendar Library
 @insertcopying
 @end ifnottex
 
 @c Generate the nodes for this menu with `C-c C-u C-m'.
 @menu
 * Introduction::
-* Overview::
 * Data types::
-* Components::
-* High level abstractions::
-* Conditions and error handling::
-* Iterate::
 * GNU Free Documentation License::
 * Index::
 @end menu
 
-@c Update all node entries with `C-c C-u C-n'.
-@c Insert new nodes with `C-c C-c n'.
 @node Introduction
 @chapter Introduction
 
-@menu
-* Instalation::
-* Conventions::
-@end menu
+The @emph{Common Lisp iCalendar Library} is an implementation of
+iCalendar specification as described in RFC5545. It provides a
+convenient object-oriented abstractions so that user to be able treat
+with iCalendar as easy as possible, even it can be extended and suited
+to advanced uses.
 
-@node Instalation
-@section Instalation
+This document should not be considered a complete documentation of the
+Common Lisp iCalendar library. The object of this document is give an
+insight to the user about the usage of the library.
 
-@node Conventions
-@section Conventions
+@node Package structure
+@section Package structure
+
+The library provides a package named @samp{ICAL}. Every exported symbol
+will be in this package. It is granted you can @strong{use} this package
+and it will not cause collisions with the standard @samp{COMMON-LISP}
+package.
 
 @node Overview
-@chapter Overview
+@section Overview
+
+
 
 @node Data types
 @chapter Data types
 
-@menu
-* Boolean::
-* Integer::
-* Float::
-* Text::
-* Binary::
-* URI::
-* Cal-address::
-* UTC-Offset::
-* Date::
-* Time::
-* Datetime::
-* Duration::
-* Period::
-* Recur::
-@end menu
-
-@deftp {Data type} ical-value
-@table @strong
-@item Type Precedence List
-ical-value, t
-@item Description
-The type of the objects which can be value of iCalendar values.
-@end table
-@end deftp
-
-
-@deffn {Generic function} parse-value string type &rest parameters &key &allow-other-keys @result{} object
-@table @strong
-
-@c Parameters and values
-@item Arguments and values
-@table @var
-@item string
-A string.
-@item type
-A symbol.
-@item parameters
-A parameter list.
-@item object
-An object of type @var{type}.
-@end table
-
-@c Description
-@item Description
-@code{parse-value} parses an iCalendar value according to the syntax for
-a object of type @var{type}.
-
-@code{parse-value} ignores the unknown parameters. See the documentation
-for each type in order to know how the parameters are treated.
-
-@c Exceptional situations
-@item Exceptional situations
-If string is not a valid representation for a object according for the
-syntax for objects of type @var{type}, then a @code{ical-parse-error}
-condition is signaled.
-
-@c Examples
-@item Examples
-@lisp
-(parse-value "12" 'integer) @result{} 12
-(parse-value "12.1" 'float) @result{} 12.1
-(parse-value "DT3H" 'duration) @result{} <#DURATION 3 hours>
-;; TODO: Write wrong examples.
-@end lisp
-
-@c See also
-@item See also
-@code{parse-values}.
-
-@end table
-@end deffn
-
-
-@deffn {Generic function} parse-values string type &rest parameters &key &allow-other-keys @result{} objects
-@table @strong
-
-@c Parameters and values
-@item Arguments and values
-@table @var
-@item string
-A string.
-@item type
-A symbol.
-@item parameters
-A parameter list.
-@item object
-A list of objects of type @var{type}.
-@end table
-
-@c Description
-@item Description
-@code{parse-values} parses a comma-delimited list of iCalendar values
-according to the syntax for a object of type @var{type}.
-
-@code{parse-values} ignores the unknown parameters. See the documentation
-for each type in order to know how the parameters are treated.
-
-@c Exceptional situations
-@item Exceptional situations
-If the representation for some object is not valid according for the
-syntax for objects of type @var{type}, then a @code{ical-parse-error}
-condition is signaled.
-
-@c Examples
-@item Examples
-@lisp
-(parse-values "0,1,2" 'integer) @result{} (0 1 2)
-(parse-values "foo,bar,1\\,2 and 3." 'text) @* @result{} ("foo" "bar" "1, 2 and 3.")
-@end lisp
-
-@c See also
-@item See also
-@code{parse-value}.
-
-@end table
-@end deffn
-
-
-@c ---------------
-@deffn {Generic function} format-value object &rest parameters &key &allow-other-keys @result{} @code{nil}
-@table @strong
-
-@c Parameters and values
-@item Arguments and values
-@table @var
-@item object
-A @code{ical-value} object.
-@item parameters
-A parameter list.
-@end table
-
-@c Description
-@item Description
-Return a string which is an external representation of
-@var{object}. This representation could be affected by the list of
-@var{parameters}. See the documentation of specific ypes for futher
-information.
-
-@c Exceptional situations
-@item Exceptional situations
-If object is not an @code{ical-value} object, a error is signaled.
-
-@c Examples
-@item Examples
-@lisp
-(format-value "lisp" :encoding :base64) @result{} "bGlzcA=="
-;; TODO: Write more examples
-@end lisp
-
-@end table
-@end deffn
-
-
-@c ---------------
-@deffn {Generic function} format-values objects &rest parameters &key &allow-other-keys @result{} @code{nil}
-@table @strong
-
-@c Parameters and values
-@item Arguments and values
-@table @var
-@item object
-A list of @code{ical-value} objects.
-@item parameters
-A parameter list.
-@end table
-
-@c Description
-@item Description
-@code{format-values} return a string which is an external representation
-of multiple @var{objects}. This representation could be affected by the
-list of @var{parameters}. See the documentation of specific ypes for
-futher information.
-
-@c Exceptional situations
-@item Exceptional situations
-If some object is not an @code{ical-value} object, a error is signaled.
-
-@c Examples
-@item Examples
-@lisp
-;; TODO: Write more examples
-@end lisp
-
-@c Notes
-@item Notes
-@code{format-values} does not signal error if all objects are
-@code{ical-value} ones. However, if there are objects whose types are
-different, the outcoming string is not a valid value for iCalendar
-properties.
-@end table
-@end deffn
-
+The value of each property is always a @code{ical-value} type.  This
+type includes the ANSI Common Lisp data types @code{Boolean},
+@code{Integer}, @code{Float}, as well as specific iCal data types
+@code{URI}, @code{Geo}, @code{Cal-address}, @code{Binary}, @code{Text},
+@code{UTC-Offset}, @code{Date}, @code{Time}, @code{Datetime},
+@code{Duration}, @code{Period} and @code{Recur}. Indeed, it also covers
+the data type @code{x-ical-value}, which can be extend by defining a
+subclass of the class with the same name. It is explained in detail in
+the section ``Custom data types''.
 
 @node Boolean
 @section Boolean
 
-This value type is used to identify properties that contain either a
-"TRUE" or "FALSE" Boolean value.
-
-@deftp {ANSI Common Lisp type} boolean
-@table @strong
-@item Syntax
-@verbatim
-boolean = "TRUE" / "FALSE"
-@end verbatim
-@item Description
-These values are case insensitive text.
-@item Examples
-@example
-TrUE
-TRUE
-False
-@end example
-@end table
-@end deftp
+The boolean data type is defined as ``TRUE'' or ``FALSE''. They are
+mapped to the Common Lisp values @code{T} and @code{NIL} respectively.
 
 @node Integer
 @section Integer
 
-This value type is used to identify properties that contain a signed
-integer value.
-
-@deftp {ANSI Common Lisp type} integer
-@table @strong
-@item Syntax
-@verbatim
-integer = (["+"] / "-") 1*DIGIT
-@end verbatim
-@item Description
-If the sign is not specified, then the value is assumed to be
-positive.
-@item Examples
-@example
-1234567890
--1234567890
-+1234567890
-432109876
-@end example
-@item Notes
-@cite{cl-icalendar} does not define any limit for integer values,
-however, the iCalendar specification sets the valid range is -2147483648
-to 2147483647.
-@end table
-@end deftp
-
+The Common Lisp integer type, a mathematical integer. The RFC5545 limits
+the magnitude of the integer type to the range -2147483648 to
+2147483647. This limitation is not implemented in the library.
 
 @node Float
 @section Float
 
-This value type is used to identify properties that contain a real
+The Common Lisp float type is used in properties that contain real
 number value.
-
-@deftp {ANSI Common Lisp type} integer
-@table @strong
-@item Syntax
-@verbatim
-float = (["+"] / "-") 1*DIGIT ["." 1*DIGIT]
-@end verbatim
-@item Description
-If the property permits, multiple "float" values are specified by a
-COMMA character (US-ASCII decimal 44) separated list of values.
-@item Examples
-@example
-1000000.0000001
-1.333
--3.14
-@end example
-@end table
-@end deftp
-
-
-@node Text
-@section Text
-
-@node Binary
-@section Binary
 
 @node URI
 @section URI
 
+This value type is used to identify values that contain a uniform
+resource identifier (URI) type of reference to the property value.
+
+urip
+make-uri
+uri
+
+@node Geo
+@section Geo
+
 @node Cal-address
 @section Cal-address
+
+@node Binary
+@section Binary
+
+@node Text
+@section Text
 
 @node UTC-Offset
 @section UTC-Offset
 
 @node Date
 @section Date
-
-@deffn {Function} make-date
-@end deffn
-
-@deffn {Function} today
-@end deffn
-
-@deffn {Function} datep
-@end deffn
-
-@deffn {Function} date-day
-@end deffn
-
-@deffn {Function} date-month
-@end deffn
-
-@deffn {Function} date-year
-@end deffn
-
-@deffn {Function} date-day-of-week
-@end deffn
-
-@deffn {Function} date-day-of-year
-@end deffn
-
-@deffn {Function} date=
-@end deffn
-
-@deffn {Function} date<
-@end deffn
-
-@deffn {Function} date<=
-@end deffn
-
-@deffn {Function} date>
-@end deffn
-
-@deffn {Function} date>=
-@end deffn
-
-@deffn {Function} date+
-@end deffn
-
-@deffn {Function} date-
-@end deffn
-
 
 @node Time
 @section Time
@@ -495,25 +165,15 @@ COMMA character (US-ASCII decimal 44) separated list of values.
 @node Recur
 @section Recur
 
-@node Components
-@chapter Components
+@node Custom data types
+@section Custom data types
 
-@node High level abstractions
-@chapter High level abstractions
 
-@node Conditions and error handling
-@appendix Conditions and error handling@*
 
-@deftp {Condition} ical-parse-error
-@table @strong
-@item Condition Precedence List
-error, t
-@end table
-TODO: To be implemented.
-@end deftp
 
-@node Iterate
-@appendix Iterate
+
+
+
 
 
 
