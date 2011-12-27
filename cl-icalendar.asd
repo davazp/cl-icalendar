@@ -68,17 +68,6 @@
 (defmethod perform ((op test-op) (c (eql (find-system :cl-icalendar))))
   (operate 'load-op ':cl-icalendar-tests)
   (operate 'test-op ':cl-icalendar-tests))
-
-
-(defsystem :cl-icalendar-iterate
-  :name "iCalendar library iterate integration"
-  :license "GPLv3+"
-  :depends-on (:cl-icalendar :iterate)
-  :serial t
-  :components
-  ((:module "iterate"
-            :serial t
-            :components ((:file "ical-iterate")))))
 
 
 ;; cl-icalendar.asd ends here
