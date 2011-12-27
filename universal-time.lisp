@@ -67,6 +67,7 @@
           (truncate years 100))
        (truncate (+ years 300) 400))))
 
+;;; 1 January = 1
 (defun day-from-new-year (day month year)
   (let ((days-before-month      #(0 0 31 59 90 120 151 181 212 243 273 304 334))
         (days-before-month-leap #(0 0 31 60 91 121 152 182 213 244 274 305 335)))
@@ -74,25 +75,24 @@
         (+ day (svref days-before-month-leap month))
         (+ day (svref days-before-month month)))))
 
-(defun 1900+days (days-from-1900)
-  (let ((stamp days-from-1900))
-    (let (year month day rem)
-      ;; Year
-      (loop for t1 downfrom (truncate stamp 365)
-            for t2 = (+ (* 365 t1) (leap-years-before (+ 1900 t1)))
-            for t3 = (- stamp t2)
-            while (<= t3 0)
-            finally (setf year (+ 1900 t1) rem t3))
-      ;; Month
-      (loop for m from 12 downto 1
-            as t1 = (day-from-new-year 1 m year)
-            as t2 = (- rem t1)
-            while (< t2 0)
-            finally (setf month m rem t2))
-      ;; Day
-      (setf day (1+ rem))
-      ;; Return information
-      (encode-universal-time 0 0 0 day month year))))
+(defun 1900+days (stamp)
+  (let (year month day rem)
+    ;; Year
+    (loop for t1 downfrom (truncate stamp 365)
+          for t2 = (+ (* 365 t1) (leap-years-before (+ 1900 t1)))
+          for t3 = (- stamp t2)
+          while (<= t3 0)
+          finally (setf year (+ 1900 t1) rem t3))
+    ;; Month
+    (loop for m from 12 downto 1
+          as t1 = (day-from-new-year 1 m year)
+          as t2 = (- rem t1)
+          while (< t2 0)
+          finally (setf month m rem t2))
+    ;; Day
+    (setf day (1+ rem))
+    ;; Return information
+    (encode-universal-time 0 0 0 day month year)))
 
 (defun day-from-1900 (universal-time)
   (decoded-universal-time (:date date :month month :year year) universal-time
@@ -108,8 +108,8 @@
 
 (defun day-of-week (universal-time &optional (wkst :monday))
   (decoded-universal-time (:day day) universal-time
-    (let ((wkst (position wkst *weekday*)))
-      (mod (- (+ day 7) wkst) 7))))
+    (values (elt *weekday* day)
+            (mod (- (+ day 7) (position wkst *weekday*)) 7))))
 
 (defun day-of-year (universal-time)
   (decoded-universal-time (:date day :month month :year year) universal-time
@@ -119,7 +119,7 @@
   (declare (weekday wkst))
   (decoded-universal-time (:date day :month month :year year) universal-time
     (let* ((yearday (day-from-new-year day month year))
-           (weekday (day-of-week universal-time wkst))
+           (weekday (second-value (day-of-week universal-time wkst)))
            (offset (mod (1+ (- weekday yearday)) 7))
            (first (if (<= offset 3)
                       1
@@ -209,20 +209,14 @@
 
 ;;; Return the following WEEKDAY from UT.
 (defun next-weekday (ut weekday)
-  (let ((days
-         (mod (1+ (- (position weekday *weekday*)
-                     (day-of-week ut)))
-              7)))
-    (date+ ut days)))
+  (date+ ut (- 7 (second-value (day-of-week ut weekday)))))
 
 ;;; Return the first WEEKDAY before of UT.
 (defun previous-weekday (ut weekday)
-  (let ((days
-         (mod (1- (- (day-of-week ut)
-                     (position weekday *weekday*)))
-              7)))
-    (date+ ut (- days))))
-
+  (let ((dow (second-value (day-of-week ut weekday))))
+    (if (zerop dow)
+        (date+ ut (- 7))
+        (date+ ut (- dow)))))
 
 ;;; Add N seconds to UT.
 (defun forward-second (ut &optional (n 1))

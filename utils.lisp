@@ -337,6 +337,9 @@
   `(let ((it ,condition))
      (if it ,then ,else)))
 
+(defmacro second-value (form)
+  `(nth-value 1 ,form))
+
 
 ;;;; setf-based
 

@@ -329,11 +329,12 @@
      (values (beginning-of-year datetime)
              (end-of-year datetime)))))
 
-;;; Check if DATETIME is compatible with a byday VALUE.
+;;; Check if DATETIME is compatible with a byday VALUE for the interval given
+;;; for START and END datetimes. The limits START and END are inclusive.
 (defun byday-compatible-p (value datetime start end)
   (let* ((day-of-week (day-of-week datetime))
-         (first-day (next-weekday start day-of-week))
-         (last-day  (previous-weekday end day-of-week))
+         (first-day (next-weekday (date+ start -1) day-of-week))
+         (last-day  (previous-weekday (date+ end 1) day-of-week))
          (total-weeks (1+ (weeks-between first-day last-day))))
     (and value
          (loop for (weekday . n) in value thereis
@@ -898,7 +899,7 @@
       recur)))
 
 
-(defmethod format-value ((recur recur) (type (eql 'period)) &optional params)
+(defmethod format-value ((recur recur) (type (eql 'recur)) &optional params)
   (declare (ignore params))
   (with-recur-slots recur
     (with-output-to-string (s)
@@ -906,7 +907,7 @@
       ;; Print optional recur slots.
       (format s "~[~;~;~:;;INTERVAL=~:*~d~]" interval)
       (format s "~@[;COUNT=~a~]" count)
-      (format s "~:[~;;UNTIL=~a~]" until (format-value until 'datetime)) ;TODO: or date
+      (format s "~:[~;;UNTIL=~:*~a~]" (and until (format-value until 'datetime)))
       (format s "~@[;BYSECOND=~{~A~^,~}~]" bysecond)
       (format s "~@[;BYMINUTE=~{~A~^,~}~]" byminute)
       (format s "~@[;BYHOUR=~{~A~^,~}~]" byhour)
