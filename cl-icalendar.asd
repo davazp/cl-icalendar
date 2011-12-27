@@ -24,11 +24,13 @@
 
 (in-package :cl-icalendar-system)
 
+(declaim (optimize (speed 0) (safety 3) (space 0) (debug 3)))
+
 (defsystem :cl-icalendar
   :name "iCalendar library"
   :license "GPLv3+"
   :version "0.0"
-  :depends-on (:trivial-gray-streams :cl-base64 :uuid :closer-mop :flexi-streams :local-time)
+  :depends-on (:trivial-gray-streams :cl-base64 :uuid :closer-mop :flexi-streams)
   :serial t
   :components
   ((:static-file "COPYING")
@@ -43,6 +45,7 @@
    (:file "types-binary")
    (:file "types-utc-offset")
    (:file "types-text")
+   (:file "universal-time")
    (:file "types-date")
    (:file "types-time")
    (:file "types-datetime")

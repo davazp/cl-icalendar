@@ -47,13 +47,20 @@
 (defmethod period-duration ((period period-explicit))
   (let* ((start (period-start period))
          (end (period-end period))
-         (secs (- (seconds-from-1900 end) (seconds-from-1900 start))))
-    (if (datetime<= start end)
+         (secs (seconds-between end start)))
+    (if (<= start end)
         (make-duration :seconds secs)
         (make-duration :seconds secs :backward-p t))))
 
 (defmethod period-end ((period period-start))
-  (datetime+ (period-start period) (period-duration period)))
+  (let ((dur (period-duration period)))
+    (if (duration-backward-p dur)
+        (datetime+ (period-start period)
+                   (- (duration-days dur))
+                   (- (duration-seconds dur)))
+        (datetime+ (period-start period)
+                   (duration-days dur)
+                   (duration-seconds dur)))))
 
 ;;; Constructor
 (defun make-period (start duration-or-end)
@@ -91,7 +98,7 @@
     (let ((dstart (parse-value start 'datetime)))
       (make-period dstart
                    (if (char= (char end 0) #\P)
-                       (datetime+ dstart (parse-value end 'duration))
+                       (parse-value end 'duration)
                        (parse-value end 'datetime))))))
 
 ;;; types-period.lisp ends here

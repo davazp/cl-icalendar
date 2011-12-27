@@ -3,7 +3,7 @@
 ;;     This file implements the recur data type.
 ;;
 ;; Copyrigth (C) 2009, 2010 Mario Castelán Castro <marioxcc>
-;; Copyrigth (C) 2009, 2010 David Vázquez
+;; Copyrigth (C) 2009, 2010, 2011 David Vázquez
 ;;
 ;; This file is part of cl-icalendar.
 ;;
@@ -43,7 +43,7 @@
 ;;; rules. A high level macro `do-recur-instances' is also provided.
 
 (deftype non-zero-integer (a b)
-  `(and (integer ,a ,b) (not (integer 0 0))))
+  `(and (integer ,a ,b) (not (eql 0))))
 
 (deftype recur-frequence ()
   '(member :secondly :minutely :hourly :daily :weekly :monthly :yearly))
@@ -133,9 +133,18 @@
     :initform :monday
     :reader recur-wkst)))
 
+(register-ical-value recur)
+
 ;;; Return a new recur value.
 (defun make-recur (freq &rest args)
   (apply #'make-instance 'recur :freq freq args))
+
+;;; The predicate function in order to check if an arbitrary object is a
+;;; recurrence value.
+(define-predicate-type recur)
+
+(defprinter (obj recur)
+  (write-string (format-value obj 'recur)))
 
 ;;; Bind the symbols FREQ, UNTIL, COUNT, INTERVAL, BYSECOND, BYMINUTE, BYHOUR,
 ;;; BYDAY, BYMONTHDAY, BYYEARDAY, BYWEEKNO, BYMONTH, BYSETPOSWKST, WKST and
@@ -152,16 +161,6 @@
                bysetposwkst wkst bysetpos))
      ,@code))
 
-(register-ical-value recur)
-
-;;; The predicate function in order to check if an arbitrary object is a
-;;; recurrence value.
-(define-predicate-type recur)
-
-;;; Useful for debugging.
-(defprinter (obj recur)
-  (write-string (format-value obj 'recur)))
-
 ;;; Check the consistency of RECUR. This function makes sure the type of
 ;;; slot's values in the recur instance are valid. This is not redundant with
 ;;; :type slots options. The slot types are checked when a recur is
@@ -171,32 +170,28 @@
   (unless (slot-boundp recur 'freq)
     (%parse-error "FREQ rule is required."))
   (with-recur-slots recur
-    (macrolet ((check-type-list (list type)
-                 ;; Check every element of LIST is of type TYPE.
-                 `(dolist (i ,list)
-                    (check-type i ,type))))
-      (check-type freq recur-frequence)
-      (unless (or (not until) (not count))
-        (%parse-error "You cannot specify both UNTIL and COUNT recur rules."))
-      ;; Check optional slots
-      (and until    (check-type until    (or date datetime)))
-      (and count    (check-type count    (integer 0 *)))
-      (and interval (check-type interval (integer 0 *)))
-      (check-type wkst weekday)
-      ;; Check list slots
-      (unless (or (eq freq :monthly)
-                  (eq freq :yearly))
-        (dolist (bydayrule byday)
-          (when (cdr bydayrule)
-            (%parse-error "prefix weekday cannot be specified in a other monthly or yearly recurs."))))
-      (check-type-list bysecond   (integer 0 60))
-      (check-type-list byminute   (integer 0 59))
-      (check-type-list byhour     (integer 0 23))
-      (check-type-list bymonthday (non-zero-integer  -31  31))
-      (check-type-list byyearday  (non-zero-integer -366 366))
-      (check-type-list byweekno   (non-zero-integer  -53  53))
-      (check-type-list bymonth    (integer 0 12))
-      (check-type-list bysetpos   (non-zero-integer -366 366)))))
+    (check-type freq recur-frequence)
+    (unless (or (not until) (not count))
+      (%parse-error "You cannot specify both UNTIL and COUNT recur rules."))
+    ;; Check optional slots
+    (check-type until (or null date datetime))
+    (check-type count (or null (integer 0 *)))
+    (check-type interval (or null (integer 0 *)))
+    (check-type wkst weekday)
+    ;; Check list slots
+    (unless (or (eq freq :monthly)
+                (eq freq :yearly))
+      (dolist (bydayrule byday)
+        (when (cdr bydayrule)
+          (%parse-error "prefix weekday cannot be specified in a other monthly or yearly recurs."))))
+    (check-type-list bysecond (integer 0 60))
+    (check-type-list byminute (integer 0 59))
+    (check-type-list byhour (integer 0 23))
+    (check-type-list bymonthday (non-zero-integer  -31  31))
+    (check-type-list byyearday (non-zero-integer -366 366))
+    (check-type-list byweekno (non-zero-integer  -53  53))
+    (check-type-list bymonth (integer 0 12))
+    (check-type-list bysetpos (non-zero-integer -366 366))))
 
 
 ;;;; Date and time related functions
@@ -204,123 +199,8 @@
 ;;; Check if the frequence X is lesser than the Y one.
 (defun freq< (x y)
   (declare (recur-frequence x y))
-  (let ((freqs #(:secondly :minutely :hourly :daily :weekly :monthly :yearly)))
-    (< (position x freqs) (position y freqs))))
-
-;;; Return the difference between two points in the timeline, measured in
-;;; different units.
-
-(defun seconds-between (dt1 dt2)
-  (- (seconds-from-1900 dt2)  (seconds-from-1900 dt1)))
-
-(defun minutes-between (dt1 dt2)
-  (truncate (seconds-between dt1 dt2) 60))
-
-(defun hours-between (dt1 dt2)
-  (truncate (seconds-between dt1 dt2) 3600))
-
-(defun days-between (dt1 dt2)
-  (- (day-from-1900 dt2) (day-from-1900 dt1)))
-
-(defun weeks-between (dt1 dt2)
-  (truncate (days-between dt1 dt2) 7))
-
-(defun months-between (dt1 dt2)
-  (let ((years (- (date-year dt2) (date-year dt1))))
-    (+ (* 12 years) (- (date-month dt2) (date-month dt1)))))
-
-(defun years-between (dt1 dt2)
-  (- (date-year dt2) (date-year dt1)))
-
-;;; Return the following WEEKDAY from DATETIME.
-(defun next-weekday (datetime weekday)
-  (let ((days
-         (mod (1+ (- (position weekday *weekday*)
-                     (nth-value 1 (date-day-of-week datetime))))
-              7)))
-    (date+ datetime (make-duration :days (abs days)))))
-
-;;; Return the first WEEKDAY before of DATETIME.
-(defun previous-weekday (datetime weekday)
-  (let ((days
-         (mod (1- (- (nth-value 1 (date-day-of-week datetime))
-                     (position weekday *weekday*)))
-              7)))
-    (date- datetime (make-duration :days (abs days)))))
-
-;;; Add N seconds to DATETIME.
-(defun forward-second (datetime &optional (n 1))
-  (datetime+ datetime (make-duration :seconds n)))
-
-;;; Add N minutes to DATETIME.
-(defun forward-minute (datetime &optional (n 1))
-  (datetime+ datetime (make-duration :minutes n)))
-
-;;; Add N hours to DATETIME.
-(defun forward-hour (datetime &optional (n 1))
-  (datetime+ datetime (make-duration :hours n)))
-
-;;; Add N days to DATETIME.
-(defun forward-day (datetime &optional (n 1))
-  (date+ datetime (make-duration :days n)))
-
-;;; Sub N days to DATETIME.
-(defun backward-day (datetime &optional (n 1))
-  (date- datetime (make-duration :days n)))
-
-;;; Add N days to DATETIME.
-(defun forward-week (datetime &optional (n 1))
-  (forward-day datetime (* 7 n)))
-
-;;; Sub N days to DATETIME.
-(defun backward-week (datetime &optional (n 1))
-  (forward-day datetime (* 7 (- n))))
-
-;;; Add N months to DATETIME.
-(defun forward-month (datetime &optional (n 1))
-  (let ((year (date-year datetime))
-        (month (date-month datetime)))
-    (multiple-value-bind (delta-year delta-month)
-        (truncate n 12)
-      (multiple-value-bind (delta-year* month*)
-          (truncate (+ delta-month (1- month)) 12)
-        (adjust-date datetime
-                     :month (1+ month*)
-                     :year (+ year delta-year delta-year*))))))
-
-;;; Sub N months to DATETIME.
-(defun backward-month (datetime &optional (n 1))
-  (forward-month datetime (- n)))
-
-;;; Return the the first day of the month of DT.
-(defun beginning-of-month (dt)
-  (adjust-date dt :day 1))
-
-;;; Return the last day of the month of DT.
-(defun end-of-month (dt)
-  (let* ((year (date-year dt))
-         (monthdays
-          (if (leap-year-p year)
-              #(0 31 29 31 30 31 30 31 31 30 31 30 31)
-              #(0 31 28 31 30 31 30 31 31 30 31 30 31))))
-    (adjust-date dt :day (elt monthdays (date-month dt)))))
-
-;;; Return the first day of the year of DT.
-(defun beginning-of-year (dt)
-  (adjust-date dt :day 1 :month 1))
-
-;;; Return the last day of the year of DT.
-(defun end-of-year (dt)
-  (adjust-date dt :day 31 :month 12))
-
-;;; Return M si 0 < M <= N, and M+N+1 if 0 < M.
-(defun mod* (m n)
-  (declare (integer m n))
-  (cond
-    ((and (< m 0) (<= (- m) n))
-     (1+ (+ n m)))
-    ((and (< 0 m) (<= m n)) m)
-    (t (error "~a should be a integer in [-~a,1] or [~:*~a,1]." m n))))
+  (let ((freqs '(:secondly :minutely :hourly :daily :weekly :monthly :yearly)))
+    (and (member y (member x freqs)) t)))
 
 ;;; Return the nth DAY of month in year. This handles negative days propertily .
 (defun monthday (day month year)
@@ -330,11 +210,17 @@
              #(0 31 28 31 30 31 30 31 31 30 31 30 31))))
     (mod* day (svref monthdays month))))
 
+(defun monthday-list (days month year)
+  (mapcar #'monthday days (circular month) (circular year)))
+
 ;;; Return the nth DAY in year. This handles negative days propertily.
 (defun yearday (day year)
   (if (leap-year-p year)
       (mod* day 366)
       (mod* day 365)))
+
+(defun yearday-list (days year)
+  (mapcar #'yearday days (circular year)))
 
 ;;; Iterate across the cartesian product of several lists. Each element of
 ;;; FORMS is a list of the form (variable list). LIST is evaluated and the
@@ -378,45 +264,45 @@
          ,variable)))
 
 
+(defmacro belong (list element &key key)
+  (once-only (list element key)
+    `(implyp ,list (find ,element ,list :key ,key))))
 
 ;;; Return a recur such that the omitted rules: BYSECOND, BYMINUTE, BYHOUR,
 ;;; BYMONTHDAY, BYMONTH, and BYDAY, are filled with default values taken from
 ;;; the DTSTART datetime.
 (defun %complete-recur (recur dtstart)
-  (with-recur-slots recur
-    (make-instance 'recur
-                   :freq freq
-                   :until until
-                   :count count
-                   :interval interval
-                   :bysetpos bysetpos
-                   :wkst wkst
-                   :byyearday byyearday
-                   :byweekno byweekno
-                   :bysecond
-                   (or bysecond (list (time-second dtstart)))
-                   :byminute
-                   (or byminute (and (freq< :minutely freq)
-                                     (list (time-minute dtstart))))
-                   :byhour
-                   (or byhour (and (freq< :hourly freq)
-                                   (list (time-hour dtstart))))
-                   :byday
-                   (or byday
-                       (and (or byweekno (eq freq :weekly))
-                            (list (list (date-day-of-week dtstart)))))
-                   :bymonthday
-                   (or bymonthday (and (freq< :weekly freq)
-                                       (not byday)
-                                       (not byyearday)
-                                       (not byweekno)
-                                       (list (date-day dtstart))))
-                   :bymonth
-                   (or bymonth (and (freq< :monthly freq)
-                                    (not byday)
-                                    (not byyearday)
-                                    (not byweekno)
-                                    (list (date-month dtstart)))))))
+  (decoded-universal-time
+      (:second dtsec :minute dtmin :hour dthour :date dtdate :month dtmonth)
+      dtstart
+    (with-recur-slots recur
+      (make-instance 'recur
+                     :freq freq
+                     :until until
+                     :count count
+                     :interval interval
+                     :bysetpos bysetpos
+                     :wkst wkst
+                     :byyearday byyearday
+                     :byweekno byweekno
+                     :bysecond (or bysecond (list dtsec))
+                     :byminute (or byminute (and (freq< :minutely freq) (list dtmin)))
+                     :byhour (or byhour (and (freq< :hourly freq) (list dthour)))
+                     :byday (or byday
+                                (and (or byweekno (eq freq :weekly))
+                                     (list (list (day-of-week dtstart)))))
+                     :bymonthday
+                     (or bymonthday (and (freq< :weekly freq)
+                                         (not byday)
+                                         (not byyearday)
+                                         (not byweekno)
+                                         (list dtdate)))
+                     :bymonth
+                     (or bymonth (and (freq< :monthly freq)
+                                      (not byday)
+                                      (not byyearday)
+                                      (not byweekno)
+                                      (list dtmonth)))))))
 
 ;;; Given a DATETIME and a RECUR, return a couple of values which are the
 ;;; limits of the interval which the datetime belongs to.
@@ -445,7 +331,7 @@
 
 ;;; Check if DATETIME is compatible with a byday VALUE.
 (defun byday-compatible-p (value datetime start end)
-  (let* ((day-of-week (date-day-of-week datetime))
+  (let* ((day-of-week (day-of-week datetime))
          (first-day (next-weekday start day-of-week))
          (last-day  (previous-weekday end day-of-week))
          (total-weeks (1+ (weeks-between first-day last-day))))
@@ -476,38 +362,25 @@
        (:weekly   (zerop (mod (weeks-between   start datetime) interval)))
        (:monthly  (zerop (mod (months-between  start datetime) interval)))
        (:yearly   (zerop (mod (years-between   start datetime) interval))))
-
-     (typecase until
-       (null t)
-       (datetime
-        (check-ical-type datetime datetime)
-        (datetime<= start datetime))
-       (date
-        (check-ical-type datetime date)
-        (date<= start datetime)))
-
-     (implyp bymonth
-             (find (date-month datetime) bymonth))
-     (implyp byweekno
-             (find (date-week-of-year datetime wkst) byweekno))
-     (implyp byyearday
-             (find (date-day-of-year datetime) byyearday
-                   :key (lambda (n)
-                          (yearday n (date-year datetime)))))
-     (implyp bymonthday
-             (find (date-day datetime) bymonthday
-                   :key (lambda (n)
-                          (monthday n (date-month datetime) (date-year datetime)))))
-     (implyp byday
-             (multiple-value-bind (start end)
-                 (interval-limits datetime recur)
-               (byday-compatible-p byday datetime start end)))
-     (implyp byhour
-             (find (time-hour datetime) byhour))
-     (implyp byminute
-             (find (time-minute datetime) byminute))
-     (implyp bysecond
-             (find (time-second datetime) bysecond)))))
+     ;; Before UNTIL
+     (or (null until) (<= start datetime))
+     ;; Other rules
+     (multiple-value-bind (second minute hour date month year)
+         (decode-universal-time datetime)
+       (let ((byyearday (yearday-list byyearday year))
+             (bymonthday (monthday-list bymonthday month year)))
+         (and
+          (belong byhour hour)
+          (belong byminute minute)
+          (belong bysecond second)
+          (belong bymonthday date)
+          (belong bymonth month)
+          (belong byweekno (week-of-year datetime wkst))
+          (belong byyearday (day-of-year datetime))
+          (implyp byday
+                  (multiple-value-bind (start end)
+                      (interval-limits datetime recur)
+                    (byday-compatible-p byday datetime start end)))))))))
 
 
 (defun %recur-list-instances-in-second (dt recur)
@@ -517,32 +390,24 @@
 (defun %recur-next-second (dt recur)
   (with-recur-slots recur
     (ucond (datetime (forward-second dt interval))
-      ((implyp bymonth
-               (find (date-month datetime) bymonth))
+      ((belong bymonth (date-month datetime))
        (adjust-datetime (forward-month datetime) :day 1 :hour 00 :minute 00 :second 00))
-      ((implyp byyearday
-               (find (date-day-of-year datetime) byyearday
-                     :key (lambda (yday)
-                            (yearday yday (date-year datetime)))))
+      ((belong byyearday (day-of-year datetime)
+               :key (lambda (yday) (yearday yday (date-year datetime))))
        (adjust-time (forward-day datetime) :hour 00 :minute 00 :second 00))
-      ((implyp bymonthday
-               (find (date-day datetime) bymonthday
-                     :key (lambda (mday)
-                            (let ((month (date-month datetime))
-                                  (year  (date-year datetime)))
-                              (monthday mday month year)))))
+      ((belong bymonthday (date-day datetime)
+               :key (lambda (mday)
+                      (let ((month (date-month datetime))
+                            (year  (date-year datetime)))
+                        (monthday mday month year))))
        (adjust-time (forward-day datetime) :hour 00 :minute 00 :second 00))
-      ((implyp byday
-               (find (date-day-of-week datetime) byday :key #'car))
+      ((belong byday (day-of-week datetime) :key #'car)
        (adjust-time (forward-day datetime) :hour 00 :minute 00 :second 00))
-      ((implyp byhour
-               (find (time-hour datetime) byhour))
+      ((belong byhour (time-hour datetime))
        (adjust-time (forward-hour datetime) :minute 00 :second 00))
-      ((implyp byminute
-               (find (time-minute datetime) byminute))
+      ((belong byminute (time-minute datetime))
        (adjust-time (forward-minute datetime) :second 00))
-      ((implyp bysecond
-               (find (time-second datetime) bysecond))
+      ((belong bysecond (time-second datetime))
        (forward-second datetime interval)))))
 
 (defun %recur-list-instances-in-minute (dt recur)
@@ -553,29 +418,23 @@
 (defun %recur-next-minute (dt recur)
   (with-recur-slots recur
     (ucond (datetime (forward-minute dt interval))
-      ((implyp bymonth
-               (find (date-month datetime) bymonth))
+      ((belong bymonth (date-month datetime))
        (adjust-datetime (forward-month datetime) :day 01 :hour 00 :minute 00))
-      ((implyp byyearday
-               (find (date-day-of-year datetime) byyearday
-                     :key (lambda (yday)
-                            (yearday yday (date-year datetime)))))
+      ((belong byyearday (day-of-year datetime)
+               :key (lambda (yday)
+                      (yearday yday (date-year datetime))))
        (adjust-time (forward-day datetime) :hour 00 :minute 00))
-      ((implyp bymonthday
-               (find (date-day datetime) bymonthday
-                     :key (lambda (mday)
-                            (let ((month (date-month datetime))
-                                  (year  (date-year datetime)))
-                              (monthday mday month year)))))
+      ((belong bymonthday (date-day datetime)
+               :key (lambda (mday)
+                      (let ((month (date-month datetime))
+                            (year  (date-year datetime)))
+                        (monthday mday month year))))
        (adjust-time (forward-day datetime) :hour 00 :minute 00))
-      ((implyp byday
-               (find (date-day-of-week datetime) byday :key #'car))
+      ((belong byday (day-of-week datetime) :key #'car)
        (adjust-time (forward-day datetime) :hour 00 :minute 00))
-      ((implyp byhour
-               (find (time-hour datetime) byhour))
+      ((belong byhour (time-hour datetime))
        (adjust-time (forward-hour datetime) :minute 00))
-      ((implyp byminute
-               (find (time-minute datetime) byminute))
+      ((belong byminute (time-minute datetime))
        (forward-minute datetime interval)))))
 
 (defun %recur-list-instances-in-hour (dt recur)
@@ -587,26 +446,21 @@
 (defun %recur-next-hour (dt recur)
   (with-recur-slots recur
     (ucond (datetime (forward-hour dt interval))
-      ((implyp bymonth
-               (find (date-month datetime) bymonth))
+      ((belong bymonth (date-month datetime))
        (adjust-datetime (forward-month datetime) :day 01 :hour 00))
-      ((implyp byyearday
-               (find (date-day-of-year datetime) byyearday
-                     :key (lambda (yday)
-                            (yearday yday (date-year datetime)))))
+      ((belong byyearday (day-of-year datetime)
+               :key (lambda (yday)
+                      (yearday yday (date-year datetime))))
        (adjust-time (forward-day datetime) :hour 00))
-      ((implyp bymonthday
-               (find (date-day datetime) bymonthday
-                     :key (lambda (mday)
-                            (let ((month (date-month datetime))
-                                  (year  (date-year datetime)))
-                              (monthday mday month year)))))
+      ((belong bymonthday (date-day datetime)
+               :key (lambda (mday)
+                      (let ((month (date-month datetime))
+                            (year  (date-year datetime)))
+                        (monthday mday month year))))
        (adjust-time (forward-day datetime) :hour 00))
-      ((implyp byday
-               (find (date-day-of-week datetime) byday :key #'car))
+      ((belong byday (day-of-week datetime) :key #'car)
        (adjust-time (forward-day datetime) :hour 00))
-      ((implyp byhour
-               (find (time-hour datetime) byhour))
+      ((belong byhour (time-hour datetime))
        (forward-hour datetime interval)))))
 
 (defun %recur-list-instances-in-day (dt recur)
@@ -619,18 +473,15 @@
 (defun %recur-next-day (dt recur)
   (with-recur-slots recur
     (ucond (datetime (forward-day dt interval))
-      ((implyp bymonth
-               (find (date-month datetime) bymonth))
-       (adjust-datetime (forward-month datetime) :day 01))
-      ((implyp bymonthday
-               (find (date-day datetime) bymonthday
-                     :key (lambda (mday)
-                            (let ((month (date-month datetime))
-                                  (year  (date-year datetime)))
-                              (monthday mday month year)))))
+      ((belong bymonth (date-month datetime))
+       (adjust-date (forward-month datetime) :day 01))
+      ((belong bymonthday (date-day datetime)
+               :key (lambda (mday)
+                      (let ((month (date-month datetime))
+                            (year (date-year datetime)))
+                        (monthday mday month year))))
        (forward-day datetime interval))
-      ((implyp byday
-               (find (date-day-of-week datetime) byday :key #'car))
+      ((belong byday (day-of-week datetime) :key #'car)
        (forward-day datetime interval)))))
 
 (defun %recur-list-instances-in-week (dt recur)
@@ -645,12 +496,11 @@
 (defun %recur-next-week (dt recur)
   (with-recur-slots recur
     (ucond (datetime (forward-week dt interval))
-      ((implyp bymonth
-               (find (date-month datetime) bymonth
-                     :key (lambda (m)
-                            (let ((month (date-month datetime))
-                                  (year (date-year datetime)))
-                              (monthday m month year)))))
+      ((belong bymonth (date-month datetime)
+               :key (lambda (m)
+                      (let ((month (date-month datetime))
+                            (year (date-year datetime)))
+                        (monthday m month year))))
        (forward-month datetime interval)))))
 
 
@@ -719,18 +569,13 @@
     ;; make sure some rules will be verified.
     (flet ((compatible-p (dt)
              (and
-              (implyp bymonth
-                      (find (date-month dt) bymonth))
-              (implyp byweekno
-                      (find (date-week-of-year dt (recur-wkst recur)) byweekno))
-              (implyp byyearday
-                      (find (date-day-of-year dt) byyearday
-                            :key (lambda (n)
-                                   (yearday n (date-year dt)))))
-              (implyp bymonthday
-                      (find (date-day dt) bymonthday
-                            :key (lambda (n)
-                                   (monthday n (date-month dt) (date-year dt)))))
+              (belong bymonth (date-month dt))
+              (belong byweekno (week-of-year dt (recur-wkst recur)))
+              (belong byyearday (day-of-year dt)
+                      :key (lambda (n) (yearday n (date-year dt))))
+              (belong bymonthday (date-day dt)
+                      :key (lambda (n)
+                             (monthday n (date-month dt) (date-year dt))))
               (implyp byday
                       (if bymonth
                           (let ((start (beginning-of-month dt))
@@ -750,7 +595,7 @@
                           (hour byhour)
                           (minute byminute)
                           (second bysecond))
-             (let ((dt* (make-datetime day month (date-year datetime) hour minute second)))
+             (let ((dt* (encode-universal-time second minute hour day month (date-year datetime))))
                (when (compatible-p dt*)
                  (collect dt*))))))
         ;; In this point, not BYMONTH or BYMONTHDAY rule is present. If a
@@ -807,17 +652,14 @@
 (defun filter-bysetpos (list bysetpos)
   (if (null bysetpos)
       list
-      (loop
-            with length = (length list)
+      (loop with length = (length list)
             for index from 1
             for x in list
-            when (implyp bysetpos
-                         (find index bysetpos
-                               :key (lambda (m) (mod* m length))))
+            when (belong bysetpos index :key (lambda (m) (mod* m length)))
             collect x)))
 
 (defun clean-instances (list)
-  (delete-duplicates (sort list #'datetime<) :test #'datetime=))
+  (delete-duplicates (sort list #'<)))
 
 (defun recur-iterator-new (recur datetime)
   (let ((recur (%complete-recur recur datetime)))
@@ -838,7 +680,7 @@
               (:yearly
                (%recur-list-instances-in-year datetime recur))))
            (post-instances
-            (remove-if (curry #'datetime> datetime) first-instances))
+            (remove-if (curry #'> datetime) first-instances))
            (final-instances
             (filter-bysetpos (clean-instances post-instances)
                              (recur-bysetpos recur))))
@@ -858,8 +700,8 @@
       ;; If UNTIL rule is not verified
       ((and (recur-until recur)
             (recur-iterator-instances iter)
-            (datetime< (recur-until recur)
-                       (first (recur-iterator-instances iter))))
+            (< (recur-until recur)
+               (first (recur-iterator-instances iter))))
        nil)
       ;; If there is pending instances, return and increment the counter.
       ((recur-iterator-instances iter)
@@ -928,8 +770,8 @@
           (t
            (do-recur-instances (dt recur start nil)
              (cond
-               ((datetime= dt datetime) (return t))
-               ((datetime> dt datetime) (return nil)))))))))
+               ((= dt datetime) (return t))
+               ((> dt datetime) (return nil)))))))))
 
 ;; List the instances of a bound RECUR.
 (defun recur-list-instances (start recur)

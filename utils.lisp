@@ -184,6 +184,11 @@
   `(unless (find ,item ',list :test ,test)
      (error "Not a member of the specified list")))
 
+;;; Check that the type of every element of LIST is TYPE.
+(defmacro check-type-list (list type)
+  `(dolist (x ,list)
+     (check-type x ,type)))
+
 ;;; Like `some', but it works on bound sequences
 (defun some* (predicate sequence &key (start 0) end (key #'identity))
   (do-sequence (item sequence :start start :end end)
@@ -416,5 +421,14 @@
           (declare (ignorable ,key ,value))
           (unless ,morep (return))
           ((lambda () ,@code)))))))
+
+;;; Return M si 0 < M <= N, and M+N+1 if M<0.
+(defun mod* (m n)
+  (declare (integer m n))
+  (cond
+    ((and (< m 0) (<= (- m) n))
+     (1+ (+ n m)))
+    ((and (< 0 m) (<= m n)) m)
+    (t (error "~a should be a integer in [-~a,1] or [~:*~a,1]." m n))))
 
 ;;; utils.lisp ends here
