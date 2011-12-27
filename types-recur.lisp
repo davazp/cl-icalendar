@@ -160,7 +160,7 @@
 
 ;;; Useful for debugging.
 (defprinter (obj recur)
-  (write-string (format-value obj)))
+  (write-string (format-value obj 'recur)))
 
 ;;; Check the consistency of RECUR. This function makes sure the type of
 ;;; slot's values in the recur instance are valid. This is not redundant with
@@ -214,16 +214,16 @@
   (- (seconds-from-1900 dt2)  (seconds-from-1900 dt1)))
 
 (defun minutes-between (dt1 dt2)
-  (idiv (seconds-between dt1 dt2) 60))
+  (truncate (seconds-between dt1 dt2) 60))
 
 (defun hours-between (dt1 dt2)
-  (idiv (seconds-between dt1 dt2) 3600))
+  (truncate (seconds-between dt1 dt2) 3600))
 
 (defun days-between (dt1 dt2)
   (- (day-from-1900 dt2) (day-from-1900 dt1)))
 
 (defun weeks-between (dt1 dt2)
-  (idiv (days-between dt1 dt2) 7))
+  (truncate (days-between dt1 dt2) 7))
 
 (defun months-between (dt1 dt2)
   (let ((years (- (date-year dt2) (date-year dt1))))
@@ -235,15 +235,17 @@
 ;;; Return the following WEEKDAY from DATETIME.
 (defun next-weekday (datetime weekday)
   (let ((days
-         (mod7 (1+ (- (position weekday *weekday*)
-                      (nth-value 1 (date-day-of-week datetime)))))))
+         (mod (1+ (- (position weekday *weekday*)
+                     (nth-value 1 (date-day-of-week datetime))))
+              7)))
     (date+ datetime (make-duration :days (abs days)))))
 
 ;;; Return the first WEEKDAY before of DATETIME.
 (defun previous-weekday (datetime weekday)
   (let ((days
-         (mod7 (1- (- (nth-value 1 (date-day-of-week datetime))
-                      (position weekday *weekday*))))))
+         (mod (1- (- (nth-value 1 (date-day-of-week datetime))
+                     (position weekday *weekday*)))
+              7)))
     (date- datetime (make-duration :days (abs days)))))
 
 ;;; Add N seconds to DATETIME.
@@ -467,13 +469,13 @@
      ;; DATETIME is an instance of RECUR if and only if all the following
      ;; conditions are satisfied.
      (ecase freq
-       (:secondly (divisiblep (seconds-between start datetime) interval))
-       (:minutely (divisiblep (minutes-between start datetime) interval))
-       (:hourly   (divisiblep (hours-between   start datetime) interval))
-       (:daily    (divisiblep (days-between    start datetime) interval))
-       (:weekly   (divisiblep (weeks-between   start datetime) interval))
-       (:monthly  (divisiblep (months-between  start datetime) interval))
-       (:yearly   (divisiblep (years-between   start datetime) interval)))
+       (:secondly (zerop (mod (seconds-between start datetime) interval)))
+       (:minutely (zerop (mod (minutes-between start datetime) interval)))
+       (:hourly   (zerop (mod (hours-between   start datetime) interval)))
+       (:daily    (zerop (mod (days-between    start datetime) interval)))
+       (:weekly   (zerop (mod (weeks-between   start datetime) interval)))
+       (:monthly  (zerop (mod (months-between  start datetime) interval)))
+       (:yearly   (zerop (mod (years-between   start datetime) interval))))
 
      (typecase until
        (null t)
@@ -1054,7 +1056,7 @@
       recur)))
 
 
-(defmethod format-value ((recur recur) &optional params)
+(defmethod format-value ((recur recur) (type (eql 'period)) &optional params)
   (declare (ignore params))
   (with-recur-slots recur
     (with-output-to-string (s)
@@ -1062,7 +1064,7 @@
       ;; Print optional recur slots.
       (format s "~[~;~;~:;;INTERVAL=~:*~d~]" interval)
       (format s "~@[;COUNT=~a~]" count)
-      (format s "~:[~;;UNTIL=~a~]" until (format-value until))
+      (format s "~:[~;;UNTIL=~a~]" until (format-value until 'datetime)) ;TODO: or date
       (format s "~@[;BYSECOND=~{~A~^,~}~]" bysecond)
       (format s "~@[;BYMINUTE=~{~A~^,~}~]" byminute)
       (format s "~@[;BYHOUR=~{~A~^,~}~]" byhour)

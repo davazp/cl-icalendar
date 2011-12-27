@@ -55,11 +55,11 @@
 
 (defgeneric duration-hours (duration)
   (:method ((x duration))
-    (idiv (abs (%duration-seconds x)) 3600)))
+    (truncate (abs (%duration-seconds x)) 3600)))
 
 (defgeneric duration-minutes (duration)
   (:method ((x duration))
-    (mod (abs (idiv (%duration-seconds x) 60)) 60)))
+    (mod (abs (truncate (%duration-seconds x) 60)) 60)))
 
 (defgeneric duration-seconds (duration)
   (:method ((x duration))
@@ -120,7 +120,7 @@
 
 ;;; Return a string which stand for DURSPECS in the format described
 ;;; in the RFC5545 section 3.3.6.
-(defmethod format-value ((dur duration) &optional params)
+(defmethod format-value ((dur duration) (type (eql 'duration)) &optional params)
   (declare (ignore params))
   (let ((days       (duration-days dur))
         (hours      (duration-hours dur))
@@ -135,7 +135,7 @@
               (zerop (%duration-days dur)))
          (format out "T0S"))
         ((and (zerop (%duration-seconds dur))
-              (divisiblep (%duration-days dur) 7))
+              (zerop (mod (%duration-days dur) 7)))
          (format out "~aW" (/ days 7)))
         (t
          (unless (zerop days)

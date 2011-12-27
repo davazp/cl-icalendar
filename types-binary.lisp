@@ -20,22 +20,10 @@
 
 (in-package :cl-icalendar)
 
-(defclass binary ()
-  ;; FIXME: It would be nice to use a stream indeed of an usb8 vector
-  ;; here, so we could treat with binary objects on demand, without to
-  ;; load whole file in memory. However, cl-base64 does not seem
-  ;; support encoding from streams. Indeed, we should load whole
-  ;; base64 string before decoding anyway, and we does not hope big
-  ;; files in an iCalendar file.
-  ((content
-    :initarg :content
-    :accessor binary-content)))
+(deftype binary ()
+  '(array (unsigned-byte 8)))
 
-(register-ical-value binary)
-(define-predicate-type binary)
-
-(defprinter (object binary)
-  (format t ":SIZE ~a BYTES" (length (binary-content object))))
+(register-ical-value binary :specializer (eql 'binary))
 
 (defun read-binary-from-stream (stream)
   (let ((buffer (make-array 1024 :element-type '(unsigned-byte 8)))
@@ -50,14 +38,14 @@
           do (replace content buffer :start1 index :end1 (+ index nbytes))
           finally (adjust-array content index))
     ;; Finally return a binary instance.
-    (make-instance 'binary :content content)))
+    content))
 
 (defun read-binary-from-file (pathname)
   (with-open-file (in pathname :element-type '(unsigned-byte 8))
     (read-binary-from-stream in)))
 
 (defun write-binary-to-stream (binary stream)
-  (write-sequence (binary-content binary) stream)
+  (write-sequence binary stream)
   (values))
 
 (defun write-binary-to-file (binary pathname &key if-exists)
@@ -68,21 +56,20 @@
     (write-binary-to-stream binary out)))
 
 (defun binary-length (binary)
-  (length (binary-content binary)))
+  (length binary))
 
 (progn
   ;; The binary data value must be written as a base64-encoded
   ;; sequence. Therefore, the ENCODING=BASE64 parameter should be
   ;; present. We don't check this here; indeed, we trust in the caller
   ;; (property code basically) will do the right thing.
-  (defmethod format-value ((x binary) &optional params)
-    (declare (ignore params))
-    (let ((bytes (binary-content x)))
-      (base64:usb8-array-to-base64-string bytes)))
+  (defmethod format-value (value (type (eql 'binary)) &optional params)
+    (declare (ignore params) (type binary value))
+    (base64:usb8-array-to-base64-string value))
 
   (defmethod parse-value (string (type (eql 'binary)) &optional params)
     (declare (ignore params))
-    (make-instance 'binary :content (base64:base64-string-to-usb8-array string))))
+    (base64:base64-string-to-usb8-array string)))
 
 
 ;;; types-binary.lisp

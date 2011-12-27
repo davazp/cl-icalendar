@@ -273,8 +273,16 @@
       (car x)
       x))
 
+;;; Build a circular list
+(defun circular (&rest list)
+  (let ((result (copy-list list)))
+    (nconc result result)))
+
+(defun map1 (function arg list &rest lists)
+  (apply #'mapcar function (circular arg) list lists))
 
 ;;;; Streams
+
 ;;; Read characters from STREAM until it finds a char of CHAR-BAG. If
 ;;; it finds a NON-EXPECT character, it signals an error. If an end of
 ;;; file condition is signaled and EOF-ERROR-P is nil, return nil.
@@ -354,17 +362,6 @@
     (error "~w is not an unsigned integer." string))
   (apply #'parse-integer string keyargs))
 
-;;; Integer division
-(definline idiv (a b)
-  (declare (integer a b)
-           (optimize speed))
-  (values (truncate a b)))
-
-;;; Check if N divides to M.
-(definline divisiblep (m n)
-  (declare (fixnum m n) (optimize speed))
-  (zerop (mod m n)))
-
 ;;; Set PLACE to zero.
 ;;; This function is thought to use this function as default-value in
 ;;; optional or keyword arguments.
@@ -388,12 +385,6 @@
 (defmacro /debug (&body code)
   `(progn
      ,@(loop for form in code collect `(/debug1 ,form))))
-
-
-(definline mod7 (n)
-  (declare (optimize speed))
-  (declare (fixnum n))
-  (mod n 7))
 
 (defmacro implyp (p q)
   `(if ,p

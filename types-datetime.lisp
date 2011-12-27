@@ -218,7 +218,7 @@
 
 ;;; Parser
 
-(defmethod format-value ((dt datetime) &optional params)
+(defmethod format-value ((dt datetime) (type (eql 'datetime)) &optional params)
   (declare (ignore params))
   (format nil "~4,'0d~2,'0d~2,'0dT~2,'0d~2,'0d~2,'0d"
           (date-year dt)

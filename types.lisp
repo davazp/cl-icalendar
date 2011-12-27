@@ -31,7 +31,7 @@
 
 (deftype ical-value ()
   '(or boolean integer float text binary uri geo cal-address utc-offset
-    date time datetime duration period recur x-ical-value unknown-value))
+    date time datetime duration period recur x-ical-value))
 
 ;;; Like `check-type' but it signals an error with %parse-error.
 (defmacro check-ical-type (place type)
@@ -41,9 +41,8 @@
          (%parse-error "The ~a is not a ~a type." ',place ',type)))))
 
 ;;; Generic functions
-(defgeneric format-value (value &optional params))
+(defgeneric format-value (value type &optional params))
 (defgeneric parse-value (value type &optional params))
-(defgeneric value-typeof (value))
 
 ;;; Multiple-value versions
 
@@ -65,9 +64,9 @@
           collect (parse-value sub type params)
           while end)))
 
-(defun format-values (objects &optional params)
+(defun format-values (objects type &optional params)
   (flet ((format-value* (x) (format-value x params)))
-    (join-strings (mapcar #'format-value* objects) #\,)))
+    (join-strings (map1 #'format-value* type objects) #\,)))
 
 
 ;;; Wrapper for both standard as user-defined format-value and
@@ -79,7 +78,7 @@
 ;;; so. Otherwise it should be a method for BINARY data type.
 ;;; -- DVP
 
-(defmethod format-value :around (object &optional params)
+(defmethod format-value :around (object type &optional params)
   (let ((encoding (or (parameter :encoding params) "8BIT")))
     (cond
       ((string-ci= encoding "BASE64")
@@ -113,30 +112,25 @@
 (register-ical-value boolean :specializer (eql 'nil))
 (define-predicate-type boolean)
 
-(defmethod format-value ((bool (eql 't)) &optional params)
+(defmethod format-value (value (type (eql 'boolean)) &optional params)
   (declare (ignore params))
-  "TRUE")
-
-(defmethod format-value ((bool (eql 'nil)) &optional params)
-  (declare (ignore params))
-  "FALSE")
+  (if value "TRUE" "FALSE"))
 
 (defmethod parse-value (string (type (eql 'boolean)) &optional params)
   (declare (ignore params))
   (cond
     ((string-ci= string "TRUE")  t)
     ((string-ci= string "FALSE") nil)
-    (t
-     (%parse-error "~a is not a boolean data type." string))))
+    (t (%parse-error "~a is not a boolean data type." string))))
 
 
 ;;;; Integer
 
 (register-ical-value integer)
 
-(defmethod format-value ((n integer) &optional params)
+(defmethod format-value (n (type (eql 'integer)) &optional params)
   (declare (ignore params))
-  (format nil "~a" n))
+  (format nil "~d" n))
 
 (defmethod parse-value (string (type (eql 'integer)) &optional params)
   (declare (ignore params))
@@ -147,9 +141,9 @@
 
 (register-ical-value float)
 
-(defmethod format-value ((x float) &optional params)
+(defmethod format-value (value (type (eql 'float)) &optional params)
   (declare (ignore params))
-  (format nil "~f" x))
+  (format nil "~f" value))
 
 (defmethod parse-value (string (type (eql 'float)) &optional params)
   (declare (ignore params))
@@ -164,49 +158,33 @@
         (#\-
          (setf sign -1)
          (read-char in)))
-
       ;; Read integer part
       (let ((istring (read-until in (complement #'digit-char-p) nil nil)))
         (setf x (parse-integer istring)))
-
       ;; Read fractinal part (if any)
       (let ((dot (read-char in nil)))
         (unless (null dot)
           (unless (char= dot #\.)
             (%parse-error "Bad formed float."))
-
           (let ((fstring (read-until in (complement #'digit-char-p) nil nil)))
             (setf y (/ (float (parse-integer fstring))
                        (expt 10 (length fstring))))))))
-
     (* sign (+ x y))))
 
 
 ;;;; URI
 
-(defclass uri ()
-  ((uri
-    :type string
-    :initarg :uri
-    :reader uri)))
+(deftype uri () 'string)
 
-(register-ical-value uri)
-(define-predicate-type uri)
+(register-ical-value uri :specializer (eql 'uri))
 
-(defun make-uri (uri)
-  (declare (string uri))
-  (make-instance 'uri :uri uri))
-
-(defprinter (x uri)
-  (write-string (uri x)))
-
-(defmethod format-value ((x uri) &optional params)
+(defmethod format-value (value (type (eql 'uri)) &optional params)
   (declare (ignore params))
-  (uri x))
+  value)
 
 (defmethod parse-value (string (type (eql 'uri)) &optional params)
   (declare (ignore params))
-  (make-instance 'uri :uri string))
+  string)
 
 
 ;;;; Geo
@@ -230,7 +208,7 @@
 (defprinter (x geo)
   (format t "~d;~d" (latitude x) (longitude x)))
 
-(defmethod format-value ((x geo) &optional params)
+(defmethod format-value ((x geo) (type (eql 'geo)) &optional params)
   (declare (ignore params))
   (format nil "~d;~d" (latitude x) (longitude x)))
 
@@ -245,45 +223,35 @@
 
 ;;;; Cal-address
 
-(defclass cal-address (uri)
-  nil)
+(deftype cal-address ()
+  'string)
 
-(register-ical-value cal-address)
-(define-predicate-type cal-address)
+(register-ical-value cal-address :specializer (eql 'cal-address))
 
-(defun make-cal-address (uri)
-  (declare (string uri))
-  (make-instance 'cal-address :uri uri))
+(defmethod format-value (string (type (eql 'cal-address)) &optional params)
+  (declare (ignore params))
+  string)
 
 (defmethod parse-value (string (type (eql 'cal-address)) &optional params)
   (declare (ignore params))
-  (make-instance 'cal-address :uri string))
+  string)
 
 
 
 ;;; Unknown type. This is a pseudo-type. This is used to keep the
 ;;; value of non-defined property' values.
-(defclass unknown-value ()
-  ((string
-    :initarg :string
-    :type string
-    :reader unknown-value-string)))
 
-(define-predicate-type unknown-value unknown-value-p)
-
-(defun make-unknown-value (str)
-  (declare (string str))
-  (make-instance 'unknown-value :string str))
-
-(defmethod format-value ((x unknown-value) &optional params)
+(defmethod format-value (string (type (eql 'nil-value)) &optional params)
   (declare (ignore params))
-  (unknown-value-string x))
+  string)
 
-(defprinter (x unknown-value)
-  (prin1 (unknown-value-string x)))
+(defmethod parse-value (string (type (eql 'nil)) &optional params)
+  (declare (ignore params))
+  string)
 
 ;; User-defined iCalendar data types
 (defclass x-ical-value ()
   nil)
+
 
 ;;; types.lisp ends here

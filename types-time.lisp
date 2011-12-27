@@ -135,7 +135,7 @@
                (or minute (time-minute time))
                (or second (time-second time)))))
 
-(defmethod format-value ((time time) &optional params)
+(defmethod format-value ((time time) (type (eql 'time)) &optional params)
   (declare (ignore params))
   (format nil "~2,'0d~2,'0d~2,'0d"
           (time-hour   time)

@@ -31,11 +31,11 @@
 
 (defgeneric utc-offset-hour (utc-offset)
   (:method ((x utc-offset))
-    (abs (idiv (%utc-offset x) 3600))))
+    (abs (truncate (%utc-offset x) 3600))))
 
 (defgeneric utc-offset-minute (utc-offset)
   (:method ((x utc-offset))
-    (mod (idiv (%utc-offset x) 60) 60)))
+    (mod (truncate (%utc-offset x) 60) 60)))
 
 (defgeneric utc-offset-second (utc-offset)
   (:method ((x utc-offset))
@@ -46,9 +46,9 @@
     (< (%utc-offset x) 0)))
 
 (defprinter (x utc-offset)
-  (write-string (format-value x)))
+  (write-string (format-value x 'utc-offset)))
 
-(defmethod format-value ((x utc-offset) &optional params)
+(defmethod format-value ((x utc-offset) (type (eql 'utc-offset)) &optional params)
   (declare (ignore params))
   (format nil "~:[+~;-~]~2,'0d~2,'0d~@[~2,'0d~]"
           (utc-offset-negative-p x)

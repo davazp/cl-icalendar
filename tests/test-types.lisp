@@ -48,8 +48,8 @@
 
 (test format-value-boolean-001
   "Format some boolean values."
-  (is (string= (format-value t)   "TRUE"))
-  (is (string= (format-value nil) "FALSE")))
+  (is (string= (format-value t 'boolean)   "TRUE"))
+  (is (string= (format-value nil 'boolean) "FALSE")))
 
 
 ;;; Integer data type
@@ -69,10 +69,10 @@
 
 (test format-value-integer-001
   "Format some integer values."
-  (is (string= (format-value 2)  "2"))
-  (is (string= (format-value 3)  "3"))
-  (is (string= (format-value -3) "-3"))
-  (is (string= (format-value 0)  "0")))
+  (is (string= (format-value 2 'integer)  "2"))
+  (is (string= (format-value 3 'integer)  "3"))
+  (is (string= (format-value -3 'integer) "-3"))
+  (is (string= (format-value 0 'integer)  "0")))
 
 
 ;;; Float data type
@@ -91,9 +91,9 @@
 
 (test format-value-float-001
   "Format some integer values."
-  (is (string= (format-value 2.0) "2.0"))
-  (is (string= (format-value 3.1) "3.1"))
-  (is (string= (format-value -3)  "-3")))
+  (is (string= (format-value 2.0 'float) "2.0"))
+  (is (string= (format-value 3.1 'float) "3.1"))
+  (is (string= (format-value -3  'float) "-3.0")))
 
 ;;; Binary data type
 
@@ -107,7 +107,7 @@
 
 (test format-value-binary-001
   "Format binary values."
-  (is (string= (format-value (read-binary-from-file "tests/test-types.001"))
+  (is (string= (format-value (read-binary-from-file "tests/test-types.001") 'binary)
                "TG9yZW0gaXBzdW0gZG9sb3Igc2l0IGFtZXQsIGNvbnNlY3RldHVyIGFkaXBpc2ljaW5nIGVsaXQsIHNlZCBkbyBlaXVzbW9kIHRlbXBvciBpbmNpZGlkdW50IHV0IGxhYm9yZSBldCBkb2xvcmUgbWFnbmEgYWxpcXVhLiBVdCBlbmltIGFkIG1pbmltIHZlbmlhbSwgcXVpcyBub3N0cnVkIGV4ZXJjaXRhdGlvbiB1bGxhbWNvIGxhYm9yaXMgbmlzaSB1dCBhbGlxdWlwIGV4IGVhIGNvbW1vZG8gY29uc2VxdWF0LiBEdWlzIGF1dGUgaXJ1cmUgZG9sb3IgaW4gcmVwcmVoZW5kZXJpdCBpbiB2b2x1cHRhdGUgdmVsaXQgZXNzZSBjaWxsdW0gZG9sb3JlIGV1IGZ1Z2lhdCBudWxsYSBwYXJpYXR1ci4gRXhjZXB0ZXVyIHNpbnQgb2NjYWVjYXQgY3VwaWRhdGF0IG5vbiBwcm9pZGVudCwgc3VudCBpbiBjdWxwYSBxdWkgb2ZmaWNpYSBkZXNlcnVudCBtb2xsaXQgYW5pbSBpZCBlc3QgbGFib3J1bS4=")))
 
 ;;; Period type
@@ -118,16 +118,6 @@
 (test parse-value-period-002
   (is (periodp (parse-value "19970101T180000Z/19970102T070000Z" 'period))))
 
-
-;;; Disjoint types
-(test disjoint-types-001
-  "Test every cl-icalendar types are disjoint."
-  (let ((types '(boolean integer float text binary uri geo cal-address utc-offset
-                 date time datetime duration period recur x-ical-value)))
-    (dolist (type1 types)
-      (dolist (type2 types)
-        (unless (eq type1 type2)
-          (is-false (subtypep type1 type2)))))))
 
 ;;; test-types.lisp ends here
 

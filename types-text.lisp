@@ -25,7 +25,7 @@
 (register-ical-value text :specializer string)
 (define-predicate-type text)
 
-(defmethod format-value ((text string) &optional params)
+(defmethod format-value ((text string) (type (eql 'text)) &optional params)
   (declare (ignore params))
   (with-input-from-string (in text)
     (with-output-to-string (out)
@@ -54,15 +54,14 @@
     (with-input-from-string (in string)
       (with-output-to-string (out)
         (loop for ch = (read-char in nil)
-              while ch
-              do
-           (write-char (if (char/= ch #\\)
-                           ch
-                           (let ((ch (read-char in nil)))
-                             (case ch
-                               (#\N #\newline)
-                               (#\n #\newline)
-                               (otherwise ch))))
-                 out))))))
+              while ch do
+                 (write-char (if (char/= ch #\\)
+                                 ch
+                                 (let ((ch (read-char in nil)))
+                                   (case ch
+                                     (#\N #\newline)
+                                     (#\n #\newline)
+                                     (otherwise ch))))
+                             out))))))
 
 ;;; types-text.lisp ends here

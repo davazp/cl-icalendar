@@ -71,13 +71,17 @@
     (write-string " -- ")
     (write-datetime (period-end x))))
 
-(defmethod format-value ((p period-explicit) &optional params)
+(defmethod format-value ((p period-explicit) (type (eql 'period)) &optional params)
   (declare (ignore params))
-  (concat (format-value (period-start p)) "/" (format-value (period-end p))))
+  (concat (format-value (period-start p) 'datetime)
+          "/"
+          (format-value (period-end p) 'datetime)))
 
-(defmethod format-value ((p period-start) &optional params)
+(defmethod format-value ((p period-start) (type (eql 'period)) &optional params)
   (declare (ignore params))
-  (concat (format-value (period-start p)) "/" (format-value (period-duration p))))
+  (concat (format-value (period-start p) 'datetime)
+          "/"
+          (format-value (period-duration p) 'duration)))
 
 (defmethod parse-value (string (type (eql 'period)) &optional params)
   (declare (ignore params))

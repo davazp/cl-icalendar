@@ -62,10 +62,10 @@
      (leap-years-before start)))
 
 (defun leap-year-p (year)
-  (declare (optimize speed) (year year))
-  (and (divisiblep year 4)
-       (or (not (divisiblep year 100))
-           (divisiblep year 400))))
+  (declare (year year))
+  (and (zerop (mod year 4))
+       (or (not (zerop (mod year 100)))
+           (zerop (mod year 400)))))
 
 (defun day-from-new-year (day month year)
   (declare (day day) (month month) (year year))
@@ -120,9 +120,9 @@
   (declare (weekday wkst))
   ;; Note 1 of January of 1900 was Monday.
   (let* ((nwkst (position wkst *weekday*))
-         (nday (mod7 (day-from-1900 x)))
-         (day (svref *weekday* (mod7 (1- nday)))))
-    (values day (1+ (mod7 (- nday nwkst 1))))))
+         (nday (mod (day-from-1900 x) 7))
+         (day (svref *weekday* (mod (1- nday) 7))))
+    (values day (1+ (mod (- nday nwkst 1) 7)))))
 
 ;;; Begins in 1
 (defun date-day-of-year (x)
@@ -136,11 +136,11 @@
       (%decode-date dt)
     (let* ((yearday (day-from-new-year day month year))
            (weekday (nth-value 1 (date-day-of-week dt wkst)))
-           (offset (mod7 (1+ (- weekday yearday))))
+           (offset (mod (1+ (- weekday yearday)) 7))
            (first (if (<= offset 3)
                       1
                       (- 9 offset))))
-      (idiv (+ (- yearday first) 7) 7))))
+      (truncate (+ (- yearday first) 7) 7))))
 
 (define-transitive-relation date= (x y)
   (= (day-from-1900 x) (day-from-1900 y)))
@@ -183,7 +183,7 @@
 
 ;;; Parse
 
-(defmethod format-value ((date date) &optional params)
+(defmethod format-value ((date date) (type (eql 'date)) &optional params)
   (declare (ignore params))
   (multiple-value-bind (day month year)
       (%decode-date date)
