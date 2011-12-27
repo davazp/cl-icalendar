@@ -23,7 +23,7 @@
 (deftype binary ()
   '(array (unsigned-byte 8)))
 
-(register-ical-value binary :specializer (eql 'binary))
+(register-ical-value binary)
 
 (defun read-binary-from-stream (stream)
   (let ((buffer (make-array 1024 :element-type '(unsigned-byte 8)))

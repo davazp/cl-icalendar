@@ -98,18 +98,14 @@
 
 
 ;;; Register a iCalendar data type in the standard vendor.
-(defmacro register-ical-value (symbol &key (name (string symbol)) (specializer symbol))
+(defmacro register-ical-value (symbol &key (name (string symbol)))
   (check-type symbol symbol)
   (check-type name string)
-  `(progn
-     (setf (translate ,name :type) ',symbol)
-     (defmethod value-typeof ((data ,specializer))
-       ,name)))
+  `(setf (translate ,name :type) ',symbol))
 
 ;;;; Boolean
 
-(register-ical-value boolean :specializer (eql 't))
-(register-ical-value boolean :specializer (eql 'nil))
+(register-ical-value boolean)
 (define-predicate-type boolean)
 
 (defmethod format-value (value (type (eql 'boolean)) &optional params)
@@ -175,8 +171,7 @@
 ;;;; URI
 
 (deftype uri () 'string)
-
-(register-ical-value uri :specializer (eql 'uri))
+(register-ical-value uri)
 
 (defmethod format-value (value (type (eql 'uri)) &optional params)
   (declare (ignore params))
@@ -226,7 +221,7 @@
 (deftype cal-address ()
   'string)
 
-(register-ical-value cal-address :specializer (eql 'cal-address))
+(register-ical-value cal-address)
 
 (defmethod format-value (string (type (eql 'cal-address)) &optional params)
   (declare (ignore params))
