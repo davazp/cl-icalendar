@@ -174,7 +174,7 @@
                      ((digit-char-p ch)
                       (values
                         (parse-integer
-                         (read-until in (complement #'digit-char-p) "" nil))))
+                         (parse in (complement #'digit-char-p) "" nil))))
                      (t
                       (read-char in)))))
                ;; Return the following token, then upgrade the

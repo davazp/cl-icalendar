@@ -23,9 +23,9 @@
 (defun read-params-value (stream)
   (if (char= (peek-char nil stream) #\")
       (prog2 (read-char stream)
-          (read-until stream "#\"" #\newline)
+          (parse stream "#\"" #\newline)
         (read-char stream))
-      (read-until stream ",;:" #\Newline)))
+      (parse stream ",;:" #\Newline)))
 
 (defun read-params-values (stream)
   (cons (read-params-value stream)
@@ -38,7 +38,7 @@
   (let ((plist nil)
         (count 0))
     (while (char= (read-char stream) #\;)
-      (let ((name (read-until stream "=" (coerce #(#\Newline #\: #\;) 'string))))
+      (let ((name (parse stream "=" (coerce #(#\Newline #\: #\;) 'string))))
         (read-char stream)
         (push (read-params-values stream) plist)
         (push name plist)
@@ -54,7 +54,7 @@
                   (char= ch #\space)
                   (char= ch #\tab))
         do (read-char stream))
-  (values (read-until stream ";:" #\Newline)
+  (values (parse stream ";:" #\Newline)
           (read-params stream)
           (read-line stream)))
 
@@ -76,7 +76,7 @@
 
 (defun write-content-line (name params value stream)
   (declare (stream stream))
-  (format stream "~a~{;~a=~{~a~^,~}~}:~a~%" 
+  (format stream "~a~{;~a=~{~a~^,~}~}:~a~%"
           name
           (loop for (param values)
                 on (list-parameters (parameter-table params)) by #'cddr

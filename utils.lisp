@@ -286,7 +286,7 @@
 ;;; Read characters from STREAM until it finds a char of CHAR-BAG. If
 ;;; it finds a NON-EXPECT character, it signals an error. If an end of
 ;;; file condition is signaled and EOF-ERROR-P is nil, return nil.
-(defun read-until (stream char-bag &optional (not-expect "") (eof-error-p t))
+(defun parse (stream char-bag &optional (not-expect "") (eof-error-p t))
   (flet (;; Check if CH is a terminal char
          (terminal-char-p (ch)
            (etypecase char-bag
