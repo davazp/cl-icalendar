@@ -45,18 +45,14 @@
 (deftype non-zero-integer (a b)
   `(and (integer ,a ,b) (not (eql 0))))
 
-(deftype recur-frequence ()
-  '(member :secondly :minutely :hourly :daily :weekly :monthly :yearly))
+(defvar *frequencies*
+  '(:secondly :minutely :hourly :daily :weekly :monthly :yearly))
+
+(deftype recur-frequence () `(member ,@*frequencies*))
 
 ;;; Alist of frequency strings and values.
 (defvar *frequency-table*
-  '(("SECONDLY" . :secondly)
-    ("MINUTELY" . :minutely)
-    ("HOURLY"   . :hourly)
-    ("DAILY"    . :daily)
-    ("WEEKLY"   . :weekly)
-    ("MONTHLY"  . :monthly)
-    ("YEARLY"   . :yearly)))
+  (mapcar (lambda (s) (cons (string s) s)) *frequencies*))
 
 ;;; The recur data type value is documented in the section 3.3.10,
 ;;; named `Recurrence Rule' of RFC5545.
@@ -199,8 +195,7 @@
 ;;; Check if the frequence X is lesser than the Y one.
 (defun freq< (x y)
   (declare (recur-frequence x y))
-  (let ((freqs '(:secondly :minutely :hourly :daily :weekly :monthly :yearly)))
-    (and (member y (member x freqs)) t)))
+  (member< x y *frequencies*))
 
 ;;; Return the nth DAY of month in year. This handles negative days propertily .
 (defun monthday (day month year)
@@ -234,9 +229,9 @@
            (do-cartesian ,others
              ,@code)))))
 
-;;; The ucond macro implements a new control form. The syntax is:
+;;; The until-satisfy-conditions macro implements a new control form. The syntax is:
 ;;;
-;;;    (ucond (variable initial-form)
+;;;    (until-satisfy-conditions (variable initial-form)
 ;;;      (condition1
 ;;;        ...body1...)
 ;;;      (condition2
@@ -249,7 +244,7 @@
 ;;; loop modifying the variable to the returned value by the last expression
 ;;; in that body. If all conditions are verified, the loop finishes and return
 ;;; the current value of VARIABLE.
-(defmacro ucond ((variable value) &body code)
+(defmacro until-satisfy-conditions ((variable value) &body code)
   (with-gensyms (initial)
     (check-type variable symbol)
     `(let ((,variable ,value))
@@ -390,7 +385,7 @@
 
 (defun %recur-next-second (dt recur)
   (with-recur-slots recur
-    (ucond (datetime (forward-second dt interval))
+    (until-satisfy-conditions (datetime (forward-second dt interval))
       ((belong bymonth (date-month datetime))
        (adjust-datetime (forward-month datetime) :day 1 :hour 00 :minute 00 :second 00))
       ((belong byyearday (day-of-year datetime)
@@ -418,7 +413,7 @@
 
 (defun %recur-next-minute (dt recur)
   (with-recur-slots recur
-    (ucond (datetime (forward-minute dt interval))
+    (until-satisfy-conditions (datetime (forward-minute dt interval))
       ((belong bymonth (date-month datetime))
        (adjust-datetime (forward-month datetime) :day 01 :hour 00 :minute 00))
       ((belong byyearday (day-of-year datetime)
@@ -446,7 +441,7 @@
 
 (defun %recur-next-hour (dt recur)
   (with-recur-slots recur
-    (ucond (datetime (forward-hour dt interval))
+    (until-satisfy-conditions (datetime (forward-hour dt interval))
       ((belong bymonth (date-month datetime))
        (adjust-datetime (forward-month datetime) :day 01 :hour 00))
       ((belong byyearday (day-of-year datetime)
@@ -473,7 +468,7 @@
 
 (defun %recur-next-day (dt recur)
   (with-recur-slots recur
-    (ucond (datetime (forward-day dt interval))
+    (until-satisfy-conditions (datetime (forward-day dt interval))
       ((belong bymonth (date-month datetime))
        (adjust-date (forward-month datetime) :day 01))
       ((belong bymonthday (date-day datetime)
@@ -496,7 +491,7 @@
 
 (defun %recur-next-week (dt recur)
   (with-recur-slots recur
-    (ucond (datetime (forward-week dt interval))
+    (until-satisfy-conditions (datetime (forward-week dt interval))
       ((belong bymonth (date-month datetime)
                :key (lambda (m)
                       (let ((month (date-month datetime))

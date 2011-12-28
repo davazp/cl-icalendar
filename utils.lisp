@@ -248,7 +248,7 @@
       (setf (cdr tail) (cons (car l) nil))
       (setf tail (cdr tail)))))
 
-;;; delete-nth is as remove-nth but it could modify the list.
+;;; delete-nth is like remove-nth but it could modify the list.
 ;;;
 ;;; NOTE: if you want delete the nth element of the value of a
 ;;; variable V, you should use '(setf v (delete-nth n v))', indeed of
@@ -283,8 +283,16 @@
   (let ((result (copy-list list)))
     (nconc result result)))
 
+;;; Map the function arg with the first argument fixed to ARG across
+;;; the elements in LIST and LISTS like mapcar.
 (defun map1 (function arg list &rest lists)
   (apply #'mapcar function (circular arg) list lists))
+
+;;; Check if X appears before than Y in LIST.
+(defun member< (x y list &rest args &key &allow-other-keys )
+  (let ((sublist (apply #'member x list args)))
+    (and (apply #'member y (cdr sublist) args) t)))
+
 
 ;;;; Streams
 
