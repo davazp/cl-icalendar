@@ -233,10 +233,9 @@
 
 
 
-;;; Unknown type. This is a pseudo-type. This is used to keep the
-;;; value of non-defined property' values.
+;;; Format-value and parse-value methods for unknown data types.
 
-(defmethod format-value (string (type (eql 'nil-value)) &optional params)
+(defmethod format-value (string (type (eql 'nil)) &optional params)
   (declare (ignore params))
   string)
 
