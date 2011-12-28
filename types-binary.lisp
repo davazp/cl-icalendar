@@ -34,7 +34,7 @@
           for nbytes = (read-sequence buffer stream)
           until (zerop nbytes)
           when (< (- (array-dimension content 0) index) nbytes)
-            do (adjust-array content (* 2 (array-dimension content 0)))
+          do (adjust-array content (* 2 (array-dimension content 0)))
           do (replace content buffer :start1 index :end1 (+ index nbytes))
           finally (adjust-array content index))
     ;; Finally return a binary instance.
