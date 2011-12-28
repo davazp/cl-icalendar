@@ -32,51 +32,11 @@
            ;; Data types
            #:ical-value
            #:x-ical-value
-           #:uri
            #:utc-offset
            #:format-value
+           #:format-values
            #:parse-value
-           ;; Boolean
-           #:booleanp
-           ;; Text
-           #:text
-           #:textp
-           #:text
-           #:text-language
-           #:make-text
-           ;; Datetime
-           #:make-datetime
-           #:datetimep
-           #:datetime=
-           #:datetime<
-           #:datetime<=
-           #:datetime>
-           #:datetime>=
-           #:datetime+
-           #:datetime-
-           ;; Date
-           #:make-date
-           #:datep
-           #:date=
-           #:date<
-           #:date<=
-           #:date>
-           #:date>=
-           #:date+
-           #:date-
-           #:date-day-of-week
-           #:date-day-of-year
-           #:date-week-of-year
-           ;; Time
-           #:make-time
-           #:timep
-           #:time=
-           #:time<
-           #:time<=
-           #:time>
-           #:time>=
-           #:time+
-           #:time-
+           #:parse-values
            ;; Duration
            #:make-duration
            #:duration
@@ -95,27 +55,8 @@
            #:read-binary-from-file
            #:write-binary-to-stream
            #:write-binary-to-file
-           #:binary-length
            ;; Recur
            #:recur
-           #:recur-instance-p
-           ;; Components
-           #:open-vcalendar
-           #:save-vcalendar
-           #:read-vcalendar
-           #:write-vcalendar
-           #:component-name
-           #:component-subcomponents
-           #:do-subcomponents
-           #:do-property
-           #:vcalendar
-           #:vevent
-           #:vtodo
-           #:vjournal
-           #:vfreebusy
-           #:valarm
-           #:vdaylight
-           #:vstandard
-           #:vtimezone))
+           #:recur-instance-p))
 
 ;;; package.lisp ends here
