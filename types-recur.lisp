@@ -315,8 +315,8 @@
      (values (adjust-time datetime :hour 00 :minute 00 :second 00)
              (adjust-time datetime :hour 23 :minute 59 :second 59)))
     (:weekly
-     (values (previous-weekday datetime (recur-wkst recur))
-             (next-weekday datetime (recur-wkst recur))))
+     (values (previous-weekday (date+ datetime 1) (recur-wkst recur))
+             (date+ (next-weekday datetime (recur-wkst recur)) -1)))
     (:monthly
      (values (beginning-of-month datetime)
              (end-of-month datetime)))
