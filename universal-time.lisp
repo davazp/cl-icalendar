@@ -115,16 +115,22 @@
   (decoded-universal-time (:date day :month month :year year) universal-time
     (day-from-new-year day month year)))
 
-(defun week-of-year (universal-time &optional (wkst :monday))
+
+(defun nearest-weekday (universal-time wkst)
+  (if (< 3 (second-value (day-of-week universal-time wkst)))
+      (next-weekday universal-time wkst)
+      (previous-weekday (date+ universal-time 1) wkst)))
+
+(defun week-of-year (ut &optional (wkst :monday))
   (declare (weekday wkst))
-  (decoded-universal-time (:date day :month month :year year) universal-time
-    (let* ((yearday (day-from-new-year day month year))
-           (weekday (second-value (day-of-week universal-time wkst)))
-           (offset (mod (1+ (- weekday yearday)) 7))
-           (first (if (<= offset 3)
-                      1
-                      (- 9 offset))))
-      (truncate (+ (- yearday first) 7) 7))))
+  (let ((1jan (beginning-of-year ut)))
+    (cond
+      ((>= ut (nearest-weekday (forward-year 1jan) wkst))
+       (setq 1jan (forward-year 1jan)))
+      ((< ut (nearest-weekday 1jan wkst))
+       (setq 1jan (backward-year 1jan))))
+    (values(1+ (weeks-between (nearest-weekday 1jan wkst) ut))
+           (date-year 1jan))))
 
 
 ;;; Components upgrading
@@ -234,7 +240,7 @@
 (defun forward-day (ut &optional (n 1))
   (date+ ut n))
 
-;;; Sub N days to UT.
+;;; Subtract N days to UT.
 (defun backward-day (ut &optional (n 1))
   (forward-day ut (- n)))
 
@@ -242,7 +248,7 @@
 (defun forward-week (ut &optional (n 1))
   (forward-day ut (* 7 n)))
 
-;;; Sub N days to UT.
+;;; Subtract N days to UT.
 (defun backward-week (ut &optional (n 1))
   (forward-week ut (- n)))
 
@@ -257,9 +263,18 @@
                      :month (1+ month*)
                      :year (+ year delta-year delta-year*))))))
 
-;;; Sub N months to UT.
+;;; Subtract N months to UT.
 (defun backward-month (ut &optional (n 1))
   (forward-month ut (- n)))
+
+;;; Add N years to UT.
+(defun forward-year (ut &optional (n 1))
+  (adjust-date ut :year (+ (date-year ut) n)))
+
+;;; Subtract N years to UT.
+(defun backward-year (ut &optional (n 1))
+  (forward-year ut (- n)))
+
 
 ;;; Return the the first day of the month of UT.
 (defun beginning-of-month (ut)
