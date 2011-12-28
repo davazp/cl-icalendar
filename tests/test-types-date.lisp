@@ -21,15 +21,15 @@
 
 (in-suite icalendar-types)
 
-(test date-week-of-year-001
-  (is (= (week-of-year (encode-date 01 1 2010)) 0))
-  (is (= (week-of-year (encode-date 02 1 2010)) 0))
-  (is (= (week-of-year (encode-date 03 1 2010)) 0))
-  (is (= (week-of-year (encode-date 04 1 2010)) 1))
-  (is (= (week-of-year (encode-date 10 1 2010)) 1))
-  (is (= (week-of-year (encode-date 11 1 2010)) 2))
-  (is (= (week-of-year (encode-date 01 1 2013) :tuesday) 1))
-  (is (= (week-of-year (encode-date 07 1 2013) :tuesday) 1))
-  (is (= (week-of-year (encode-date 09 1 2013) :tuesday) 2)))
+(test week-of-year-001
+  (is (= (ical::week-of-year (ical::encode-date 01 1 2010)) 53))
+  (is (= (ical::week-of-year (ical::encode-date 02 1 2010)) 53))
+  (is (= (ical::week-of-year (ical::encode-date 03 1 2010)) 53))
+  (is (= (ical::week-of-year (ical::encode-date 04 1 2010)) 1))
+  (is (= (ical::week-of-year (ical::encode-date 10 1 2010)) 1))
+  (is (= (ical::week-of-year (ical::encode-date 11 1 2010)) 2))
+  (is (= (ical::week-of-year (ical::encode-date 01 1 2013) :tuesday) 1))
+  (is (= (ical::week-of-year (ical::encode-date 07 1 2013) :tuesday) 1))
+  (is (= (ical::week-of-year (ical::encode-date 09 1 2013) :tuesday) 2)))
 
 ;;; test-types.lisp ends here
