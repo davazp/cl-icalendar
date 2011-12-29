@@ -45,8 +45,9 @@
 (deftype non-zero-integer (a b)
   `(and (integer ,a ,b) (not (eql 0))))
 
-(defvar *frequencies*
-  '(:secondly :minutely :hourly :daily :weekly :monthly :yearly))
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (defvar *frequencies*
+    '(:secondly :minutely :hourly :daily :weekly :monthly :yearly)))
 
 (deftype recur-frequence () `(member ,@*frequencies*))
 
