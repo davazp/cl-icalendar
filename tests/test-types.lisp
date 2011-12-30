@@ -23,13 +23,6 @@
 
 ;;; Boolean data type
 
-(test booleanp-001
-  "Check membership to boolean data type."
-  (is (booleanp t))
-  (is (booleanp nil))
-  (is (not (booleanp 3)))
-  (is (not (booleanp "true"))))
-
 (test parse-value-boolean-001
   "Parse some boolean values."
   (is (parse-value "true" 'boolean))
