@@ -38,9 +38,7 @@
 			 (list `(,(first i) (gensym ,(second i))))))
      ,@code))
 
-;;; The famous macro once-only macro.
-;;; FIXME: How ugly is! Write a more beautiful implementation. This would be both
-;;; more verbose, and clearer.
+;;; The famous and ugly once-only macro.
 (defmacro once-only ((&rest names) &body body)
   (let ((gensyms (loop for n in names collect (gensym))))
     `(let (,@(loop for g in gensyms collect `(,g (gensym))))
@@ -226,15 +224,13 @@
                 (concatenate 'string s1 (string separator) s2))
               strings)))
 
-;;; Check if there is duplicated elements in LIST. KEY functions are
+;;; Check if there are duplicated elements in LIST. KEY functions are
 ;;; applied to elements previosly. The elements are compared by TEST
 ;;; function.
 (defun duplicatep (list &key (test #'eql) (key #'identity))
-  (and (loop for x on list
-             for a = (funcall key (car x))
-             for b = (cdr x)
-             thereis (find a b :key key :test test))
-       t))
+  (let ((list (mapcar key list)))
+    (and (loop for (a . b) on list thereis (find a b :test test))
+         t)))
 
 ;;; Return a list with the nth element of list removed.
 (defun remove-nth (n list)
