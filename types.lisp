@@ -40,6 +40,13 @@
        (unless (typep ,vplace ',type)
          (%parse-error "The ~a is not a ~a type." ',place ',type)))))
 
+;;; Register a iCalendar data type in the standard vendor.
+(defmacro register-ical-value (symbol &key (name (string symbol)))
+  (check-type symbol symbol)
+  (check-type name string)
+  `(register-translation ',symbol ,name :type))
+
+
 ;;; Generic functions
 (defgeneric format-value (value type &optional params))
 (defgeneric parse-value (value type &optional params))
@@ -96,12 +103,6 @@
        (call-next-method))
       (t (error "Unkown encoding.")))))
 
-
-;;; Register a iCalendar data type in the standard vendor.
-(defmacro register-ical-value (symbol &key (name (string symbol)))
-  (check-type symbol symbol)
-  (check-type name string)
-  `(setf (translate ,name :type) ',symbol))
 
 ;;;; Boolean
 

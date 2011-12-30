@@ -1,4 +1,4 @@
-;; translate.lisp --- Dictionary between iCalendar names and Lisp symbols
+;; translate.lisp --- Dictionary between iCalendar names and Lisp objects
 ;;
 ;; Copyrigth (C) 2010,2011 David Vázquez
 ;;
@@ -19,23 +19,46 @@
 
 (in-package :cl-icalendar)
 
-(defvar *translate-table* (make-hash-table))
+;;; Bidirectional mapping.
+(defclass translate-table ()
+  ((ical>lisp :initform (make-hash-table :test #'equal))
+   (lisp>ical :initform (make-hash-table))))
 
-(defun translate (entity kind)
-  (let ((kindtable (gethash kind *translate-table*)))
-    (if kindtable
-        (gethash (string-upcase entity) kindtable)
-        (values nil nil))))
+;;; Table of translation tables indexed by entity.
+(defvar *translation-tables*
+  (make-hash-table :test #'eq))
 
-(defun set-translate (entity kind value)
-  (let ((table *translate-table*))
-    (let ((kindtable (gethash kind table)))
-      (when (null kindtable)
-        (setf kindtable (make-hash-table :test #'equal))
-        (setf (gethash kind table) kindtable))
-      (setf (gethash (string-upcase entity) kindtable) value))))
+(defun intern-translation-table (entity)
+  (or (gethash entity *translation-tables*)
+      (setf (gethash entity *translation-tables*)
+            (make-instance 'translate-table))))
 
-(defsetf translate (entity kind) (value)
-  `(set-translate ,entity ,kind ,value))
+;;; Public functions
+
+;;; ENTITY stands for any Lisp object which is used to specify a
+;;; namespaces. Two ENTITY are equivalent if they are EQ.
+
+;;; Register a translation between the Lisp value OBJECT and iCalendar
+;;; name ICALNAME in the ENTITY namespace.
+(defun register-translation (object icalname entity)
+  (with-slots (ical>lisp lisp>ical)
+      (intern-translation-table entity)
+    (let ((icalname (string-upcase icalname)))
+      (setf (gethash icalname ical>lisp) object)
+      (setf (gethash object lisp>ical) icalname)
+      (values))))
+
+;;; Translate the iCalendar name ICALNAME to a corresponding Lisp
+;;; object in the ENTITY namespace.
+(defun translate-to-lisp (icalname entity)
+  (with-slots (ical>lisp) (intern-translation-table entity)
+    (values (gethash (string-upcase icalname) ical>lisp))))
+
+;;; Translate the Lisp value OBJECT to the corresponding iCalendar
+;;; name in the ENTITY namespace.
+(defun translate-to-ical (object entity)
+  (with-slots (lisp>ical) (intern-translation-table entity)
+    (values (gethash object lisp>ical))))
+
 
 ;;; translate.lisp ends here
