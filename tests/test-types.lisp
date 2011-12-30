@@ -112,5 +112,31 @@
   (is (periodp (parse-value "19970101T180000Z/19970102T070000Z" 'period))))
 
 
+;;; UTC Offset
+
+(test parse-utc-offset-001
+  ;; Positive
+  (is (= (parse-value "+0530" 'utc-offset)  19800))
+  (is (= (parse-value "-0530" 'utc-offset) -19800))
+  (is (= (parse-value "-000001" 'utc-offset) -1))
+  (is (= (parse-value "+0000" 'utc-offset) 0))
+  (is (= (parse-value "+000000" 'utc-offset) 0))
+  ;; Negative tests
+  (signals error (parse-value "+0" 'utc-offset))
+  (signals error (parse-value "-0" 'utc-offset))
+  (signals error (parse-value "-0000" 'utc-offset))
+  (signals error (parse-value "+05301" 'utc-offset))
+  (signals error (parse-value "+053" 'utc-offset))
+  (signals error (parse-value "5030" 'utc-offset)))
+
+(test format-utc-offset-001
+  ;; Positive
+  (is (string= (format-value 19800 'utc-offset) "+0530"))
+  (is (string= (format-value -19800 'utc-offset) "-0530"))
+  (is (string= (format-value -1 'utc-offset) "-000001"))
+  (is (string= (format-value 0 'utc-offset) "+0000"))
+  ;; Negative tests
+  (signals error (format-value -1000000 'utc-offset)))
+
 ;;; test-types.lisp ends here
 
