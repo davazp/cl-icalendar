@@ -205,24 +205,20 @@
           for end = (position-if #'separator-p string :start start)
           as seq = (subseq string start end)
           unless (and omit-nulls (string= seq ""))
-            collect seq
+          collect seq
           while end)))
 
 ;;; Concatenate strings.
 (defun concat (&rest strings)
-  (if (null strings)
-      (make-string 0)
-      (reduce (lambda (s1 s2)
-                (concatenate 'string s1 s2))
-              strings)))
+  (reduce (lambda (s1 s2) (concatenate 'string s1 s2))
+          strings
+          :initial-value (make-string 0)))
 
 ;;; Concatenate the list of STRINGS.
 (defun join-strings (strings &optional (separator #\space))
   (if (null strings)
       (make-string 0)
-      (reduce (lambda (s1 s2)
-                (concatenate 'string s1 (string separator) s2))
-              strings)))
+      (reduce (lambda (s1 s2) (concat s1 (string separator) s2)) strings)))
 
 ;;; Check if there are duplicated elements in LIST. KEY functions are
 ;;; applied to elements previosly. The elements are compared by TEST
