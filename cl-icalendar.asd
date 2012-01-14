@@ -1,7 +1,7 @@
 ;;                                                               -*- Lisp -*-
 ;; cl-icalendar.asd --
 ;;
-;; Copyright (C) 2010 David Vazquez
+;; Copyright (C) 2010, 2012 David Vazquez
 ;;
 ;; This file is part of cl-icalendar.
 ;;
@@ -54,6 +54,7 @@
    (:file "types-recur")
    (:file "folding")
    (:file "content-line")
+   (:file "property")
    (:file "components")
    (:file "components-standard")
    (:file "cl-icalendar")
