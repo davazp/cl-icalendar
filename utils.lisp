@@ -26,10 +26,11 @@
   (defun symbolize (symbol1 symbol2)
     (intern (concatenate 'string (string symbol1) (string symbol2)))))
 
+(defmacro until (condition &body code)
+  `(do () (,condition) ,@code))
+
 (defmacro while (condition &body code)
-  `(do ()
-       ((not ,condition))
-     ,@code))
+  `(until (not ,condition) ,@code))
 
 (defmacro with-gensyms ((&rest vars) &body code)
   `(let ,(loop for i in vars
