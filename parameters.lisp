@@ -1,6 +1,6 @@
-;; parameters.lisp -- Parameter's table
+;; parameters.lisp -- Parameter list
 ;;
-;; Copyrigth (C) 2010,2011 David Vázquez
+;; Copyrigth (C) 2012 David Vázquez
 ;;
 ;; This file is part of cl-icalendar.
 ;;
@@ -19,59 +19,20 @@
 
 (in-package :cl-icalendar)
 
-;;; Parameter-table class. Indeed, we provide the ability of use lists
-;;; as parameter-table designators.
-(defclass parameter-table ()
-  ((table
-    :initform (make-hash-table :test #'equalp)
-    :reader %parameter-table)))
+;;; A parameter list is a list of the form
+;;;
+;;;    (PARAM-NAME1 PARAM-VALUE1 PARAM-NAME2 PARAM-NAME2 ...)
+;;;
+;;; PARAM-NAMEs are upcased strings. PARAM-VALUEs are strings or list
+;;; of strings.
 
-(defun set-parameter (parameter parameter-table new-value)
-  (let ((param (string parameter))
-        (value (mklist new-value))
-        (table (%parameter-table parameter-table)))
-    (setf (gethash param table) value)))
+;;; Get the value of the parameter, whose name is given in the string
+;;; designator PARAMETER, in the given PARAMETER-LIST.
+(defun parameter (parameter parameter-list)
+  (let ((name (string-upcase (string parameter))))
+    (loop for (param value) on parameter-list by #'cddr
+          when (string= name param) return value)))
 
-(defun make-parameter-table (&optional params)
-  (let ((pt (make-instance 'parameter-table)))
-    (loop for (param value) on params by #'cddr
-          do (set-parameter param pt value)
-          finally (return pt))))
-
-
-;;; Public functions
-
-;;; Return the parameter-table designated by X.
-(defun parameter-table (x)
-  (etypecase x
-    (list
-     (make-parameter-table x))
-    (parameter-table
-     x)))
-
-;;; Check if X is a parameter table object.
-(defun parameter-table-p (x)
-  (typep x 'parameter-table))
-
-(defun list-parameters (object)
-  (let ((parameter-table (parameter-table object)))
-    (if (null parameter-table)
-        nil
-        (with-collect
-          (let ((table (%parameter-table parameter-table)))
-            (if (hash-table-p table)
-                (do-hash-table (key value)
-                    table
-                  (collect key)
-                  (collect value))
-                nil))))))
-
-;;; Return as multiple values the list of values of PARAMETER in the
-;;; parameter-table designated by the object X.
-(defun parameter (parameter x)
-  (let ((parameter-table (parameter-table x)))
-    (let ((parameter (string parameter))
-          (table (%parameter-table parameter-table)))
-      (values-list (gethash parameter table)))))
+#| See content-line.lisp about parameters reading and writting |#
 
 ;; parameters.lisp ends here
