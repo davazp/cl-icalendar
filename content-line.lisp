@@ -25,27 +25,23 @@
       (prog2 (read-char stream)
           (parse stream "#\"" #\newline)
         (read-char stream))
-      (parse stream ",;:" #\Newline)))
+      (string-upcase (parse stream ",;:" #\Newline))))
 
 (defun read-params-values (stream)
-  (cons (read-params-value stream)
-        (with-collect
-          (while (char= (peek-char nil stream) #\,)
-            (read-char stream)
-            (collect (read-params-value stream))))))
+  (unlist
+   (cons (read-params-value stream)
+         (with-collect
+           (while (char= (peek-char nil stream) #\,)
+             (read-char stream)
+             (collect (read-params-value stream)))))))
 
 (defun read-params (stream)
-  (let ((plist nil)
-        (count 0))
+  (with-collect
     (while (char= (read-char stream) #\;)
       (let ((name (parse stream "=" (coerce #(#\Newline #\: #\;) 'string))))
         (read-char stream)
-        (push (read-params-values stream) plist)
-        (push name plist)
-        (incf count)))
-    (if (null plist)
-        nil
-        (parameter-table plist))))
+        (collect (string-upcase name))
+        (collect (read-params-values stream))))))
 
 (defun read-content-line (stream)
   ;; Skip whitespaces (newlines and spaces) characters.
@@ -62,26 +58,18 @@
   (with-input-from-string (in string)
     (read-content-line in)))
 
-(defun quote-param-value (value)
-  (with-output-to-string (stream)
-    (let ((quoted
-           (or (find #\: value)
-               (find #\; value)
-               (find #\, value))))
-      (when quoted
-        (write-char #\" stream))
-      (write-string value stream)
-      (when quoted
-        (write-char #\" stream)))))
+(defun escape-parameter-value (value)
+  (if (loop for x across value thereis (find x ":;,"))
+      (concat "\"" value "\"")
+      value))
 
 (defun write-content-line (name params value stream)
   (declare (stream stream))
   (format stream "~a~{;~a=~{~a~^,~}~}:~a~%"
           name
-          (loop for (param values)
-                on (list-parameters (parameter-table params)) by #'cddr
+          (loop for (param values) on params by #'cddr
                 collect param
-                collect (mapcar #'quote-param-value values))
+                collect (mapcar #'escape-parameter-value values))
           value))
 
 (defun write-content-line-to-string (name params value)
