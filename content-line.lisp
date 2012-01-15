@@ -63,14 +63,18 @@
       (concat "\"" value "\"")
       value))
 
-(defun write-content-line (name params value stream)
-  (declare (stream stream))
-  (format stream "~a~{;~a=~{~a~^,~}~}:~a~%"
+(defun write-content-line* (name params value stream)
+  (format stream "~a~{;~a=~{~a~^,~}~}:~a"
           name
-          (loop for (param values) on params by #'cddr
+          (loop for (param value) on params by #'cddr
+                for values = (mklist value)
                 collect param
                 collect (mapcar #'escape-parameter-value values))
           value))
+
+(defun write-content-line (name params value stream)
+  (write-content-line* name params value stream)
+  (terpri stream))
 
 (defun write-content-line-to-string (name params value)
   (string-right-trim (list #\newline)
