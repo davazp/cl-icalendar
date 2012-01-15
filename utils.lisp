@@ -221,6 +221,15 @@
       (make-string 0)
       (reduce (lambda (s1 s2) (concat s1 (string separator) s2)) strings)))
 
+;;; Check if the PREFIX string matches with some substrings in the
+;;; beginning of STRING, using TEST to compare the characters.
+(defun string-prefix-p (prefix string &key (test #'char=))
+  (declare (string string prefix))
+  (let ((offset (mismatch prefix string :test test)))
+    (if offset
+        (= offset (length prefix))
+        t)))
+
 ;;; Check if there are duplicated elements in LIST. KEY functions are
 ;;; applied to elements previosly. The elements are compared by TEST
 ;;; function.
@@ -362,6 +371,8 @@
 ;;; (modf place N) set place to (mod place N)
 (define-modify-macro modf (n) mod)
 
+;;; (appendf place list) set place to (append place list)
+(define-modify-macro appendf (list) append)
 
 ;;;; Others
 
@@ -374,8 +385,10 @@
 ;;; Set PLACE to zero.
 ;;; This function is thought to use this function as default-value in
 ;;; optional or keyword arguments.
-(defun required-arg ()
-  (error "A required &KEY or &OPTIONAL argument was not supplied."))
+(defun required-arg (&optional fmt &rest args)
+  (if fmt
+      (error 'simple-error  :format-control fmt :format-arguments args)
+      (error "A required &KEY or &OPTIONAL argument was not supplied.")))
 
 (defmacro /debug1 (form)
   (with-gensyms (value)
