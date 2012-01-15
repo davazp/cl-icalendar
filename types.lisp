@@ -72,36 +72,8 @@
           while end)))
 
 (defun format-values (objects type &optional params)
-  (flet ((format-value* (x) (format-value x params)))
+  (flet ((format-value* (type x) (format-value x type params)))
     (join-strings (map1 #'format-value* type objects) #\,)))
-
-
-;;; Wrapper for both standard as user-defined format-value and
-;;; parse-value methods. The :around methods are used to implement
-;;; global parameters.
-
-;;; I am not sure if it is allowed by the iCalendar specification to
-;;; use the encoding parameter on all types. I assume it is
-;;; so. Otherwise it should be a method for BINARY data type.
-;;; -- DVP
-
-(defmethod format-value :around (object type &optional params)
-  (let ((encoding (or (parameter :encoding params) "8BIT")))
-    (cond
-      ((string-ci= encoding "BASE64")
-       (base64:string-to-base64-string (call-next-method)))
-      ((string-ci= encoding "8BIT")
-       (call-next-method))
-      (t (error "Unkown encoding.")))))
-
-(defmethod parse-value :around (string type &optional params)
-  (let ((encoding (or (parameter :encoding params) "8BIT")))
-    (cond
-      ((string-ci= encoding "BASE64")
-       (apply #'call-next-method (base64:base64-string-to-string string) type params))
-      ((string-ci= encoding "8BIT")
-       (call-next-method))
-      (t (error "Unkown encoding.")))))
 
 
 ;;;; Boolean
