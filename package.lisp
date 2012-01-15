@@ -22,7 +22,7 @@
 (defpackage :cl-icalendar
   (:nicknames :icalendar :ical)
   (:use :c2cl :trivial-gray-streams)
-  (:shadow #:time #:standard)
+  (:shadow #:time #:standard :method)
   ;; If it is running on SBCL, lock the package.
   #+sbcl (:lock t)
   ;; Exported symbols. It could be mantained for each file separately,
