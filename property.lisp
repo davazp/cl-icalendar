@@ -154,7 +154,7 @@
   (let ((parameters (property-validated-parameters property)))
     (or (find parameter-name parameters :test #'string-ci=)
         (and (property-allow-x-parameters-p property)
-             (string-prefix-p "X-" parameter-name))
+             (string-prefix-p "X-" parameter-name :test #'char-ci=))
         (property-allow-other-parameters-p property)
         (error "The parameter ~a with value ~a is not allowed in property ~a"
                parameter-name parameter-value (property-name property)))))
