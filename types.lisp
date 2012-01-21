@@ -167,7 +167,6 @@
     :initarg :longitude
     :reader longitude)))
 
-(register-ical-value geo)
 (define-predicate-type geo)
 
 (defun make-geo (latitude longitude)
