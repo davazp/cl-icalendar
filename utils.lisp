@@ -23,8 +23,10 @@
 ;;;; Misc macros
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
-  (defun symbolize (symbol1 symbol2)
-    (intern (concatenate 'string (string symbol1) (string symbol2)))))
+  ;; Given two string designators, concatenate the strings and intern
+  ;; the symbol in a package. By default, current package is used.
+  (defun symbolize (string1 string2 &optional (package *package*))
+    (intern (concatenate 'string (string string1) (string string2)))))
 
 (defmacro until (condition &body code)
   `(do () (,condition) ,@code))

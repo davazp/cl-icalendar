@@ -222,7 +222,7 @@
   (check-type allow-x-parameters-p boolean)
   (check-type allow-other-parameters-p boolean)
   (let* ((superclasses '(property))
-         (name (gensym "PROPERTY"))
+         (name (symbolize "STANDARD-PROPERTY-" real-name))
          (types (mklist type))
          (default-type (first types))
          (multiple-type-p (< 1 (length types))))
