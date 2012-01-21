@@ -137,7 +137,9 @@
             (%parse-error "Bad formed float."))
           (let ((fstring (parse in (complement #'digit-char-p) nil nil)))
             (setf y (/ (float (parse-integer fstring))
-                       (expt 10 (length fstring))))))))
+                       (expt 10 (length fstring)))))
+          (unless (null (read-char in nil))
+            (%parse-error "Junk is not allowed after a float value")))))
     (* sign (+ x y))))
 
 
@@ -207,11 +209,11 @@
 
 ;;; Format-value and parse-value methods for unknown data types.
 
-(defmethod format-value (string (type (eql 'nil)) &optional params)
+(defmethod format-value ((string string) (type (eql 'nil)) &optional params)
   (declare (ignore params))
   string)
 
-(defmethod parse-value (string (type (eql 'nil)) &optional params)
+(defmethod parse-value ((string string) (type (eql 'nil)) &optional params)
   (declare (ignore params))
   string)
 
