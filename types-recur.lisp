@@ -771,7 +771,7 @@
                ((> dt datetime) (return nil)))))))))
 
 ;; List the instances of a bound RECUR.
-(defun recur-list-instances (start recur)
+(defun list-recur-instances (start recur)
   (unless (%simple-recur-instance-p start recur start)
     (error "The recur and DTSTART must be synchronized."))
   (let ((complete-recur (%complete-recur recur start)))
