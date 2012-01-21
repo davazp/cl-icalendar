@@ -57,6 +57,8 @@
            #:write-binary-to-file
            ;; Recur
            #:recur
-           #:recur-instance-p))
+           #:recur-instance-p
+           #:do-recur-instances
+           #:list-recur-instances))
 
 ;;; package.lisp ends here
