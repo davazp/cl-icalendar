@@ -24,10 +24,11 @@
 
 ;;;; Property protocol
 
-;;; Make an uninitialized instance of a property, with the given
-;;; PARAMETERS. The value of the property can be initialized with the
+;;; Make an uninitialized instance of a property, with the given NAME
+;;; and PARAMETERS. If NAME is NIL, it will try to use a default
+;;; name. The value of the property can be initialized with the
 ;;; generic function `initialize-property'.
-(defgeneric allocate-property (property-class parameters))
+(defgeneric allocate-property (property-class name parameters))
 
 ;;; Return a single iCalendar type. Initializing a property with a
 ;;; property value which belongs this type, is granted to validate.
@@ -37,25 +38,22 @@
 ;;; must satisfy the type returned by `allocated-proprety-type'.
 (defgeneric initialize-property (property value))
 
-;;; Make an instance of a property. PROPERTY can be a property class,
-;;; or a string. If it is a string, the property class whose name is
-;;; this string is considered. PARAMETERS is a list of parameters as
-;;; described in parameters.lisp. VALUE is an iCalendar value.
-(defgeneric make-property (property parameters value)
-  (:method (property-class parameters value)
-    (let ((prop (allocate-property property-class parameters)))
+;;; Make an instance of a property. PROPERTY is a string. PARAMETERS
+;;; is a list of parameters as described in parameters.lisp. VALUE is
+;;; an iCalendar value.
+(defgeneric make-property (property-name parameters value)
+  (:method (property-name parameters value)
+    (let* ((property-class (find-property-class property-name))
+           (prop (allocate-property property-class property-name parameters)))
       (initialize-property prop value)
       (validate-property prop)
-      prop))
-  (:method ((property string) parameters value)
-    (let ((property-class (find-property-class property)))
-      (make-property property-class parameters value))))
+      prop)))
 
 
 ;;; Make a property instance from a content line.
 (defun property-from-content-line (property-name parameters string)
   (let* ((property-class (find-property-class property-name))
-         (property (allocate-property property-class parameters))
+         (property (allocate-property property-class property-name parameters))
          (type (allocated-property-type property))
          (value (unlist (parse-values string type parameters))))
     (initialize-property property value)
@@ -127,8 +125,8 @@
     :initarg :value
     :reader property-value)))
 
-(defmethod allocate-property (property-class parameters)
-  (make-instance property-class :parameters parameters))
+(defmethod allocate-property (property-class name parameters)
+  (make-instance property-class :name name :parameters parameters))
 
 (defmethod initialize-property ((allocated-property property) value)
   (setf (slot-value allocated-property 'value) value))
@@ -149,7 +147,7 @@
 (defmethod validate-property-value ((property property))
   (let ((value (property-value property))
         (type (allocated-property-type property)))
-    (unless (typep value type)
+    (unless (and type (typep value type))
       (error "The value ~a is not of type ~a" value type))))
 
 (defmethod validate-property-parameter ((property property) parameter-name parameter-value)
@@ -217,7 +215,7 @@
 ;;; Standard properties
 
 (defmacro define-property (real-name &key
-                           type default-type (multiple-value-p nil) (parameters nil)
+                           type (multiple-value-p nil) (parameters nil)
                            (allow-x-parameters-p t) (allow-other-parameters-p nil))
   (check-type real-name string)
   (check-type multiple-value-p boolean)
@@ -226,17 +224,19 @@
   (let* ((superclasses '(property))
          (name (gensym "PROPERTY"))
          (types (mklist type))
+         (default-type (first types))
          (multiple-type-p (< 1 (length types))))
     ;; Add some superclasses according to the options
     (when multiple-type-p
+      (unless default-type
+        (error "You must specify a default type for each multiple-type-property"))
       (push 'multiple-type-property superclasses))    
     (when multiple-value-p
       (push 'multiple-value-property superclasses))
     ;; Expansion
     `(progn
        ;; Property class and registration
-       (defclass ,name (,@superclasses) nil
-         (:default-initargs :name ,real-name))
+       (defclass ,name (,@superclasses) nil)
        (register-translation (find-class ',name) ,real-name :property)
        ;; Validation of parameters
        ,@(unless (null parameters)
@@ -250,6 +250,182 @@
                 ',types))
             `((defmethod allocated-property-type ((,(gensym) ,name))
                 ',(unlist types)))))))
+
+
+;;; Calendar properties
+
+(define-property "CALSCALE" :type text)
+(define-property "METHOD"   :type text)
+(define-property "PRODID"   :type text)
+(define-property "VERSION"  :type text)
+
+
+;;; Component properties
+
+
+;;;; Descriptive Component Properties
+
+(define-property "ATTACH"
+    :type (uri binary)
+    :parameters ("ENCODING" "FMTTYPE"))
+
+(define-property "CATEGORIES"
+    :type text
+    :multiple-value-p t
+    :parameters ("LANGUAGE"))
+
+(define-property "CLASS"
+    :type text)
+
+(define-property "COMMENT"
+    :type text
+    :parameters ("ALTREP" "LANGUAGE"))
+
+(define-property "DESCRIPTION"
+    :type text
+    :parameters ("ALTREP" "LANGUAGE"))
+
+(define-property "GEO"
+    :type geo)
+
+(define-property "LOCATION"
+    :type text
+    :parameters ("ALTREP" "LANGUAGE"))
+
+(define-property "PERCENT-COMPLETE"
+    :type integer ; TODO (integer 0 100)
+    )
+
+(define-property "PRIORITY"
+    :type integer ; TODO: (integer 0 9)
+    )
+
+(define-property "RESOURCES"
+    :type text
+    :multiple-value-p t
+    :parameters ("ALTREP" "LANGUAGE"))
+
+(define-property "STATUS"               ; TODO: Enumerated types
+    :type text)
+
+(define-property "SUMMARY"
+    :type text
+    :parameters ("ALTREP" "LANGUAGE"))
+
+
+;;;; Date and Time Component Properties
+
+(define-property "COMPLETED" :type datetime)
+
+(define-property "DTEND"
+    :type (datetime date)
+    :parameters ("TZID"))
+
+(define-property "DUE"
+    :type (datetime date)
+    :parameters ("TZID"))
+
+(define-property "DTSTART"
+    :type (datetime date)
+    :parameters ("TZID"))
+
+(define-property "DURATION" :type duration)
+(define-property "FREEBUSY" :type period :parameters ("FBTYPE"))
+(define-property "TRANSP"   :type text)
+
+;;;; Time Zone Component Properties
+(define-property "TZID"         :type text)
+(define-property "TZNAME"       :type text :parameters ("LANGUAGE"))
+(define-property "TZOFFSETFROM" :type utc-offset)
+(define-property "TZOFFSETTO"   :type utc-offset)
+(define-property "TZURL"        :type uri)
+
+
+;;;; Relationship Component Properties
+
+(define-property "ATTENDEE"
+    :type cal-address
+    :parameters ("CUTYPE"
+                 "MEMEBER"
+                 "ROLE"
+                 "PARTSTAT"
+                 "RSVP"
+                 "DELEGATED-TO"
+                 "DELEGATED-FROM"
+                 "SENT-BY"
+                 "CN"
+                 "DIR"))
+
+(define-property "CONTACT"
+    :type text
+    :parameters ("ALTREP" "LANGUAGE"))
+
+(define-property "ORGANIZER"
+    :type cal-address
+    :parameters ("LANGUAGE" "CN" "DIR" "SENT-BY"))
+
+(define-property "RECURRENCE-ID"
+    :type (datetime date)
+    :parameters ("TZID" "RANGE"))
+
+(define-property "RELATED-TO"
+    :type text
+    :parameters ("RELTYPE"))
+
+(define-property "URL" :type uri)
+(define-property "UID" :type text)
+
+
+;;;; Recurrence Component Properties
+
+(define-property "EXDATE"
+    :type (datetime date)
+    :multiple-value-p t
+    :parameters ("TZID"))
+
+(define-property "RDATE"
+    :type (datetime date period)
+    :multiple-value-p t
+    :parameters ("TZID"))
+
+(define-property "RRULE" :type recur)
+
+
+;;;; Alarm Component Properties
+(define-property "ACTION" :type text)
+(define-property "REPEAT" :type integer)
+
+(define-property "TRIGGER"
+    :type (duration datetime)
+    :parameters ("TZID" "RELATED"))
+
+
+;;;; Change Management Component Properties
+(define-property "CREATED"              :type datetime)
+(define-property "DTSTAMP"              :type datetime)
+(define-property "LAST-MODIFIED"        :type datetime)
+(define-property "SEQUENCE"             :type integer)
+
+;;;; Miscellaneous Component Properties
+(define-property "REQUEST-STATUS" :type text :parameters ("LANGUAGE"))
+
+
+;;;; Unknown properties
+
+(defclass unknown-property (property)
+  nil)
+
+(defmethod allocate-property ((property-class (eql nil)) name parameters)
+  (allocate-property 'unknown-property name parameters))
+
+(defmethod allocated-property-type ((property unknown-property))
+  nil)
+
+(defmethod validate-property-value ((property unknown-property))
+  t)
+
+(defmethod property-allow-other-parameters-p ((property unknown-property))
+  t)
 
 
 ;;; property.lisp ends here
