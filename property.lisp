@@ -57,7 +57,6 @@
          (type (allocated-property-type property))
          (value (unlist (parse-values string type parameters))))
     (initialize-property property value)
-    (validate-property property)
     property))
 
 (defun write-property* (property stream)
