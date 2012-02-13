@@ -26,7 +26,7 @@
   ;; Given two string designators, concatenate the strings and intern
   ;; the symbol in a package. By default, current package is used.
   (defun symbolize (string1 string2 &optional (package *package*))
-    (intern (concatenate 'string (string string1) (string string2)))))
+    (intern (concatenate 'string (string string1) (string string2)) package)))
 
 (defmacro until (condition &body code)
   `(do () (,condition) ,@code))
@@ -48,6 +48,21 @@
       `(let (,,@(loop for g in gensyms for n in names collect ``(,,g ,,n)))
         ,(let (,@(loop for n in names for g in gensyms collect `(,n ,g)))
            ,@body)))))
+
+
+;;; Iterate ELEMENT across LIST and collect the the results of
+;;; evaluate BODY in a progn.
+;;;
+;;; for example:                                expands to:
+;;;
+;;;    (let ((list '(x y z)))                   (progn
+;;;       (progn-expand (var list)                 (1+ x)
+;;;         `(1+ ,var)))                           (1+ y)
+;;;                                                (1+ z))
+;;;
+(defmacro progn-expand ((element list) &body body)
+  ``(progn ,@(loop for ,element in ,list collect (progn ,@body))))
+
 
 ;;; TODO: Document me!
 (defmacro with-collectors ((&rest names) &body code)
@@ -296,7 +311,6 @@
 (defun member< (x y list &rest args &key &allow-other-keys )
   (let ((sublist (apply #'member x list args)))
     (and (apply #'member y (cdr sublist) args) t)))
-
 
 ;;;; Streams
 
@@ -322,7 +336,7 @@
             until (and (not eof-error-p) (null ch))
             until (terminal-char-p ch)
             when (not-expect-char-p ch)
-              do (error "Character ~w is not expected." ch)
+            do (error "Character ~w is not expected." ch)
             do (write-char (read-char stream) out)))))
 
 
@@ -426,10 +440,6 @@
   (lambda (&rest preargs)
     (apply fn (append preargs postargs))))
 
-;;; Check if CLASS1 is a superclass of CLASS2.
-(defun superclassp (class1 class2)
-  (subclassp class2 class1))
-
 ;;; Iterate across entries in a hash table.
 (defmacro do-hash-table ((key value) hash-table &body code)
   (with-gensyms (iter morep)
@@ -449,5 +459,12 @@
      (1+ (+ n m)))
     ((and (< 0 m) (<= m n)) m)
     (t (error "~a should be a integer in [-~a,1] or [~:*~a,1]." m n))))
+
+
+;;; iCalendar utilities
+
+;;; Check if string starts with "X-" or "x-".
+(defun x-name-p (string)
+  (string-prefix-p "X-" string :test #'char-ci=))
 
 ;;; utils.lisp ends here
