@@ -20,32 +20,17 @@
 
 (in-package :cl-icalendar)
 
-;; (define-standard-component calendar (vcalendar)
-;;   nil
-;;   (:default-initargs :name "VCALENDAR"))
+(defun open-vcalendar (pathname)
+  (with-open-file (infile pathname :element-type '(unsigned-byte 8))
+    (with-folding-stream (in infile)
+      (read-vcalendar in))))
 
-;; (defclass calendar (vcalendar)
-;;   nil
-;;   (:metaclass component-class))
-
-;; (defun read-vcalendar (stream)
-;;   (read-component-class 'vcalendar stream))
-
-;; (defun write-vcalendar (component stream)
-;;   (write-component component stream))
-
-;; (defun open-vcalendar (pathname)
-;;   (with-open-file (infile pathname :element-type '(unsigned-byte 8))
-;;     (with-folding-stream (in infile)
-;;       (read-vcalendar in))))
-
-;; (defun save-vcalendar (vcalendar pathname &key if-exists)
-;;   (declare (type vcalendar vcalendar))
-;;   (with-open-file (outfile
-;;                    pathname
-;;                    :element-type '(unsigned-byte 8)
-;;                    :direction :output :if-exists if-exists)
-;;     (with-folding-stream (out outfile)
-;;       (write-vcalendar vcalendar out))))
+(defun save-vcalendar (vcalendar pathname &key if-exists)
+  (with-open-file (outfile
+                   pathname
+                   :element-type '(unsigned-byte 8)
+                   :direction :output :if-exists if-exists)
+    (with-folding-stream (out outfile)
+      (write-component vcalendar out))))
 
 ;; cl-icalendar.lisp ends here
