@@ -2,7 +2,7 @@
 ;;
 ;; Copyrigth (C) 2012 David Vázquez
 ;;
-;; This thisfile is part of cl-icalendar.
+;; This file is part of cl-icalendar.
 ;;
 ;; cl-icalendar is free software: you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
