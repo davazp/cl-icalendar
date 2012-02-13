@@ -61,13 +61,13 @@
   `(gethash ,class (property-table ,component)))
 
 (defgeneric add-property-to-component (property component)
-  (:method (property (component component))
+  (:method ((property property) (component component))
     (let ((name (property-name property)))
       (push property (properties-with-name name component))
       property)))
 
 (defgeneric delete-property-from-component (property component)
-  (:method (property (component component))
+  (:method ((property property) (component component))
     (let ((pname (property-name property)))
       (symbol-macrolet ((plist (properties-with-name pname component)))
         (setf plist (delete property plist))))))
