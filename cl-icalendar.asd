@@ -30,7 +30,7 @@
   :name "iCalendar library"
   :license "GPLv3+"
   :version "0.0"
-  :depends-on (:trivial-gray-streams :cl-base64 :uuid :closer-mop :flexi-streams)
+  :depends-on (:trivial-gray-streams :cl-base64 :uuid :flexi-streams)
   :serial t
   :components
   ((:static-file "COPYING")
@@ -56,7 +56,6 @@
    (:file "content-line")
    (:file "property")
    (:file "components")
-   (:file "components-standard")
    (:file "cl-icalendar")
    ;; Documentation
    (:module "doc"

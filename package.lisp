@@ -21,7 +21,7 @@
 
 (defpackage :cl-icalendar
   (:nicknames :icalendar :ical)
-  (:use :c2cl :trivial-gray-streams)
+  (:use :common-lisp :trivial-gray-streams)
   (:shadow #:time #:standard :method)
   ;; If it is running on SBCL, lock the package.
   #+sbcl (:lock t)
