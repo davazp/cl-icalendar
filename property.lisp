@@ -72,6 +72,7 @@
   (write-property* property stream)
   (terpri stream))
 
+
 ;;;; Property validation protocol
 
 ;;; Validate the property. The default method validate the parameters
@@ -147,7 +148,7 @@
   (let ((value (property-value property))
         (type (allocated-property-type property)))
     (unless (and type (typep value type))
-      (error "The value ~a is not of type ~a" value type))))
+      (cerror "Continue" "The value ~a is not of type ~a" value type))))
 
 (defmethod validate-property-parameter ((property property) parameter-name parameter-value)
   (let ((parameters (property-validated-parameters property)))
@@ -155,8 +156,8 @@
         (and (property-allow-x-parameters-p property)
              (string-prefix-p "X-" parameter-name :test #'char-ci=))
         (property-allow-other-parameters-p property)
-        (error "The parameter ~a with value ~a is not allowed in property ~a"
-               parameter-name parameter-value (property-name property)))))
+        (cerror "" "The parameter ~a with value ~a is not allowed in property ~a"
+                parameter-name parameter-value (property-name property)))))
 
 (defmethod validate-property-parameters ((prop property))
   (loop for (param-name param-value) on (property-parameters prop) by #'cddr
@@ -221,7 +222,7 @@
   (check-type allow-x-parameters-p boolean)
   (check-type allow-other-parameters-p boolean)
   (let* ((superclasses '(property))
-         (name (symbolize "STANDARD-PROPERTY-" real-name))
+         (name (symbolize "PROPERTY-" real-name))
          (types (mklist type))
          (default-type (first types))
          (multiple-type-p (< 1 (length types))))
@@ -400,10 +401,10 @@
 
 
 ;;;; Change Management Component Properties
-(define-property "CREATED"              :type datetime)
-(define-property "DTSTAMP"              :type datetime)
-(define-property "LAST-MODIFIED"        :type datetime)
-(define-property "SEQUENCE"             :type integer)
+(define-property "CREATED" :type datetime)
+(define-property "DTSTAMP" :type datetime)
+(define-property "LAST-MODIFIED" :type datetime)
+(define-property "SEQUENCE" :type integer)
 
 ;;;; Miscellaneous Component Properties
 (define-property "REQUEST-STATUS" :type text :parameters ("LANGUAGE"))
@@ -414,7 +415,7 @@
 (defclass unknown-property (property)
   nil)
 
-(defmethod allocate-property ((property-class (eql nil)) name parameters)
+(defmethod allocate-property ((property-class null) name parameters)
   (allocate-property 'unknown-property name parameters))
 
 (defmethod allocated-property-type ((property unknown-property))
