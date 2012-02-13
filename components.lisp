@@ -80,8 +80,7 @@
 
 (defgeneric delete-subcomponent-from-component (subcomponent component)
   (:method ((subcomponent component) (component component))
-    (setf (subcomponents component)
-          (delete subcomponent (subcomponents component)))))
+    (setf (subcomponents component) (delete subcomponent (subcomponents component)))))
 
 
 ;;; Add the property named NAME, with the given PARAMETERS and VALUE
@@ -128,7 +127,6 @@
                (unless (string-ci= begin-mark end-mark)
                  (error "A END:~:@(~a~) was expected, but it found a END:~a"
                         begin-mark end-mark)))
-         (validate-component component)
          component))
       ((string-ci= name "END")
        (check-type params null)
@@ -166,8 +164,10 @@
 (defgeneric validate-component (component)
   (:method ((component component))
     (do-property (prop component)
+      (validate-property prop)
       (validate-property-in-component component prop))
     (dolist (comp (subcomponents component))
+      (validate-component comp)
       (validate-subcomponent-in-component component comp))
     (validate-property-constrains component)))
 

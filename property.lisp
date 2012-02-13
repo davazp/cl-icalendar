@@ -46,7 +46,6 @@
     (let* ((property-class (find-property-class property-name))
            (prop (allocate-property property-class property-name parameters)))
       (initialize-property prop value)
-      (validate-property prop)
       prop)))
 
 
