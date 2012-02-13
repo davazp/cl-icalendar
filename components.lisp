@@ -408,7 +408,7 @@ then the other must so." valarm))
         "STATUS" "SUMMARY" "URL" "RRULE")
 
   "ATTACH" "ATTENDEE" "CATEGORIES" "COMMENT" 
-  "CONTACT" "DESCRIPTION" "EXDATE" "RELATED-TO" "RDATE"/
+  "CONTACT" "DESCRIPTION" "EXDATE" "RELATED-TO" "RDATE"
   "REQUEST-STATUS")
 
 ;;; VFREEBUSY
@@ -417,6 +417,7 @@ then the other must so." valarm))
   (required-once "DTSTAMP" "UID")
   (once "CONTACT" "DTSTART" "DTEND" "ORGANIZER" "URL")
   "ATTENDEE" "COMMENT" "FREEBUSY" "REQUEST-STATUS")
+
 
 ;;; VTIMEZONE
 (declare-component vtimezone)
