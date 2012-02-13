@@ -74,6 +74,7 @@
 
 (defgeneric add-subcomponent-to-component (subcomponent component)
   (:method ((subcomponent component) (component component))
+    (setf (slot-value subcomponent 'parent) component)
     (push subcomponent (subcomponents component))
     subcomponent))
 
