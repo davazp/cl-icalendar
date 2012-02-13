@@ -72,6 +72,17 @@
       (symbol-macrolet ((plist (properties-with-name pname component)))
         (setf plist (delete property plist))))))
 
+(defgeneric add-subcomponent-to-component (subcomponent component)
+  (:method ((subcomponent component) (component component))
+    (push subcomponent (subcomponents component))
+    subcomponent))
+
+(defgeneric delete-subcomponent-from-component (subcomponent component)
+  (:method ((subcomponent component) (component component))
+    (setf (subcomponents component)
+          (delete subcomponent (subcomponents component)))))
+
+
 ;;; Add the property named NAME, with the given PARAMETERS and VALUE
 ;;; to the list of properties of COMPONENT.
 (defun add-property (component name parameters value)
@@ -111,7 +122,7 @@
                while object do
                (typecase object
                  (property (add-property-to-component object component))
-                 (component (push object (subcomponents component))))
+                 (component (add-subcomponent-to-component object component)))
                finally
                (unless (string-ci= begin-mark end-mark)
                  (error "A END:~:@(~a~) was expected, but it found a END:~a"
