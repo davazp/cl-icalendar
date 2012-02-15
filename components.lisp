@@ -21,7 +21,8 @@
 
 ;;; Return the component class for the name COMPONENT-NAME.
 (defun find-component-class (component-name)
-  (translate-to-lisp component-name :component))
+  (or (translate-to-lisp component-name :component)
+      (and (x-name-p component-name) (find-class 'x-component))))
 
 ;;; Base component.
 (defclass component ()
@@ -170,19 +171,10 @@
       (validate-subcomponent-in-component component comp))
     (validate-property-constrains component)))
 
-;;; If COMPONENT contains extension components and this generic
-;;; function returns NIL, it will not pass the validator. The default
-;;; method returns NIL.
-(defgeneric allow-x-components (component)
-  (:method ((component component))
-    (declare (ignorable component))
-    nil))
-
 ;;; Validate SUBCOMPONENT as subcomponent of COMPONENT.
 (defgeneric validate-subcomponent-in-component (component subcomponent)
   (:method ((comp component) (subcomp component))
-    (unless (and (allow-x-components comp) (x-name-p (component-name comp)))
-      (error "The component ~a is not a valid subcomponent for ~a" subcomp comp))))
+    (error "The component ~a is not a valid subcomponent for ~a" subcomp comp)))
 
 ;;; Validate PROPERTY as property of COMPONENT.
 (defgeneric validate-property-in-component (component property)
@@ -291,16 +283,16 @@
      (register-translation (find-class ',name) ,icalname :component)
      ;; Subcomponents validation
      ,@(if given-allow-x-components
-           `((defmethod allow-x-components ((x ,name))
-               ,allow-x-components)))
+           `((defmethod validate-subcomponent-in-component ((component ,name) (subcomponents x-component))
+               ,(or allow-x-components
+                    `(error "The subcomponent ~a is not a valid in the component ~a" subcomponent component)))))     
      ,@(loop for comp-class in subcomponents collect
                 `(defmethod validate-subcomponent-in-component
                      ((comp ,name) (subcomp ,comp-class))))
      ;; Properties validation
      ,@(if given-allow-x-properties
            `((defmethod validate-property-in-component ((component ,name) (property x-property))
-               ,(if allow-x-properties
-                    nil
+               ,(or allow-x-properties
                     `(error "The property ~a is not a valid in the component ~a" property component)))))
      ;; Declare known properties
      ,@(loop for pname in (property-constrains-names properties)
@@ -448,6 +440,13 @@ then the other must so." valarm))
 
 (defclass x-component (component)
   nil)
+
+(defmethod validate-subcomponent-in-component
+    ((component x-component) subcomponent))
+
+(defmethod validate-property-in-component
+    ((component x-component) property))
+
 
 ;;; Other components
 
