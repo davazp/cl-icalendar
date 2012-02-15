@@ -421,7 +421,7 @@
 (defmethod validate-property-value ((property x-property))
   t)
 
-(defmethod property-allow-other-parameters-p ((property unknown-property))
+(defmethod property-allow-other-parameters-p ((property x-property))
   t)
 
 

@@ -261,6 +261,17 @@
 (defclass standard-component (component)
   nil)
 
+;;; Extension components
+(defclass x-component (component)
+  nil)
+
+(defmethod validate-subcomponent-in-component
+    ((component x-component) subcomponent))
+
+(defmethod validate-property-in-component
+    ((component x-component) property))
+
+
 ;;; CLHS says: "If a defclass form appears as a top level form, the
 ;;; compiler must make the class name be recognized as a valid type
 ;;; name in..." So we have to define the classes separately.
@@ -436,18 +447,6 @@ then the other must so." valarm))
     (check-type component vcalendar)
     component))
 
-;;; Extension components
-
-(defclass x-component (component)
-  nil)
-
-(defmethod validate-subcomponent-in-component
-    ((component x-component) subcomponent))
-
-(defmethod validate-property-in-component
-    ((component x-component) property))
-
-
 ;;; Other components
 
 (defclass unknown-component (component) nil)

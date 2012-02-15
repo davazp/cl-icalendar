@@ -264,6 +264,7 @@
   (once-only (list element key)
     `(implyp ,list (find ,element ,list :key ,key))))
 
+
 ;;; Return a recur such that the omitted rules: BYSECOND, BYMINUTE, BYHOUR,
 ;;; BYMONTHDAY, BYMONTH, and BYDAY, are filled with default values taken from
 ;;; the DTSTART datetime.
