@@ -43,7 +43,9 @@
 ;;; an iCalendar value.
 (defgeneric make-property (property-name parameters value)
   (:method (property-name parameters value)
-    (let* ((property-class (find-property-class property-name))
+    (let* ((property-class
+            (or (find-property-class property-name)
+                (and (x-name-p property-name) 'x-property)))
            (prop (allocate-property property-class property-name parameters)))
       (initialize-property prop value)
       prop)))
@@ -51,7 +53,8 @@
 
 ;;; Make a property instance from a content line.
 (defun property-from-content-line (property-name parameters string)
-  (let* ((property-class (find-property-class property-name))
+  (let* ((property-class (or (find-property-class property-name)
+                             (and (x-name-p property-name) 'x-property)))
          (property (allocate-property property-class property-name parameters))
          (type (allocated-property-type property))
          (value (unlist (parse-values string type parameters))))
@@ -408,7 +411,23 @@
 ;;;; Miscellaneous Component Properties
 (define-property "REQUEST-STATUS" :type text :parameters ("LANGUAGE"))
 
-
+
+;;;; X properties
+
+(defclass x-property (property)
+  nil)
+
+(defmethod allocated-property-type ((property x-property))
+  nil)
+
+(defmethod validate-property-value ((property x-property))
+  t)
+
+(defmethod property-allow-other-parameters-p ((property unknown-property))
+  t)
+
+
+
 ;;;; Unknown properties
 
 (defclass unknown-property (property)
