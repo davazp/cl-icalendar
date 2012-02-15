@@ -133,7 +133,6 @@
        (values nil value))
       (t
        (let ((property (property-from-content-line name params value)))
-         (validate-property property)
          property)))))
 
 ;;; Read a component or property from STREAM.
@@ -171,14 +170,6 @@
       (validate-subcomponent-in-component component comp))
     (validate-property-constrains component)))
 
-;;; If COMPONENT contains extension properties and this generic
-;;; function returns NIL, it will not pass the validator. The default
-;;; method returns T.
-(defgeneric allow-x-properties (component)
-  (:method ((component component))
-    (declare (ignorable component))
-    t))
-
 ;;; If COMPONENT contains extension components and this generic
 ;;; function returns NIL, it will not pass the validator. The default
 ;;; method returns NIL.
@@ -196,8 +187,7 @@
 ;;; Validate PROPERTY as property of COMPONENT.
 (defgeneric validate-property-in-component (component property)
   (:method ((comp component) (prop property))
-    (unless (and (allow-x-properties comp) (x-name-p (property-name prop)))
-      (error "The property ~a is not a valid in the component ~a" prop comp))))
+    (error "The property ~a is not a valid in the component ~a" prop comp)))
 
 
 ;;; Validate the constrains between different properties in the same
@@ -308,8 +298,10 @@
                      ((comp ,name) (subcomp ,comp-class))))
      ;; Properties validation
      ,@(if given-allow-x-properties
-           `((defmethod allow-x-properties ((x ,name))
-               ,allow-x-properties)))
+           `((defmethod validate-property-in-component ((component ,name) (property x-property))
+               ,(if allow-x-properties
+                    nil
+                    `(error "The property ~a is not a valid in the component ~a" property component)))))
      ;; Declare known properties
      ,@(loop for pname in (property-constrains-names properties)
              for property-class = (or (find-property-class pname) (error "Unknown property name ~a" pname))

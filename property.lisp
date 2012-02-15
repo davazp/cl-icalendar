@@ -20,7 +20,8 @@
 (in-package :cl-icalendar)
 
 (defun find-property-class (name)
-  (translate-to-lisp name :property))
+  (or (translate-to-lisp name :property)
+      (and (x-name-p name) (find-class 'x-property))))
 
 ;;;; Property protocol
 
@@ -43,9 +44,7 @@
 ;;; an iCalendar value.
 (defgeneric make-property (property-name parameters value)
   (:method (property-name parameters value)
-    (let* ((property-class
-            (or (find-property-class property-name)
-                (and (x-name-p property-name) 'x-property)))
+    (let* ((property-class (find-property-class property-name))
            (prop (allocate-property property-class property-name parameters)))
       (initialize-property prop value)
       prop)))
@@ -53,8 +52,7 @@
 
 ;;; Make a property instance from a content line.
 (defun property-from-content-line (property-name parameters string)
-  (let* ((property-class (or (find-property-class property-name)
-                             (and (x-name-p property-name) 'x-property)))
+  (let* ((property-class (find-property-class property-name))
          (property (allocate-property property-class property-name parameters))
          (type (allocated-property-type property))
          (value (unlist (parse-values string type parameters))))
