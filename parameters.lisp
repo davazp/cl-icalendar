@@ -33,6 +33,6 @@
     (loop for (param value) on parameter-list by #'cddr
           when (string= name param) return value)))
 
-#| See content-line.lisp about parameters reading and writting |#
+#| See content-line.lisp about parameters reading and writing |#
 
 ;; parameters.lisp ends here
