@@ -53,10 +53,19 @@
   (:method (component-class name)
     (make-instance component-class :name name)))
 
-(defun make-component (name)
+(defgeneric initialize-component (component &rest initargs)
+  (:method ((component component) &rest initargs)
+    (declare (ignorable initargs))))
+
+(defun make-uninitialized-component (name)
   (let* ((name (string-upcase name))
          (component-class (find-component-class name)))
     (allocate-component component-class name)))
+
+(defun make-component (name &rest initargs)
+  (let ((component (make-uninitialized-component name)))
+    (apply #'initialize-component component initargs)
+    component))
 
 (defmacro properties-with-name (class component)
   `(gethash ,class (property-table ,component)))
@@ -90,6 +99,12 @@
   (let ((property (make-property name parameters value)))
     (add-property-to-component property component)))
 
+;;; Like `add-property', but only add the property if there is not any
+;;; property with the same name in the component already.
+(defun add-new-property (component name parameters value)
+  (unless (query-property component name)
+    (add-property component name parameters value)))
+
 ;;; Return a property of COMPONENT with name PROPRETY-NAME. If ALL-P
 ;;; is present, return the list of all the properties with this name
 ;;; indeed. The behaviour is undefined if the returned list is
@@ -117,7 +132,7 @@
     (cond
       ((string-ci= name "BEGIN")
        (check-type params null)
-       (let ((component (make-component value)))
+       (let ((component (make-uninitialized-component value)))
          (loop with begin-mark = value
                for (object end-mark) = (multiple-value-list (read-object stream))
                while object do
@@ -441,6 +456,13 @@ then the other must so." valarm))
      (:subcomponents vtodo vevent vjournal vfreebusy vtimezone))
   (required "PRODID" "VERSION")
   (once "CALSCALE" "METHOD"))
+
+
+(defmethod initialize-component ((component vcalendar) &key
+                                 (version "2.0")
+                                 (prodid "-//cl-icalendar v0.0//EN"))
+  (add-new-property component "PRODID" nil prodid)
+  (add-new-property component "VERSION" nil version))
 
 (defun read-vcalendar (stream)
   (let ((component (read-component stream)))
