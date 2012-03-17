@@ -24,8 +24,6 @@
 
 (in-package :cl-icalendar-system)
 
-(declaim (optimize (speed 0) (safety 3) (space 0) (debug 3)))
-
 (defsystem :cl-icalendar
   :name "iCalendar library"
   :license "GPLv3+"
