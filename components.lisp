@@ -374,6 +374,9 @@ then the other must so." valarm))
      (valarm-email-constrains valarm))))
 
 
+(defun generate-new-uuid ()
+  (with-output-to-string (o)
+    (print-object (uuid:make-v4-uuid) o)))
 
 ;;; VTODO
 (declare-component vtodo)
@@ -408,6 +411,13 @@ then the other must so." valarm))
   "ATTACH" "ATTENDEE" "CATEGORIES" "COMMENT"
   "CONTACT" "EXDATE" "REQUEST-STATUS" "RELATED-TO"
   "RESOURCES" "RDATE")
+
+(defmethod initialize-component ((component vevent) &key
+                                 (uid (generate-new-uuid))
+                                 (dtstamp (get-universal-time)))
+  (add-new-property component "UID" nil uid)
+  (add-new-property component "DTSTAMP" nil dtstamp))
+
 
 ;;; VJOURNAL
 (declare-component vjournal)
@@ -460,9 +470,12 @@ then the other must so." valarm))
 
 (defmethod initialize-component ((component vcalendar) &key
                                  (version "2.0")
-                                 (prodid "-//cl-icalendar v0.0//EN"))
+                                 (prodid "-//cl-icalendar v0.0//EN")
+                                 (method "PUBLISH"))
   (add-new-property component "PRODID" nil prodid)
-  (add-new-property component "VERSION" nil version))
+  (add-new-property component "VERSION" nil version)
+  (when method
+    (add-new-property component "METHOD" nil method)))
 
 (defun read-vcalendar (stream)
   (let ((component (read-component stream)))
