@@ -44,6 +44,12 @@
   (with-slots (ical>lisp lisp>ical)
       (intern-translation-table entity)
     (let ((icalname (string-upcase icalname)))
+      ;; Remove old associations for OBJECT and ICALNAME.
+      (let ((oldlisp (gethash icalname ical>lisp))
+            (oldical (gethash object lisp>ical)))
+        (remhash oldlisp lisp>ical)
+        (remhash oldical ical>lisp))
+      ;; Set new associations
       (setf (gethash icalname ical>lisp) object)
       (setf (gethash object lisp>ical) icalname)
       (values))))
