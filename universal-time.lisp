@@ -36,7 +36,7 @@
 
 ;;; Decode a universal time.
 (defmacro decoded-universal-time
-    ((&key second minute hour date month year day zone)
+    ((&key second minute hour date month year day zone (timezone nil timezone-p))
      form &body body)
   (let ((vars))
     (flet ((** (x) (or x (car (push (gensym) vars)))))
@@ -44,7 +44,9 @@
              (,(** second)        ,(** minute)          ,(** hour)
               ,(** date)          ,(** month)           ,(** year)
               ,(** day)           ,(** zone))
-           (decode-universal-time ,form)
+           ,(if timezone-p
+                `(decode-universal-time ,form ,timezone)
+                `(decode-universal-time ,form))
          (declare (ignore ,@vars))
          ,@body))))
 

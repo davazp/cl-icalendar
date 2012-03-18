@@ -43,22 +43,21 @@
 (defun register-translation (object icalname entity)
   (with-slots (ical>lisp lisp>ical)
       (intern-translation-table entity)
-    (let ((icalname (string-upcase icalname)))
-      ;; Remove old associations for OBJECT and ICALNAME.
-      (let ((oldlisp (gethash icalname ical>lisp))
-            (oldical (gethash object lisp>ical)))
-        (remhash oldlisp lisp>ical)
-        (remhash oldical ical>lisp))
-      ;; Set new associations
-      (setf (gethash icalname ical>lisp) object)
-      (setf (gethash object lisp>ical) icalname)
-      (values))))
+    ;; Remove old associations for OBJECT and ICALNAME.
+    (let ((oldlisp (gethash icalname ical>lisp))
+          (oldical (gethash object lisp>ical)))
+      (remhash oldlisp lisp>ical)
+      (remhash oldical ical>lisp))
+    ;; Set new associations
+    (setf (gethash icalname ical>lisp) object)
+    (setf (gethash object lisp>ical) icalname)
+    (values)))
 
 ;;; Translate the iCalendar name ICALNAME to a corresponding Lisp
 ;;; object in the ENTITY namespace.
 (defun translate-to-lisp (icalname entity)
   (with-slots (ical>lisp) (intern-translation-table entity)
-    (values (gethash (string-upcase icalname) ical>lisp))))
+    (values (gethash icalname ical>lisp))))
 
 ;;; Translate the Lisp value OBJECT to the corresponding iCalendar
 ;;; name in the ENTITY namespace.

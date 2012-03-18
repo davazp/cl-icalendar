@@ -318,26 +318,41 @@
 ;;; it finds a NON-EXPECT character, it signals an error. If an end of
 ;;; file condition is signaled and EOF-ERROR-P is nil, return nil.
 (defun parse (stream char-bag &optional (not-expect "") (eof-error-p t))
-  (flet (;; Check if CH is a terminal char
-         (terminal-char-p (ch)
+  (declare (optimize speed))
+  (flet ((in (ch char-bag)
+           ;; Check if CH is in CHAR-BAG.
            (etypecase char-bag
              (character (char= ch char-bag))
-             (sequence  (find ch char-bag :test #'char=))
-             (function  (funcall char-bag ch))))
-         ;; Check if CH is not an expected char
-         (not-expect-char-p (ch)
-           (etypecase not-expect
-             (character (char= ch not-expect))
-             (sequence (find ch not-expect :test #'char=))
-             (function (funcall not-expect ch)))))
+             (sequence (find ch char-bag))
+             (function (funcall char-bag ch)))))
     ;; Read characters
     (with-output-to-string (out)
       (loop for ch = (peek-char nil stream eof-error-p)
             until (and (not eof-error-p) (null ch))
-            until (terminal-char-p ch)
-            when (not-expect-char-p ch)
+            until (in ch char-bag)
+            when (in ch not-expect)
             do (error "Character ~w is not expected." ch)
             do (write-char (read-char stream) out)))))
+
+;;; An optimized version of `parse' specific for calls where
+;;; `char-bag' and `not-expected' are simple strings.
+(defun parse-simple (stream char-bag &optional (not-expect "") (eof-error-p t))
+  (declare (optimize speed)
+           (simple-string char-bag not-expect)
+           (boolean eof-error-p))
+  ;; Read characters
+  (with-output-to-string (out)
+    (loop for ch = (peek-char nil stream eof-error-p)
+          until (and (not eof-error-p) (null ch))
+          until (find (the character ch) char-bag)
+          when (find (the character ch) not-expect)
+          do (error "Character ~w is not expected." ch)
+          do (write-char (read-char stream) out))))
+
+(define-compiler-macro parse (&whole form stream char-bag &optional (not-expect "") (eof-error-p t))
+  (if (and (stringp char-bag) (stringp not-expect))
+      `(parse-simple ,stream ,char-bag ,not-expect ,eof-error-p)
+      form))
 
 
 ;;;; Comparators
@@ -350,7 +365,6 @@
 
 ;;; Like `string=' but it is case-insensitive.
 (defun string-ci= (str1 str2)
-  (declare (string str1 str2))
   (and (= (length str1) (length str2))
        (every #'char-ci= str1 str2)))
 
@@ -394,7 +408,8 @@
 
 ;;; Like `parse-integer' but it is not allowed to have a sign (+\-).
 (defun parse-unsigned-integer (string &rest keyargs &key (start 0) end &allow-other-keys)
-  (unless (or (eql start end) (digit-char-p (elt string start)))
+  (declare (string string))
+  (unless (or (eql start end) (digit-char-p (char string start)))
     (error "~w is not an unsigned integer." string))
   (apply #'parse-integer string keyargs))
 

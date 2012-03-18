@@ -29,7 +29,7 @@
 ;;; Get the value of the parameter, whose name is given in the string
 ;;; designator PARAMETER, in the given PARAMETER-LIST.
 (defun parameter (parameter parameter-list)
-  (let ((name (string-upcase (string parameter))))
+  (let ((name (string parameter)))
     (loop for (param value) on parameter-list by #'cddr
           when (string= name param) return value)))
 

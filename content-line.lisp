@@ -23,9 +23,9 @@
 (defun read-params-value (stream)
   (if (char= (peek-char nil stream) #\")
       (prog2 (read-char stream)
-          (parse stream "#\"" #\newline)
+          (parse stream "#\"" #.(string #\newline))
         (read-char stream))
-      (string-upcase (parse stream ",;:" #\Newline))))
+      (string-upcase (parse stream ",;:" #.(string #\Newline)))))
 
 (defun read-params-values (stream)
   (unlist
@@ -38,7 +38,7 @@
 (defun read-params (stream)
   (with-collect
     (while (char= (read-char stream) #\;)
-      (let ((name (parse stream "=" (coerce #(#\Newline #\: #\;) 'string))))
+      (let ((name (parse stream "=" #.(coerce #(#\Newline #\: #\;) 'string))))
         (read-char stream)
         (collect (string-upcase name))
         (collect (read-params-values stream))))))
@@ -50,7 +50,7 @@
                   (char= ch #\space)
                   (char= ch #\tab))
         do (read-char stream))
-  (values (parse stream ";:" #\Newline)
+  (values (string-upcase (parse stream ";:" #.(string #\Newline)))
           (read-params stream)
           (read-line stream)))
 

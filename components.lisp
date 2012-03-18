@@ -58,8 +58,7 @@
     (declare (ignorable initargs))))
 
 (defun make-uninitialized-component (name)
-  (let* ((name (string-upcase name))
-         (component-class (find-component-class name)))
+  (let* ((component-class (find-component-class name)))
     (allocate-component component-class name)))
 
 (defun make-component (name &rest initargs)
@@ -290,8 +289,8 @@
 ;;; CLHS says: "If a defclass form appears as a top level form, the
 ;;; compiler must make the class name be recognized as a valid type
 ;;; name in..." So we have to define the classes separately.
-(defmacro declare-component (name)
-  `(defclass ,name (standard-component) nil))
+(defmacro declare-component (name &optional abstract-components)
+  `(defclass ,name (,@abstract-components standard-component) nil))
 
 ;;; Define a component.
 (defmacro define-component (name options &body body)

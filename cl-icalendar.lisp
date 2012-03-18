@@ -21,7 +21,7 @@
 (in-package :cl-icalendar)
 
 (defun open-vcalendar (pathname)
-  (with-open-file (infile pathname :element-type '(unsigned-byte 8))
+  (with-open-file (infile pathname :element-type :default)
     (with-folding-stream (in infile)
       (read-vcalendar in))))
 

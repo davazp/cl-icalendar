@@ -20,16 +20,10 @@
 
 (in-package :cl-icalendar)
 
-;;; FIXME: flexi-streams requires a binary (or bivalent) stream. We
-;;; would like to avoid this restriction.
-
 (defconstant +tab-character+ (code-char #x09))
 
 (defconstant +content-line-max-length+ 75)
 
-;;; We build folding-stream upon flexi-streams. They are supposed to
-;;; implement CRLF end of line style and UTF-8 encoding. Column octets
-;;; counting is implemented by folding-stream.
 (defclass folding-stream (fundamental-character-input-stream
                           fundamental-character-output-stream)
   ((column-octets
@@ -38,13 +32,12 @@
     :reader folding-column-octets)
    (backend-stream
     :initform (required-arg)
-    :type flex:flexi-stream
+    :type stream
     :initarg :stream
     :reader folding-backend-stream)))
 
 (defun make-folding-stream (stream)
-  (let ((fs (flex:make-flexi-stream stream :external-format '(:utf-8 :eol-style :crlf))))
-    (make-instance 'folding-stream :stream fs)))
+  (make-instance 'folding-stream :stream stream))
 
 (defmacro with-folding-stream ((var stream) &body code)
   `(with-open-stream (,var (make-folding-stream ,stream))
@@ -56,15 +49,19 @@
 
 (defmethod stream-read-char ((stream folding-stream))
   (with-slots (backend-stream) stream
-    (let ((character (stream-read-char backend-stream)))
+    (let ((character (read-char backend-stream)))
       (cond
         ((eq character :eof) :eof)
+        ;; #\return #\newline => #\newline
+        ((char= character #\return)
+         (when (eql (peek-char nil backend-stream nil) #\newline)
+           (stream-read-char stream)))
         ((and (char= character #\newline)
               (linear-whitespace-p
                (peek-char nil backend-stream nil #\A)))
          ;; Skip the newline from folding algorithm and go on.
-         (stream-read-char backend-stream)
-         (stream-read-char backend-stream))
+         (read-char backend-stream)
+         (read-char backend-stream))
         (t
          character)))))
 
@@ -73,16 +70,19 @@
 
 (defmethod stream-write-char ((stream folding-stream) character)
   (with-slots (column-octets backend-stream) stream
-    (let* ((external-format (flex:flexi-stream-external-format backend-stream))
-           (size (flex:octet-length (string character) :external-format external-format)))
-      (when (> (+ column-octets size) +content-line-max-length+)
-        (stream-write-char backend-stream #\newline)
-        (stream-write-char backend-stream #\space)
-        (zerof column-octets))
-      (if (char= character #\newline)
-          (zerof column-octets)
-          (incf column-octets size))
-      (stream-write-char backend-stream character))))
+    (let* ((encoded (babel:string-to-octets
+                     (if (char= character #\newline)
+                         #.(coerce '(#\return #\linefeed) 'string)
+                         (string character))))
+           (size (length encoded)))
+         (when (> (+ column-octets size) +content-line-max-length+)
+           (stream-write-char stream #\newline)
+           (stream-write-char stream #\space)
+           (zerof column-octets))
+         (if (char= character #\linefeed)
+             (zerof column-octets)
+             (incf column-octets size))
+         (write-sequence encoded backend-stream))))
 
 (defmethod stream-line-column ((stream folding-stream))
   (stream-line-column (folding-backend-stream stream)))
