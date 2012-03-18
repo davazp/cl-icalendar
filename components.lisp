@@ -107,7 +107,7 @@
 
 ;;; Return a property of COMPONENT with name PROPRETY-NAME. If ALL-P
 ;;; is present, return the list of all the properties with this name
-;;; indeed. The behaviour is undefined if the returned list is
+;;; instead. The behaviour is undefined if the returned list is
 ;;; modified destructively.
 (defun query-property (component property-name &optional all-p)
   (let ((list (gethash property-name (property-table component))))

@@ -135,7 +135,7 @@
 
 ;;; Mark a function as deprecated. When FUNCTION is called, it signals
 ;;; a simple warning. If REPLACEMENT is given, it will recommend to
-;;; use REPLACEMENT indeed.
+;;; use REPLACEMENT instead.
 ;;;
 ;;; FUNCTION and REPLACEMENT are symbols.
 (defmacro deprecate-function (function &body ignore &key replacement)
@@ -143,7 +143,7 @@
   (declare (symbol function replacement))
   `(define-compiler-macro ,function (&whole form &rest args)
      (declare (ignore args))
-     (warn "Function ~a is deprecated. ~@[Use ~a indeed.~]"
+     (warn "Function ~a is deprecated. ~@[Use ~a instead.~]"
            ',function ',replacement)
      form))
 
@@ -270,7 +270,7 @@
 ;;; delete-nth is like remove-nth but it could modify the list.
 ;;;
 ;;; NOTE: if you want delete the nth element of the value of a
-;;; variable V, you should use '(setf v (delete-nth n v))', indeed of
+;;; variable V, you should use '(setf v (delete-nth n v))', instead of
 ;;; '(delete-nth n v)', just as the standard delete function.
 (defun delete-nth (n list)
   (declare (type (integer 0 *) n) (list list))

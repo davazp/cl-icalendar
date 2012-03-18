@@ -61,7 +61,7 @@
 (progn
   ;; The binary data value must be written as a base64-encoded
   ;; sequence. Therefore, the ENCODING=BASE64 parameter should be
-  ;; present. We don't check this here; indeed, we trust in the caller
+  ;; present. We don't check this here; instead, we trust in the caller
   ;; (property code basically) will do the right thing.
   (defmethod format-value (value (type (eql 'binary)) &optional params)
     (declare (ignore params) (type binary value))
