@@ -23,7 +23,7 @@ The following libraries are required in order to use cl-icalendar:
   o uuid
     http://www.cliki.net/uuid
 
-  o flexi-streams
-    http://www.cliki.net/Flexi-streams
+  o Babel
+    http://www.cliki.net/Babel
 
 You can get all them using Quicklisp or asdf-install.
