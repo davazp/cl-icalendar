@@ -395,6 +395,13 @@ then the other must so." valarm))
 
 ;;; VEVENT
 (declare-component vevent)
+
+(defprinter (event vevent)
+  (let ((summary (query-property event "SUMMARY")))
+    (if summary
+        (prin1 (property-value summary))
+        (write-string ":NO-SUMMARY"))))
+
 (define-component vevent
     ((:subcomponents valarm))
   (required-once "DTSTAMP" "UID")
