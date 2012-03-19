@@ -459,12 +459,23 @@ then the other must so." valarm))
   (once "LAST-MODIFIED" "TZURL"))
 
 ;;; VCALENDAR
-(declare-component vcalendar)
+
+(defclass vcalendar (standard-component)
+  ((uid-table
+    :initform (make-hash-table :test #'equalp)
+    :reader uid-table)))
+
 (define-component vcalendar 
     ((:allow-x-components . t)
      (:subcomponents vtodo vevent vjournal vfreebusy vtimezone))
   (required "PRODID" "VERSION")
   (once "CALSCALE" "METHOD"))
+
+(defmethod add-subcomponent-to-component :after
+    ((event vevent) (component vcalendar))
+  (let ((uid (query-property event "UID")))
+    (when uid
+      (setf (gethash (property-value uid) (uid-table component)) event))))
 
 
 (defmethod initialize-component ((component vcalendar) &key
