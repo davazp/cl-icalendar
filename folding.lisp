@@ -68,6 +68,21 @@
 (defmethod stream-unread-char ((stream folding-stream) character)
   (unread-char character (folding-backend-stream stream)))
 
+;;; This method is redundant as we have defined stream-read-char, but
+;;; we provide it due to performance reasons.
+(defmethod stream-read-line ((stream folding-stream))
+  (let ((backend (folding-backend-stream stream))
+        (output (make-string-output-stream))
+        line missing-newline-p
+        (finishp nil))
+    (while (not finishp)
+      (multiple-value-setq (line missing-newline-p) (read-line backend nil))
+      (write-string (string-right-trim (list #\return) line) output)
+      (if (linear-whitespace-p (peek-char nil backend nil #\A))
+          (read-char backend)
+          (setq finishp t)))
+    (values (get-output-stream-string output) missing-newline-p)))
+
 (defmethod stream-write-char ((stream folding-stream) character)
   (with-slots (column-octets backend-stream) stream
     (let* ((encoded (babel:string-to-octets

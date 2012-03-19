@@ -318,7 +318,6 @@
 ;;; it finds a NON-EXPECT character, it signals an error. If an end of
 ;;; file condition is signaled and EOF-ERROR-P is nil, return nil.
 (defun parse (stream char-bag &optional (not-expect "") (eof-error-p t))
-  (declare (optimize speed))
   (flet ((in (ch char-bag)
            ;; Check if CH is in CHAR-BAG.
            (etypecase char-bag
@@ -336,6 +335,7 @@
 
 ;;; An optimized version of `parse' specific for calls where
 ;;; `char-bag' and `not-expected' are simple strings.
+(declaim (inline parse-simple))
 (defun parse-simple (stream char-bag &optional (not-expect "") (eof-error-p t))
   (declare (optimize speed)
            (simple-string char-bag not-expect)
