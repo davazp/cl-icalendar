@@ -275,6 +275,9 @@
 (defclass standard-component (component)
   nil)
 
+(defmethod validate-property-in-component
+    ((component standard-component) (property  x-property)))
+
 ;;; Extension components
 (defclass x-component (component)
   nil)
