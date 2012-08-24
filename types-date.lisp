@@ -42,7 +42,7 @@
     (%parse-error "parse error."))
   (let ((d (parse-unsigned-integer string :start 6 :end 8))
         (m (parse-unsigned-integer string :start 4 :end 6))
-        (y (parse-unsigned-integer string :start 0 :end 4)))
+        (y (max (parse-unsigned-integer string :start 0 :end 4) 1900)))
     (encode-date d m y)))
 
 
