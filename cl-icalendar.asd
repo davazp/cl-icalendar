@@ -36,7 +36,7 @@
    ;; Source code
    (:file "package")
    (:file "utils")
-   (:file "error")
+   (:file "conditions")
    (:file "translate")
    (:file "parameters")
    (:file "types")
