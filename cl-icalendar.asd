@@ -64,8 +64,7 @@
              (:doc-file "version.texi")))))
 
 (defmethod perform ((op test-op) (c (eql (find-system :cl-icalendar))))
-  (operate 'load-op ':cl-icalendar-tests)
-  (operate 'test-op ':cl-icalendar-tests))
+  (test-system :cl-icalendar-tests))
 
 
 ;; cl-icalendar.asd ends here
