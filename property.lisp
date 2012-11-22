@@ -39,6 +39,9 @@
 ;;; must satisfy the type returned by `allocated-proprety-type'.
 (defgeneric initialize-property (property value))
 
+;;; Parse a string as value of a property.
+(defmethod parse-property-value (property string))
+
 ;;; Make an instance of a property. PROPERTY is a string. PARAMETERS
 ;;; is a list of parameters as described in parameters.lisp. VALUE is
 ;;; an iCalendar value.
@@ -54,8 +57,7 @@
 (defun property-from-content-line (property-name parameters string)
   (let* ((property-class (find-property-class property-name))
          (property (allocate-property property-class property-name parameters))
-         (type (allocated-property-type property))
-         (value (unlist (parse-values string type parameters))))
+         (value (parse-property-value property string)))
     (initialize-property property value)
     property))
 
@@ -131,6 +133,11 @@
 (defmethod initialize-property ((allocated-property property) value)
   (setf (slot-value allocated-property 'value) value))
 
+(defmethod parse-property-value ((prop property) string)
+  (let ((type (allocated-property-type prop))
+        (params (property-parameters prop)))
+    (parse-value string type params)))
+
 (defmethod print-object ((prop property) stream)
   (print-unreadable-object (prop stream)
     (write-property* prop stream)))
@@ -203,6 +210,11 @@
 ;;; Properties which allow multiple values in the same property
 (defclass multiple-value-property (property)
   nil)
+
+(defmethod parse-property-value ((prop multiple-value-property) string)
+  (let ((type (allocated-property-type prop))
+        (params (property-parameters prop)))
+    (parse-values string type params)))
 
 (defmethod validate-property-value ((prop multiple-value-property))
   (let ((values (mklist (property-value prop)))
