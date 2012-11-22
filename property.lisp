@@ -214,6 +214,10 @@
 
 ;;; Standard properties
 
+;;; Define a standard property. See the examples. Just note that if
+;;; you provide MULTIPLE-VALUE-P, then the first type of the list TYPE
+;;; will be used as default type if the property parameter VALUE is
+;;; ommited.
 (defmacro define-property (real-name &key
                            type (multiple-value-p nil) (parameters nil)
                            (allow-x-parameters-p t) (allow-other-parameters-p nil))
@@ -230,7 +234,7 @@
     (when multiple-type-p
       (unless default-type
         (error "You must specify a default type for each multiple-type-property"))
-      (push 'multiple-type-property superclasses))    
+      (push 'multiple-type-property superclasses))
     (when multiple-value-p
       (push 'multiple-value-property superclasses))
     ;; Expansion
