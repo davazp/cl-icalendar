@@ -48,76 +48,8 @@
     :initform nil
     :accessor subcomponents)))
 
-;;; Make an empty instance of a component class.
-(defgeneric allocate-component (component-class name)
-  (:method (component-class name)
-    (make-instance component-class :name name)))
-
-(defgeneric initialize-component (component &rest initargs)
-  (:method ((component component) &rest initargs)
-    (declare (ignorable initargs))))
-
-(defun make-uninitialized-component (name)
-  (let* ((component-class (find-component-class name)))
-    (allocate-component component-class name)))
-
-(defun make-component (name &rest initargs)
-  (let ((component (make-uninitialized-component name)))
-    (apply #'initialize-component component initargs)
-    component))
-
-(defmacro properties-with-name (class component)
-  `(gethash ,class (property-table ,component)))
-
-(defgeneric add-property-to-component (property component)
-  (:method ((property property) (component component))
-    (let ((name (property-name property)))
-      (push property (properties-with-name name component))
-      property)))
-
-(defgeneric delete-property-from-component (property component)
-  (:method ((property property) (component component))
-    (let ((pname (property-name property)))
-      (symbol-macrolet ((plist (properties-with-name pname component)))
-        (setf plist (delete property plist))))))
-
-(defgeneric add-subcomponent-to-component (subcomponent component)
-  (:method ((subcomponent component) (component component))
-    (setf (slot-value subcomponent 'parent) component)
-    (push subcomponent (subcomponents component))
-    subcomponent))
-
-(defgeneric delete-subcomponent-from-component (subcomponent component)
-  (:method ((subcomponent component) (component component))
-    (setf (subcomponents component) (delete subcomponent (subcomponents component)))))
-
-
-;;; Add the property named NAME, with the given PARAMETERS and VALUE
-;;; to the list of properties of COMPONENT.
-(defun add-property (component name parameters value)
-  (let ((property (make-property name parameters value)))
-    (add-property-to-component property component)))
-
-;;; Like `add-property', but only add the property if there is not any
-;;; property with the same name in the component already.
-(defun add-new-property (component name parameters value)
-  (unless (query-property component name)
-    (add-property component name parameters value)))
-
-;;; Return a property of COMPONENT with name PROPRETY-NAME. If ALL-P
-;;; is present, return the list of all the properties with this name
-;;; instead. The behaviour is undefined if the returned list is
-;;; modified destructively.
-(defun query-property (component property-name &optional all-p)
-  (let ((list (gethash property-name (property-table component))))
-    (if all-p list (first list))))
-
-;;; Delete PROPERTY of the table of properties of COMPONENT.
-(defun delete-property (component property)
-  (delete-property-from-component property component))
-
-;;; Iterate across the properties in a component. 
 (defmacro do-property ((propertyvar component &optional result) &body body)
+  "Iterate across the properties in a component."
   (with-gensyms (ptable key value)
     `(let ((,ptable (property-table ,component)))
        (do-hash-table (,key ,value) ,ptable
@@ -126,64 +58,83 @@
          (map nil (lambda (,propertyvar) ,@body) ,value)
          ,result))))
 
-(defun read-object (stream)
-  (multiple-value-bind (name params value) (read-content-line stream)
-    (cond
-      ((string-ci= name "BEGIN")
-       (check-type params null)
-       (let ((component (make-uninitialized-component value)))
-         (loop with begin-mark = value
-               for (object end-mark) = (multiple-value-list (read-object stream))
-               while object do
-               (typecase object
-                 (property (add-property-to-component object component))
-                 (component (add-subcomponent-to-component object component)))
-               finally
-               (unless (string-ci= begin-mark end-mark)
-                 (error "A END:~:@(~a~) was expected, but it found a END:~a"
-                        begin-mark end-mark)))
-         component))
-      ((string-ci= name "END")
-       (check-type params null)
-       (values nil value))
-      (t
-       (let ((property (property-from-content-line name params value)))
-         property)))))
+(defmacro do-components ((componentvar component &optional result) &body body)
+  "Iterate across the subcomponents in a component."
+  `(dolist (,componentvar (subcomponents ,component) ,result)
+     ,@body))
 
-;;; Read a component or property from STREAM.
-(defun read-component (stream)
-  (let ((object (read-object stream)))
-    (check-type object component)
-    object))
+;;;; Initialization protocol
 
-;;; Write COMPONENT to STREAM.
-(defun write-component (component stream)
-  (let ((name (component-name component)))
-    (write-content-line "BEGIN" nil name stream)
-    (do-property (prop component)
-      (write-property prop stream))
-    (dolist (comp (subcomponents component))
-      (write-component comp stream))
-    (write-content-line "END" nil name stream)))
+(defgeneric allocate-component (component-class name)
+  (:method (component-class name)
+    (make-instance component-class :name name))
+  (:documentation "Make an empty instance of a component class."))
 
-
-;;; Component validation
+(defgeneric initialize-component (component &rest initargs)
+  (:method ((component component) &rest initargs)
+    (declare (ignorable initargs)))
+  (:documentation "Initialize a component with a set of convenient
+  default properties and subcomponents."))
 
-;;; Validate a component. By default, call to the generic functions:
-;;;
-;;;    o `validate-property-in-component'
-;;;    o `validate-property-constrains'
-;;;    o `validate-subcomponent-in-component'
-;;; 
+(defun make-component (name &rest initargs)
+  "Make a instance of the component whose whose name is NAME."
+  (let* ((component-class (find-component-class name))
+         (component (allocate-component component-class name)))
+    (apply #'initialize-component component initargs)
+    component))
+
+
+;;;; Subcomponents and properties protocol
+
+;; Return the list of properties in component with name CLASS.
+(defmacro properties-with-name (name component)
+  `(gethash ,name (property-table ,component)))
+
+(defgeneric add-property-to-component (property component)
+  (:method ((property property) (component component))
+    (let ((name (property-name property)))
+      (push property (properties-with-name name component))
+      property))
+  (:documentation "Add PROPERTY to COMPONENT."))
+
+(defgeneric delete-property-from-component (property component)
+  (:method ((property property) (component component))
+    (let ((pname (property-name property)))
+      (symbol-macrolet ((plist (properties-with-name pname component)))
+        (setf plist (delete property plist)))))
+  (:documentation "Delete PROPERTY from COMPONENT."))
+
+(defgeneric add-subcomponent-to-component (subcomponent component)
+  (:method ((subcomponent component) (component component))
+    (setf (slot-value subcomponent 'parent) component)
+    (push subcomponent (subcomponents component))
+    subcomponent)
+  (:documentation "Add SUBCOMPONENT to COMPONENT."))
+
+(defgeneric delete-subcomponent-from-component (subcomponent component)
+  (:method ((subcomponent component) (component component))
+    (setf (subcomponents component) (delete subcomponent (subcomponents component))))
+  (:documentation "Delete SUBCOMPONENT from COMPONENT."))
+
+
+;;; Validation protocol
+
 (defgeneric validate-component (component)
   (:method ((component component))
     (do-property (prop component)
       (validate-property prop)
       (validate-property-in-component component prop))
-    (dolist (comp (subcomponents component))
+    (do-components (comp component)
       (validate-component comp)
       (validate-subcomponent-in-component component comp))
-    (validate-property-constrains component)))
+    (validate-property-constrains component))
+  (:documentation "Validate a component. By default, call to the
+generic functions:
+
+    o `validate-property-in-component'
+    o `validate-property-constrains'
+    o `validate-subcomponent-in-component'
+"))
 
 (defgeneric invalid-subcomponent (component subcomponent)
   (:method ((comp component) (subcomp component))
@@ -193,25 +144,26 @@
   (:method ((comp component) (prop property))
     (error "The property ~a is not a valid in the component ~a" prop comp)))
 
-;;; Validate SUBCOMPONENT as subcomponent of COMPONENT.
 (defgeneric validate-subcomponent-in-component (component subcomponent)
   (:method ((comp component) (subcomp component))
-    (invalid-subcomponent comp subcomp)))
+    (invalid-subcomponent comp subcomp))
+  (:documentation "Validate SUBCOMPONENT as subcomponent of COMPONENT."))
 
-;;; Validate PROPERTY as property of COMPONENT.
 (defgeneric validate-property-in-component (component property)
-    (:method ((comp component) (prop property))
-    (invalid-property comp prop)))
+  (:method ((comp component) (prop property))
+    (invalid-property comp prop))
+  (:documentation "Validate PROPERTY as property of COMPONENT."))
 
-
-;;; Validate the constrains between different properties in the same
-;;; component. It is used, for example, to avoid multiple instances of
-;;; some properties in a component. But also to implement more
-;;; complicated constrains. See the `property-constrains' macro
-;;; facility.
 (defgeneric validate-property-constrains (component)
-  (:method ((comp component))
-    nil))
+  (:method ((comp component)) nil)
+  (:documentation "Validate the constrains between different
+properties in the same component. It is used, for example, to avoid
+multiple instances of some properties in a component. But also to
+implement more complicated constrains. See the `property-constrains'
+macro facility."))
+
+
+;;;; Standard components
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
   ;; Return the property names in the constrain RULE.
@@ -219,7 +171,7 @@
     (cond
       ((stringp rule)
        (list rule))
-      ((and (listp rule) (neq (car rule) 'quote)) 
+      ((and (listp rule) (neq (car rule) 'quote))
        (delete-duplicates
         (reduce #'append (mapcar #'property-constrains-names rule))
         :test #'string-ci=))))
@@ -277,14 +229,13 @@
                          (once ,@properties))))
            ,@(replace-property-names-with-vars environment body))))))
 
-
-;;;; Standard components
+
 
 (defclass standard-component (component)
   nil)
 
 (defmethod validate-property-in-component
-    ((component standard-component) (property  x-property)))
+    ((component standard-component) (property x-property)))
 
 ;;; Extension components
 (defclass x-component (component)
@@ -305,7 +256,7 @@
 
 ;;; Define a component.
 (defmacro define-component (name options &body body)
-  `(define-component-1 ,name 
+  `(define-component-1 ,name
        ,@(loop for (option . value) in options append `(,option ,value))
      :properties ,body))
 
@@ -320,7 +271,7 @@
      ;; Subcomponents validation
      ,@(if given-allow-x-components
            `((defmethod validate-subcomponent-in-component ((component ,name) (subcomponent x-component))
-               ,(or allow-x-components `(invalid-subcomponent component subcomponent)))))     
+               ,(or allow-x-components `(invalid-subcomponent component subcomponent)))))
      ,@(loop for comp-class in subcomponents collect
                 `(defmethod validate-subcomponent-in-component
                      ((comp ,name) (subcomp ,comp-class))))
@@ -368,7 +319,7 @@
 (define-component valarm ()
   (required-once "ACTION" "TRIGGER")
   (unless (eql (and "DURATION" t) (and "REPEAT" t))
-    (error '"If the DURATION or REPEAT property appears in the component ~a, 
+    (error '"If the DURATION or REPEAT property appears in the component ~a,
 then the other must so." valarm))
   ;; Declare possible properties
   "ATTACH" "DESCRIPTION" "SUMMARY" "ATTENDEE"
@@ -422,7 +373,7 @@ then the other must so." valarm))
         "SUMMARY" "TRANSP" "URL" "RECURRENCE-ID" "RRULE")
   (once "DTEND" "DURATION")
   (when (and "DTEND" "DURATION")
-    (error '"DTEND and DURATION properties MUST NOT occur in ~a at same time." vevent))  
+    (error '"DTEND and DURATION properties MUST NOT occur in ~a at same time." vevent))
   "ATTACH" "ATTENDEE" "CATEGORIES" "COMMENT"
   "CONTACT" "EXDATE" "REQUEST-STATUS" "RELATED-TO"
   "RESOURCES" "RDATE")
@@ -442,7 +393,7 @@ then the other must so." valarm))
         "LAST-MODIFIED" "ORGANIZER" "RECURRENCE-ID" "SEQUENCE"
         "STATUS" "SUMMARY" "URL" "RRULE")
 
-  "ATTACH" "ATTENDEE" "CATEGORIES" "COMMENT" 
+  "ATTACH" "ATTENDEE" "CATEGORIES" "COMMENT"
   "CONTACT" "DESCRIPTION" "EXDATE" "RELATED-TO" "RDATE"
   "REQUEST-STATUS")
 
@@ -481,7 +432,7 @@ then the other must so." valarm))
     :initform (make-hash-table :test #'equalp)
     :reader uid-table)))
 
-(define-component vcalendar 
+(define-component vcalendar
     ((:allow-x-components . t)
      (:subcomponents vtodo vevent vjournal vfreebusy vtimezone))
   (required "PRODID" "VERSION")
@@ -517,5 +468,72 @@ then the other must so." valarm))
 (defmethod allocate-component ((component-class null) name)
   (make-instance 'unknown-component :name name))
 
+
+;;;; Aplication programmer Interface (API)
+
+(defun add-property (component name parameters value)
+  "Add the property named NAME, with the given PARAMETERS and VALUE to
+the list of properties of COMPONENT."
+  (let ((property (make-property name parameters value)))
+    (add-property-to-component property component)))
+
+(defun add-new-property (component name parameters value)
+  "Like `add-property', but only add the property if there is not any
+property with the same name in the component already."
+  (unless (query-property component name)
+    (add-property component name parameters value)))
+
+(defun query-property (component property-name &optional all-p)
+  "Return a property of COMPONENT with name PROPRETY-NAME. If ALL-P is
+present, return the list of all the properties with this name
+instead. The behaviour is undefined if the returned list is modified
+destructively."
+  (let ((list (gethash property-name (property-table component))))
+    (if all-p list (first list))))
+
+(defun delete-property (component property)
+  "Delete PROPERTY of the table of properties of COMPONENT."
+  (delete-property-from-component property component))
+
+(defun read-object (stream)
+  (multiple-value-bind (name params value) (read-content-line stream)
+    (cond
+      ((string-ci= name "BEGIN")
+       (check-type params null)
+       (let* ((component-class (find-component-class value))
+              (component (allocate-component component-class value)))
+         (loop with begin-mark = value
+               for (object end-mark) = (multiple-value-list (read-object stream))
+               while object do
+               (typecase object
+                 (property (add-property-to-component object component))
+                 (component (add-subcomponent-to-component object component)))
+               finally
+               (unless (string-ci= begin-mark end-mark)
+                 (error "A END:~:@(~a~) was expected, but it found a END:~a"
+                        begin-mark end-mark)))
+         component))
+      ((string-ci= name "END")
+       (check-type params null)
+       (values nil value))
+      (t
+       (let ((property (property-from-content-line name params value)))
+         property)))))
+
+(defun read-component (stream)
+  "Read a component or property from STREAM."
+  (let ((object (read-object stream)))
+    (check-type object component)
+    object))
+
+(defun write-component (component stream)
+  "Write COMPONENT to STREAM."
+  (let ((name (component-name component)))
+    (write-content-line "BEGIN" nil name stream)
+    (do-property (prop component)
+      (write-property prop stream))
+    (dolist (comp (subcomponents component))
+      (write-component comp stream))
+    (write-content-line "END" nil name stream)))
 
 ;;; components.lisp ends here
