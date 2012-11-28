@@ -23,9 +23,6 @@
   (:nicknames :icalendar :ical)
   (:use :common-lisp :trivial-gray-streams)
   (:shadow #:time #:standard :method)
-  ;; If it is running on SBCL, lock the package.
-  #+sbcl (:lock t)
-
   ;; Exported symbols. It could be mantained for each file separately,
   ;; however I think it will help to keep the API stable so.
 
@@ -82,6 +79,15 @@
            #:vfreebusy
            #:vtimezone
            #:standard
-           #:daylight))
+           #:daylight
+           ;; Functions
+           #:do-property
+           #:do-components
+           #:add-property
+           #:add-new-property
+           #:query-property
+           #:delete-property
+           #:read-component
+           #:write-component))
 
 ;;; package.lisp ends here
