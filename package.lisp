@@ -23,14 +23,11 @@
   (:nicknames :icalendar :ical)
   (:use :common-lisp :trivial-gray-streams)
   (:shadow #:time #:standard :method)
-  ;; If it is running on SBCL, lock the package.
-  #+sbcl (:lock t)
   ;; Exported symbols. It could be mantained for each file separately,
   ;; however I think it will help to keep the API stable so.
-  (:export #:make-folding-stream
-           #:with-folding-stream
-           ;; Data types
-           #:ical-value
+
+  ;; Data types
+  (:export #:ical-value
            #:x-ical-value
            #:utc-offset
            #:format-value
@@ -49,6 +46,10 @@
            ;; Period
            #:period
            #:periodp
+           #:make-period
+           #:period-start
+           #:period-end
+           #:period-duration
            ;; Binary
            #:binary
            #:read-binary-from-stream
@@ -59,6 +60,34 @@
            #:recur
            #:recur-instance-p
            #:do-recur-instances
-           #:list-recur-instances))
+           #:list-recur-instances)
+
+  ;; Properties and components
+  (:export #:make-component
+           #:add-property
+           #:query-property
+           #:delete-property)
+
+  ;; Calendars
+  (:export #:open-vcalendar
+           #:save-vcalendar
+           #:vcalendar
+           #:valarm
+           #:vtodo
+           #:vevent
+           #:vjournal
+           #:vfreebusy
+           #:vtimezone
+           #:standard
+           #:daylight
+           ;; Functions
+           #:do-property
+           #:do-components
+           #:add-property
+           #:add-new-property
+           #:query-property
+           #:delete-property
+           #:read-component
+           #:write-component))
 
 ;;; package.lisp ends here
