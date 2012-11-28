@@ -18,6 +18,8 @@
 ;; along with cl-icalendar.  If not, see <http://www.gnu.org/licenses/>.
 
 (defpackage :cl-icalendar-tests
-  (:use :cl :cl-icalendar :fiveam))
+  (:use :cl :cl-icalendar :fiveam)
+  (:shadow #:standard)
+  (:export #:run-tests))
 
 ;;; package.lisp ends here
