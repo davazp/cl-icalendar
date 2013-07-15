@@ -19,11 +19,6 @@
 ;; along with cl-icalendar.  If not, see <http://www.gnu.org/licenses/>.
 ;;
 
-(defpackage :cl-icalendar-system
-  (:use :cl :asdf))
-
-(in-package :cl-icalendar-system)
-
 (defsystem :cl-icalendar
   :name "iCalendar library"
   :license "GPLv3+"
@@ -61,10 +56,34 @@
             ((:static-file "Makefile")
              (:doc-file "cl-icalendar.texi")
              (:doc-file "fdl.texi")
-             (:doc-file "version.texi")))))
+             (:doc-file "version.texi"))))
 
-(defmethod perform ((op test-op) (c (eql (find-system :cl-icalendar))))
-  (test-system :cl-icalendar-tests))
+  :in-order-to ((test-op (load-op cl-icalendar-tests)))
+  :perform (test-op :after (op c)
+                    (funcall (intern "RUN-TESTS" (find-package :cl-icalendar-tests)))))
+
+
+(defsystem :cl-icalendar-tests
+  :name "iCalendar library tests"
+  :license "GPLv3+"
+  :depends-on (:cl-icalendar :fiveam)
+  :serial t
+  :components
+  ((:module "tests"
+            :serial t
+            :components
+            ((:static-file "test-types.001")
+             (:static-file "test-icalendar.001")
+             (:static-file "test-icalendar.002")
+             (:static-file "test-icalendar.003")
+             (:static-file "test-icalendar.004")
+             (:static-file "test-icalendar.005")
+             (:static-file "test-icalendar.006")
+             (:file "package")
+             (:file "tsuite")
+             (:file "test-types")
+             (:file "test-types-date")
+             (:file "test-types-recur")))))
 
 
 ;; cl-icalendar.asd ends here
