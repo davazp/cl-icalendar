@@ -22,7 +22,7 @@
 (define-condition icalendar-condition ()
   nil)
 
-(define-condition icalendar-error (icalendar-condition error)
+(define-condition icalendar-error (icalendar-condition simple-error)
   nil)
 
 (define-condition icalendar-type-error (icalendar-error)
